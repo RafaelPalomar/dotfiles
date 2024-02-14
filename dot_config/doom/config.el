@@ -76,3 +76,11 @@
 ;; they are implemented.
 
 (setq! org-roam-directory "~/Dropbox/org-roam")
+
+;; Mermaid configuration
+(setq! ob-mermaid-cli-path "/usr/local/bin/mmdc")
+(org-babel-do-load-languages
+    'org-babel-load-languages
+    '((mermaid . t)
+      (scheme . t)
+      (your-other-langs . t)))

@@ -50,3 +50,4 @@
 ;; (unpin! t)
 
 (package! rg)
+(package! ob-mermaid)
