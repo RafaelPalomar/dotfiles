@@ -75,6 +75,7 @@
 ;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
 ;; they are implemented.
 
+;; org-roam directory
 (setq! org-roam-directory "~/Dropbox/org-roam")
 
 ;; Mermaid configuration
@@ -84,3 +85,6 @@
     '((mermaid . t)
       (scheme . t)
       (your-other-langs . t)))
+
+;; Set TRAMP docker to "podman"
+(setq! tramp-docker-program "podman")
