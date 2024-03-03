@@ -40,7 +40,7 @@
 
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
-(setq org-directory "~/org/")
+;;(setq org-directory "~/org/")
 
 
 ;; Whenever you reconfigure a package, make sure to wrap your config in an
@@ -75,9 +75,6 @@
 ;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
 ;; they are implemented.
 
-;; org-roam directory
-(setq! org-roam-directory "~/Dropbox/org-roam")
-
 ;; Mermaid configuration
 (setq! ob-mermaid-cli-path "/usr/local/bin/mmdc")
 (org-babel-do-load-languages
@@ -107,3 +104,28 @@
         (error "API key for gptel not found"))))
   (setq! gptel-api-key #'read-gptel-api-key-from-auth-source)
   (setq! gptel-default-mode 'org-mode))
+
+;; This is inspired by hlissner/doom.d configuration https://github.com/hlissner/.doom.d/
+;; FIX format gives a warning on spelling (it seems to work ok, though)
+(after! org-roam
+  (setq org-roam-capture-templates
+        `(("s" "slipbox" plain
+           ,(format "#+title: ${title}\n" org-roam-directory)
+           :target (file "slipbox/%<%Y%m%d%H%M%S>-${slug}.org")
+           :unnarrowed t)
+          ("m" "main" plain
+           ,(format "#+title: ${title}\n" org-roam-directory)
+           :target (file "main/%<%Y%m%d%H%M%S>-${slug}.org")
+           :unnarrowed t)
+          ("a" "article" plain
+           ,(format "#+title: ${title}\n" org-roam-directory)
+           :target (file "article/%<%Y%m%d%H%M%S>-${slug}.org")
+           :unnarrowed t)
+          ("g" "AI-powered" plain
+           ,(format "#+title: ${title}\n" org-roam-directory)
+           :target (file "ai-notes/%<%Y%m%d%H%M%S>-${slug}.org")
+           :unnarrowed t
+           :hook (lambda () (gptel-mode 1))))
+        org-roam-dailies-capture-templates
+        `(("d" "default" plain ""
+           :target (file+head "%<%Y-%m-%d>.org" ,(format "" org-roam-directory))))))
