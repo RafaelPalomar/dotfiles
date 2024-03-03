@@ -51,3 +51,4 @@
 
 (package! rg)
 (package! ob-mermaid)
+(package! gptel)

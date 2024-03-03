@@ -88,3 +88,22 @@
 
 ;; Set TRAMP docker to "podman"
 (setq! tramp-docker-program "podman")
+
+;; Use the gptel package with some custom configuration
+;; This setup requires the file ~/.authinfo.gpg in the following form:
+;; machine gptel-api-key login <login_email> password <openai_key>
+(use-package! gptel
+  :config
+  (defun read-gptel-api-key-from-auth-source ()
+    "Retrieve the GPTEL API key from auth-source."
+    (let ((credentials (auth-source-search :max 1
+                                           :host "gptel-api-key"
+                                           :require '(:user :secret))))
+      (if credentials
+          (let ((key (plist-get (nth 0 credentials) :secret)))
+            (if (functionp key)
+                (funcall key)
+              key))
+        (error "API key for gptel not found"))))
+  (setq! gptel-api-key #'read-gptel-api-key-from-auth-source)
+  (setq! gptel-default-mode 'org-mode))
