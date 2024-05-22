@@ -49,6 +49,9 @@
 ;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
 ;; (unpin! t)
 
+(unpin! org-roam)
 (package! rg)
 (package! ob-mermaid)
 (package! gptel)
+(package! websocket)
+(package! org-roam-ui)

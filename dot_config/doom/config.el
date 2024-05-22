@@ -3,6 +3,8 @@
 ;; Place your private configuration here! Remember, you do not need to run 'doom
 ;; sync' after modifying this file!
 
+;; allow loading of lisp code from .doom.d
+(add-to-list 'load-path "~/.config/doom")
 
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
 ;; clients, file templates and snippets. It is optional.
@@ -40,7 +42,7 @@
 
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
-;;(setq org-directory "~/org/")
+(setq org-directory "~/Dropbox/org/")
 
 
 ;; Whenever you reconfigure a package, make sure to wrap your config in an
@@ -107,25 +109,113 @@
 
 ;; This is inspired by hlissner/doom.d configuration https://github.com/hlissner/.doom.d/
 ;; FIX format gives a warning on spelling (it seems to work ok, though)
+;; (after! org-roam
+;;   (setq org-roam-capture-templates
+;;         `(("s" "slipbox" plain
+;;            ,(format "#+title: ${title}\n" org-roam-directory)
+;;            :target (file "slipbox/%<%Y%m%d%H%M%S>-${slug}.org")
+;;            :unnarrowed t)
+;;           ("m" "main" plain
+;;            ,(format "#+title: ${title}\n" org-roam-directory)
+;;            :target (file "main/%<%Y%m%d%H%M%S>-${slug}.org")
+;;            :unnarrowed t)
+;;           ("a" "article" plain
+;;            ,(format "#+title: ${title}\n" org-roam-directory)
+;;            :target (file "article/%<%Y%m%d%H%M%S>-${slug}.org")
+;;            :unnarrowed t)
+;;           ("g" "AI-powered" plain
+;;            ,(format "#+title: ${title}\n" org-roam-directory)
+;;            :target (file "ai-notes/%<%Y%m%d%H%M%S>-${slug}.org")
+;;            :unnarrowed t
+;;            :hook (lambda () (gptel-mode 1))))
+;;         org-roam-dailies-capture-templates
+;;         `(("d" "default" plain ""
+;;            :target (file+head "%<%Y-%m-%d>.org" ,(format "" org-roam-directory))))))
+
+
 (after! org-roam
+  :ensure t
+  :custom
+  (setq org-roam-directory (file-truename "~/Dropbox/org"))
+  (setq org-roam-dailies-directory "daily/")
+  (setq org-roam-dailies-capture-templates
+        '(("d" "default" entry
+           "* %?"
+           :target (file+head "%<%Y-%m-%d>.org"
+                              "#+title: %<%Y-%m-%d>\n"))))
+  (add-to-list 'display-buffer-alist
+               '("\\*org-roam\\*"
+                 (display-buffer-in-direction)
+                 (direction . right)
+                 (window-width . 0.33)
+                 (window-height . fit-window-to-buffer)))
   (setq org-roam-capture-templates
-        `(("s" "slipbox" plain
-           ,(format "#+title: ${title}\n" org-roam-directory)
-           :target (file "slipbox/%<%Y%m%d%H%M%S>-${slug}.org")
+        '(
+          ("d" "default" plain "%?"
+           :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n<t")
            :unnarrowed t)
-          ("m" "main" plain
-           ,(format "#+title: ${title}\n" org-roam-directory)
-           :target (file "main/%<%Y%m%d%H%M%S>-${slug}.org")
+          ("m" "meeting" plain "%?"
+           :target (file+head "meetings/%<%Y%m%d%H%M%S>-${slug}.org"
+                              ":PROPERTIES:\n:project: fill\n:people: fill\n:END:\n#+title: ${title} %<%Y-%m-%d>\n#+filetags:")
            :unnarrowed t)
-          ("a" "article" plain
-           ,(format "#+title: ${title}\n" org-roam-directory)
-           :target (file "article/%<%Y%m%d%H%M%S>-${slug}.org")
+          ("t" "main" plain "%?"
+           :target (file+head "main/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n#+filetags:")
            :unnarrowed t)
-          ("g" "AI-powered" plain
-           ,(format "#+title: ${title}\n" org-roam-directory)
-           :target (file "ai-notes/%<%Y%m%d%H%M%S>-${slug}.org")
-           :unnarrowed t
-           :hook (lambda () (gptel-mode 1))))
-        org-roam-dailies-capture-templates
-        `(("d" "default" plain ""
-           :target (file+head "%<%Y-%m-%d>.org" ,(format "" org-roam-directory))))))
+          ("a" "article" plain "%?"
+           :target (file+head "articles/${slug}.org"
+                              "#+title: ${title}\n#+filetags: articles\n#+AUTHOR: Rafael Palomar\n#+DATE: %<%Y-%m-%d>\n#+DESCRIPTION: description")
+           :unnarrowed t)
+          ))
+  :config
+  (org-roam-db-autosync-enable))
+
+(use-package! websocket
+  :after org-roam)
+
+(use-package! org-roam-ui
+  :after org-roam ;; or :after org
+  ;;         normally we'd recommend hooking orui after org-roam, but since org-roam does not have
+  ;;         a hookable mode anymore, you're advised to pick something yourself
+  ;;         if you don't care about startup time, use
+  ;;  :hook (after-init . org-roam-ui-mode)
+  :config
+  (setq org-roam-ui-sync-theme t
+        org-roam-ui-follow t
+        org-roam-ui-update-on-save t
+        org-roam-ui-open-on-start t))
+
+;; Use `citar' with `org-cite'
+;;
+
+(after! oc
+  (setq org-cite-global-bibliography '("~/Dropbox/org/references/references.bib")))
+
+(use-package! citar
+  :after oc
+  :custom
+  (org-cite-insert-processor 'citar)
+  (org-cite-follow-processor 'citar)
+  (org-cite-activate-processor 'citar)
+  (citar-bibliography '("~/Dropbox/org/references/references.bib"))
+  (citar-org-roam-note-title-template "${author} - ${title}\npdf: ${file}")
+  :bind
+  (:map org-mode-map :package org ("C-c b" . #'org-cite-insert)))
+
+
+;; The following fragment is inspired on
+;; https://www.riccardopinosio.com/blog/posts/zotero_notes_article.html
+;; for a workflow based on Zotero and org-roam for scientific note taking
+;; LINK ZOTERO NOTES TO ORG-ROAM VIA CITAR
+
+(load "org-roam-zotero-notes")
+
+(add-hook 'org-mode-hook
+          '(lambda ()
+             (setq org-file-apps
+                   '((auto-mode . emacs)
+                     ("\\.mm\\'" . default)
+                     ("\\.x?html?\\'" . default)
+                     ("\\.pdf\\'" . "evince %s")))))
+
