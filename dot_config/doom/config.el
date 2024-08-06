@@ -219,3 +219,9 @@
                      ("\\.x?html?\\'" . default)
                      ("\\.pdf\\'" . "evince %s")))))
 
+;; Configure denote with citar
+(setq denote-directory "~/Dropbox/Notes/Work")
+(require 'denote-silo-extras)
+'(denote-silo-extras-directories '("~/Dropbox/Notes/Personal"))
+(add-hook 'after-init-hook #'citar-denote-mode)
+

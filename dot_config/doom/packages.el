@@ -55,3 +55,5 @@
 (package! gptel)
 (package! websocket)
 (package! org-roam-ui)
+(package! denote)
+(package! citar-denote)
