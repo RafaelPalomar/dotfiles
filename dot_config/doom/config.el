@@ -225,3 +225,6 @@
 '(denote-silo-extras-directories '("~/Dropbox/Notes/Personal"))
 (add-hook 'after-init-hook #'citar-denote-mode)
 
+;; Set Doom Emacs frame transparency
+(set-frame-parameter (selected-frame) 'alpha '(85 . 85))  ;; Adjust for active/inactive window transparency
+(add-to-list 'default-frame-alist '(alpha . (85 . 85)))    ;; Ensure new frames are transparent too

@@ -24,3 +24,8 @@ if [ -d ~/.bashrc.d ]; then
 fi
 unset rc
 export VAGRANT_DEFAULT_PROVIDER=libvirt
+
+. "$HOME/.atuin/bin/env"
+
+[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh
+eval "$(atuin init bash)"
