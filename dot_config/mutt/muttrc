@@ -1,0 +1,14 @@
+# vim: filetype=neomuttrc
+source /usr/share/mutt-wizard/mutt-wizard.muttrc
+source /home/rafael/.config/mutt/accounts/rafael.palomar@ous-research.no.muttrc
+macro index,pager i1 '<sync-mailbox><enter-command>source /home/rafael/.config/mutt/accounts/rafael.palomar@ous-research.no.muttrc<enter><change-folder>!<enter>;<check-stats>' "switch to rafael.palomar@ous-research.no"
+macro index,pager i2 '<sync-mailbox><enter-command>source /home/rafael/.config/mutt/accounts/rafael.palomar@ntnu.no.muttrc<enter><change-folder>!<enter>;<check-stats>' "switch to rafael.palomar@ntnu.no"
+
+# Sort emails by threads
+set sort = 'threads'
+
+# Sort threads by the most recent message at the top (reverse order)
+set sort_aux = 'reverse-last-date-received'
+
+# Optionally, to enable collapsing of threads
+set collapse_unread = yes

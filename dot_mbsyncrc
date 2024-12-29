@@ -1,0 +1,76 @@
+# IMAPStore rafael.palomar@ous-research.no-remote
+# Host imap.uio.no
+# Port 143
+# User rafaelpa
+# PassCmd "pass rafael.palomar@ous-research.no"
+# AuthMechs LOGIN
+# SSLType STARTTLS
+# CertificateFile /etc/ssl/certs/ca-certificates.crt
+# PipelineDepth 1
+
+# MaildirStore rafael.palomar@ous-research.no-local
+# Subfolders Verbatim
+# Path /home/rafael/.local/share/mail/rafael.palomar@ous-research.no/
+# Inbox /home/rafael/.local/share/mail/rafael.palomar@ous-research.no/INBOX
+
+# Channel rafael.palomar@ous-research.no
+# Expunge Both
+# Master :rafael.palomar@ous-research.no-remote:
+# Slave :rafael.palomar@ous-research.no-local:
+# Patterns * !"[Gmail]/All Mail"
+# Create Both
+# SyncState *
+# MaxMessages 0
+# ExpireUnread no
+# End profile
+
+IMAPStore rafael.palomar@ntnu.no-remote
+Host outlook.office365.com
+Port 993
+User rafael.palomar@ntnu.no
+PassCmd "mutt_oauth2.py ~/.password-store/email/ntnu.gpg"
+AuthMechs XOAUTH2
+SSLType IMAPS
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+MaildirStore rafael.palomar@ntnu.no-local
+Subfolders Verbatim
+Path /home/rafael/.local/share/mail/rafael.palomar@ntnu.no/
+Inbox /home/rafael/.local/share/mail/rafael.palomar@ntnu.no/INBOX
+
+Channel rafael.palomar@ntnu.no
+Expunge Both
+Master :rafael.palomar@ntnu.no-remote:
+Slave :rafael.palomar@ntnu.no-local:
+Patterns * !"[Gmail]/All Mail"
+Create Both
+SyncState *
+MaxMessages 0
+ExpireUnread no
+# End profile
+
+
+IMAPStore rafaelpa@uio.no-remote
+Host outlook.office365.com
+Port 993
+User rafaelpa@uio.no
+PassCmd "mutt_oauth2.py ~/.password-store/rafael-palomar@ous-research.no.gpg"
+AuthMechs XOAUTH2
+SSLType IMAPS
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+MaildirStore rafaelpa@uio.no-local
+Subfolders Verbatim
+Path /home/rafael/.local/share/mail/rafaelpa@uio.no/
+Inbox /home/rafael/.local/share/mail/rafaelpa@uio.no/INBOX
+
+Channel rafaelpa@uio.no
+Expunge Both
+Master :rafaelpa@uio.no-remote:
+Slave :rafaelpa@uio.no-local:
+Patterns * !"[Gmail]/All Mail"
+Create Both
+SyncState *
+MaxMessages 0
+ExpireUnread no
+# End profile
