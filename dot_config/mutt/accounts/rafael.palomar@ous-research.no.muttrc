@@ -4,7 +4,7 @@ set realname = "Rafael Palomar"
 set from = "rafael.palomar@ous-research.no"
 set sendmail="/usr/bin/msmtp -a rafael.palomar@ous-research.no"
 alias me Rafael Palomar <rafael.palomar@ous-research.no>
-set folder = "/home/rafael/.local/share/mail/rafael.palomar@ous-research.no"
+set folder = "/home/rafael/.local/share/mail/rafaelpa@uio.no"
 set header_cache = /home/rafael/.cache/mutt-wizard/rafael.palomar@ous-research.no/headers
 set message_cachedir = /home/rafael/.cache/mutt-wizard/rafael.palomar@ous-research.no/bodies
 set mbox_type = Maildir

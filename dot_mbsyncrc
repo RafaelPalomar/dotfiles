@@ -1,34 +1,8 @@
-# IMAPStore rafael.palomar@ous-research.no-remote
-# Host imap.uio.no
-# Port 143
-# User rafaelpa
-# PassCmd "pass rafael.palomar@ous-research.no"
-# AuthMechs LOGIN
-# SSLType STARTTLS
-# CertificateFile /etc/ssl/certs/ca-certificates.crt
-# PipelineDepth 1
-
-# MaildirStore rafael.palomar@ous-research.no-local
-# Subfolders Verbatim
-# Path /home/rafael/.local/share/mail/rafael.palomar@ous-research.no/
-# Inbox /home/rafael/.local/share/mail/rafael.palomar@ous-research.no/INBOX
-
-# Channel rafael.palomar@ous-research.no
-# Expunge Both
-# Master :rafael.palomar@ous-research.no-remote:
-# Slave :rafael.palomar@ous-research.no-local:
-# Patterns * !"[Gmail]/All Mail"
-# Create Both
-# SyncState *
-# MaxMessages 0
-# ExpireUnread no
-# End profile
-
 IMAPStore rafael.palomar@ntnu.no-remote
 Host outlook.office365.com
 Port 993
 User rafael.palomar@ntnu.no
-PassCmd "mutt_oauth2.py ~/.password-store/email/ntnu.gpg"
+PassCmd "mutt_oauth2.py ~/.password-store/email/ntnu.no"
 AuthMechs XOAUTH2
 SSLType IMAPS
 CertificateFile /etc/ssl/certs/ca-certificates.crt
@@ -54,7 +28,7 @@ IMAPStore rafaelpa@uio.no-remote
 Host outlook.office365.com
 Port 993
 User rafaelpa@uio.no
-PassCmd "mutt_oauth2.py ~/.password-store/rafael-palomar@ous-research.no.gpg"
+PassCmd "mutt_oauth2.py ~/.password-store/email/uio.no"
 AuthMechs XOAUTH2
 SSLType IMAPS
 CertificateFile /etc/ssl/certs/ca-certificates.crt

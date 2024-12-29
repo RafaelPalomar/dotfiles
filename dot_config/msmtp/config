@@ -1,23 +1,22 @@
-account rafael.palomar@ous-research.no
-host smtp.uio.no
-port 587
-from rafael.palomar@ous-research.no
-user rafaelpa
-domain uio.no
-passwordeval "pass rafael.palomar@ous-research.no | head -n1"
-auth on
-tls on
-tls_starttls on
-tls_force_sslv3 off
-tls_trust_file /etc/ssl/certs/ca-certificates.crt
-logfile /home/rafael/.config/msmtp/msmtp.log
-
 account rafael.palomar@ntnu.no
 host smtp.office365.com
 port 587
 from rafael.palomar@ntnu.no
 user rafaelp@ntnu.no
-passwordeval "mutt_oauth2.py ~/.password-store/email/ntnu.gpg"
+passwordeval "mutt_oauth2.py ~/.password-store/email/ntnu.no"
+auth xoauth2
+tls on
+tls_starttls on
+tls_force_sslv3 on
+tls_trust_file	/etc/ssl/certs/ca-certificates.crt
+logfile /home/rafael/.config/msmtp/msmtp.log
+
+account rafael.palomar@ous-research.no
+host smtp.office365.com
+port 587
+from rafael.palomar@ous-research.no
+user rafaelpa@uio.no
+passwordeval "mutt_oauth2.py ~/.password-store/email/uio.no"
 auth xoauth2
 tls on
 tls_starttls on
