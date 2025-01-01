@@ -23,3 +23,16 @@ tls_starttls on
 tls_force_sslv3 on
 tls_trust_file	/etc/ssl/certs/ca-certificates.crt
 logfile /home/rafael/.config/msmtp/msmtp.log
+
+account rafaelpalomaravalos@gmail.com
+host smtp.gmail.com
+port 587
+from rafaelpalomaravalos@gmail.com
+user rafaelpalomaravalos
+passwordeval "mutt_oauth2.py ~/.password-store/email/rafaelpalomar_gmail.com"
+auth xoauth2
+tls on
+tls_starttls on
+tls_force_sslv3 on
+tls_trust_file	/etc/ssl/certs/ca-certificates.crt
+logfile /home/rafael/.config/msmtp/msmtp.log

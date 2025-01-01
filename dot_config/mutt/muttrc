@@ -3,6 +3,7 @@ source /usr/share/mutt-wizard/mutt-wizard.muttrc
 source /home/rafael/.config/mutt/accounts/rafael.palomar@ous-research.no.muttrc
 macro index,pager i1 '<sync-mailbox><enter-command>source /home/rafael/.config/mutt/accounts/rafael.palomar@ous-research.no.muttrc<enter><change-folder>!<enter>;<check-stats>' "switch to rafael.palomar@ous-research.no"
 macro index,pager i2 '<sync-mailbox><enter-command>source /home/rafael/.config/mutt/accounts/rafael.palomar@ntnu.no.muttrc<enter><change-folder>!<enter>;<check-stats>' "switch to rafael.palomar@ntnu.no"
+macro index,pager i3 '<sync-mailbox><enter-command>source /home/rafael/.config/mutt/accounts/rafaelpalomaravalos@gmail.com.muttrc<enter><change-folder>!<enter>;<check-stats>' "switch to rafael.palomar@ntnu.no"
 
 # Sort emails by threads
 set sort = 'threads'
