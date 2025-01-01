@@ -209,7 +209,7 @@
 ;; for a workflow based on Zotero and org-roam for scientific note taking
 ;; LINK ZOTERO NOTES TO ORG-ROAM VIA CITAR
 
-(load "org-roam-zotero-notes")
+;; (load "org-roam-zotero-notes")
 
 (add-hook 'org-mode-hook
           '(lambda ()
@@ -226,5 +226,31 @@
 (add-hook 'after-init-hook #'citar-denote-mode)
 
 ;; Set Doom Emacs frame transparency
-(set-frame-parameter (selected-frame) 'alpha '(85 . 85))  ;; Adjust for active/inactive window transparency
-(add-to-list 'default-frame-alist '(alpha . (85 . 85)))    ;; Ensure new frames are transparent too
+(set-frame-parameter (selected-frame) 'alpha '(100 . 100))  ;; Adjust for active/inactive window transparency
+(add-to-list 'default-frame-alist '(alpha . (100 . 100)))    ;; Ensure new frames are transparent too
+
+(require 'server)
+(setq server-use-tcp t
+      server-host "127.0.0.1"  ;; or 0.0.0.0 if allowing connections from all interfaces
+      server-port 9000)         ;; specify a port
+(unless (server-running-p)
+    (server-start))
+
+;; (add-hook 'mail-mode-hook
+;;           (lambda ()
+;;             (setq fill-column 72)   ;; Set line width
+;;             (turn-on-auto-fill)))   ;; Auto-wrap lines
+
+;; Use message-mode for email composition
+(add-hook 'server-visit-hook
+          (lambda ()
+            (when (and buffer-file-name
+                       (string-match "mutt" buffer-file-name))
+              (message-mode))))
+
+(after! message
+  ;; Enable auto-fill-mode in message-mode
+  (add-hook 'message-mode-hook
+            (lambda ()
+              (setq fill-column 72)   ;; Set the column for wrapping
+              (auto-fill-mode 1))))   ;; Enable automatic line wrapping
