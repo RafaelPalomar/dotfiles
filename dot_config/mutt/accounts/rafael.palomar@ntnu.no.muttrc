@@ -14,9 +14,11 @@ set spoolfile = +INBOX
 set postponed = +Drafts
 set trash = +Trash
 set record = +Sent
+set query_command = "abook --datafile ~/.abook/abook_work --mutt-query '%s'"
 
 macro index o "<shell-escape>mw -y rafael.palomar@ntnu.no<enter>" "run mbsync to sync rafael.palomar@ntnu.no"
 macro index g "<enter-command>unset wait_key<enter><shell-escape>gpg --list-secret-keys; printf 'Enter email ID of user to publish: '; read eID; printf 'Enter fingerprint of GPG key to publish: '; read eFGPT; /usr/libexec/gpg-wks-client --create \$eFGPT \$eID | msmtp --read-envelope-from --read-recipients -a rafael.palomar@ntnu.no<enter>"  "publish GPG key to WKS provider"
 macro index h "<pipe-message>/usr/libexec/gpg-wks-client --receive | msmtp --read-envelope-from --read-recipients -a rafael.palomar@ntnu.no<enter>" "confirm GPG publication"
+macro index,pager a "|khard add-email \n"
 
 mailboxes "=INBOX" "=Drafts" "=Junk" "=Trash" "=Sent" "=Archive"
