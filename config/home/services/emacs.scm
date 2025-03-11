@@ -1,0 +1,18 @@
+(define-module (config home services emacs)
+  #:use-module (gnu home services)
+  #:use-module (gnu packages emacs)
+  #:use-module (gnu packages emacs-xyz)
+  #:use-module (gnu services))
+
+(define (home-emacs-config-profile-service config)
+  (list emacs
+	emacs-doom-themes))
+
+(define-public home-emacs-config-service-type
+  (service-type (name 'home-emacs-config)
+		(description "A service for configurig emacs")
+		(extensions
+		 (list (service-extension
+			home-profile-service-type
+			home-emacs-config-profile-service)))
+		 (default-value #f)))
