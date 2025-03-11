@@ -498,3 +498,7 @@
 (require 'avy)
 
 (setq magit-status-buffer-switch-function 'switch-to-buffer)
+
+(require 'beacon)
+
+(beacon-mode 1)

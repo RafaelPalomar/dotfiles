@@ -601,3 +601,10 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 #+end_src
 ***
+
+*** beacon
+#+begin_src elisp :tangle files/.config/emacs/init.el
+  (require 'beacon)
+
+  (beacon-mode 1)
+#+end_src

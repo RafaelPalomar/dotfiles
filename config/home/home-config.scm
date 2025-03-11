@@ -1,4 +1,4 @@
-(define-module (config home home-config)
+define-module (config home home-config)
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)
@@ -17,6 +17,7 @@
 (home-environment
  (packages (list emacs
                  emacs-avy
+                 emacs-beacon
                  emacs-evil
                  emacs-evil-collection
                  emacs-evil-paredit
