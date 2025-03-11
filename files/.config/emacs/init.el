@@ -104,18 +104,27 @@
 ;; configure undo system
 (setq evil-undo-system 'undo-fu)
 
-;;; --------- Evil Snipe ---------
-
-(require 'evil-snipe)
-
-(evil-snipe-mode +1)
-(evil-snipe-override-mode +1)
-
-(setq evil-snipe-scope 'whole-visible)
-
 ;;; --------- Evil Collection ---------
 
 (evil-collection-init)
+
+    ;;; --------- Evil Snipe ---------
+
+;;   (require 'evil-snipe)
+
+;;   (evil-snipe-mode +1)
+;;   (evil-snipe-override-mode +1)
+
+;;   (setq evil-snipe-scope 'whole-visible)
+
+
+
+;; ;; Play nicely with avy
+;; (define-key evil-snipe-parent-transient-map (kbd "C-;")
+;;   (evilem-create 'evil-snipe-repeat
+;;                  :bind ((evil-snipe-scope 'buffer)
+;;                         (evil-snipe-enable-highlight)
+;;                         (evil-snipe-enable-incremental-highlight))))
 
 ;;; ----- Appearance -----
 
@@ -339,9 +348,15 @@
   "SPC" '(projectile-find-file :which-key "Projectile find file")
   "C-SPC" '(projectile-find-file-other-frame :which-key "Projectile find file (new frame)")
   "S-SPC" '(projectile-find-file-other-frame :which-key "Projectile find file (new frame)")
-  "." '(find-file :which-key "Find file")
-  ">" '(find-file-other-frame :which-key "Find file (new frame)")
-  "," '(consult-buffer :which-key "consult-buffer")
+
+"ff" '(find-file :which-key "Find file")
+"fs" '(save-buffer :which-key "Save buffer")
+"gc" '(comment-dwim :which-key "Comment region")
+"qq" '(evil-quit :which-key "Quit Emacs")
+
+  ;; "." '(find-file :which-key "Find file")
+  ;; ">" '(find-file-other-frame :which-key "Find file (new frame)")
+  ;; "," '(consult-buffer :which-key "consult-buffer")
                                         ;":" '(execute-extended-command :which-key "M-x")
   "x" '(open-scratch-buffer :which-key "Open scratch buffer")
   "d" '(dired-jump :which-key "dired-jump")
@@ -355,10 +370,10 @@
 
 
   ;; editor
-  "e" '(:ignore t :which-key "Editor")
-  "eu" '(vundo :which-key "vundo")
-  "ev" '(vundo :which-key "vundo")
-  "er" '(query-replace :which-key "query-replace")
+  ;; "e" '(:ignore t :which-key "Editor")
+  ;; "eu" '(vundo :which-key "vundo")
+  ;; "ev" '(vundo :which-key "vundo")
+  ;; "er" '(query-replace :which-key "query-replace")
                                         ;"ec" '(consult-theme :which-key "consult-theme")
   "ep" '(point-to-register :which-key "point-to-register")
   "es" '(consult-register-store :which-key "consult-register-store")
@@ -469,4 +484,17 @@
   "TAB d" '(+tab-bar/close-tab :which-key "+tab-bar/close-tab")
   "TAB K" '(+tab-bar/close-all-tabs-except-current :which-key "+tab-bar/close-all-tabs-except-current")
   "TAB r" '(tab-rename :which-key "tab-rename")
+
+  ;; Magit
+  "gg" '(magit-status :which-key "magit-status")
+
+  ;; AVY
+  "gs" '(avy-goto-char-2 :whihc-key "avy-goto-char-2")
+
   )
+
+;;; ----------- AVY --------------
+
+(require 'avy)
+
+(setq magit-status-buffer-switch-function 'switch-to-buffer)

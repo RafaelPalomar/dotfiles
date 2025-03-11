@@ -14,9 +14,9 @@
   #:use-module (config home services emacs)
   #:use-module (config packages emacs-evil-snipe))
 
-
 (home-environment
  (packages (list emacs
+                 emacs-avy
                  emacs-evil
                  emacs-evil-collection
                  emacs-evil-paredit
