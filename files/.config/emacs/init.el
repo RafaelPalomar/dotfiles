@@ -89,14 +89,15 @@
 (setq evil-undo-system 'undo-fu)
 
 (require 'evil)
+
 (evil-mode 1)
+(evil-commentary-mode)
 
-
-;;; --------- Evil Collection ---------
+  ;;; --------- Evil Collection ---------
 
 (evil-collection-init)
 
-    ;;; --------- Evil Snipe ---------
+      ;;; --------- Evil Snipe ---------
 
 ;;   (require 'evil-snipe)
 
@@ -344,7 +345,6 @@
 
   "ff" '(find-file :which-key "Find file")
   "fs" '(save-buffer :which-key "Save buffer")
-  "gc" '(comment-dwim :which-key "Comment region")
   "qq" '(evil-quit :which-key "Quit Emacs")
 
   ;; "." '(find-file :which-key "Find file")

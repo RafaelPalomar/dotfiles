@@ -101,7 +101,7 @@ This section enables evil mode (vim-type editing experience).
 
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
-      ;;; --------- Enable Evil Mode ---------
+        ;;; --------- Enable Evil Mode ---------
 
   ;; This is required here for evil-collection to work
   (setq evil-want-keybinding nil)
@@ -110,14 +110,15 @@ This section enables evil mode (vim-type editing experience).
   (setq evil-undo-system 'undo-fu)
 
   (require 'evil)
+
   (evil-mode 1)
+  (evil-commentary-mode)
 
-
-  ;;; --------- Evil Collection ---------
+    ;;; --------- Evil Collection ---------
 
   (evil-collection-init)
 
-      ;;; --------- Evil Snipe ---------
+        ;;; --------- Evil Snipe ---------
 
   ;;   (require 'evil-snipe)
 
@@ -430,7 +431,6 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
     "ff" '(find-file :which-key "Find file")
     "fs" '(save-buffer :which-key "Save buffer")
-    "gc" '(comment-dwim :which-key "Comment region")
     "qq" '(evil-quit :which-key "Quit Emacs")
 
     ;; "." '(find-file :which-key "Find file")
@@ -571,7 +571,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
     )
 
-  #+end_src
+#+end_src
 
 ** Misc
 
@@ -595,6 +595,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 *** beacon
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+
   (require 'beacon)
 
   (beacon-mode 1)

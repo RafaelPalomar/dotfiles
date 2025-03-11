@@ -20,6 +20,7 @@
                  emacs-beacon
                  emacs-evil
                  emacs-evil-collection
+                 emacs-evil-commentary
                  emacs-evil-paredit
                  emacs-evil-snipe
                  emacs-general
