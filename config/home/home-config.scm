@@ -16,8 +16,8 @@
 ;;  #:use-module (config packages emacs-evil-snipe))
 
 (define %emacs-packages
-  (list
-   emacs-avy
+  (list emacs-ace-window
+        emacs-avy
         emacs-beacon
         emacs-evil
         emacs-evil-collection
@@ -33,6 +33,7 @@
         emacs-modus-themes
         emacs-paredit
         emacs-projectile
+        emacs-undo-fu
         ))
 
 (home-environment
@@ -55,7 +56,8 @@
                            (environment-variables '(("PS1" . "\\[\\e[1;32m\\]\\u \\[\\e[1;34m\\]\\w \\[\\e[0m\\]λ ")))
                            (aliases '(("gemacs" .
                                        (string-append "guix " "shell "
-                                                      (string-append "emacs-avy "
+                                                      (string-append "emacs-ace-window "
+                                                                     "emacs-avy "
                                                                      "emacs-beacon "
                                                                      "emacs-evil "
                                                                      "emacs-evil-collection "
@@ -70,6 +72,7 @@
                                                                      "emacs-modus-themes "
                                                                      "emacs-magit "
                                                                      "emacs-paredit "
-                                                                     "emacs-projectile ")
+                                                                     "emacs-projectile "
+                                                                     "emacs-undo-fu ")
                                                       "-- "
                                                       "emacs")))))))))

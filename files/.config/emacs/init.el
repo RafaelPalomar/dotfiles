@@ -441,9 +441,13 @@
   ;; window
   "w" '(:ignore t :which-key "Window")
   "ww" '(ace-window :which-key "ace-window")
-  "wt" '(toggle-window-split :which-key "toggle-window-split")
-  "wa" '(ace-window :which-key "ace-window")
-  "wr" '(hydra-window/body :which-key "hydra-window")
+  "ws" '(evil-window-split :which-key "evil-window-split")
+  "wv" '(evil-window-vsplit :which-key "evil-window-vsplit")
+  "wd" '(evil-window-delete :which-key "evil-window-delete")
+  "wm" '(ace-delete-other-windows :which-key "ace-delete-other-windows")
+  ;; "wt" '(toggle-window-split :which-key "toggle-window-split")
+  ;; "wa" '(ace-window :which-key "ace-window")
+  ;; "wr" '(hydra-window/body :which-key "hydra-window")
 
 
   ;; toggles
@@ -485,10 +489,10 @@
 
   ;; Magit
   "gg" '(magit-status :which-key "magit-status")
+  "gC" '(magit-clone :which-key "magit-clone")
 
   ;; AVY
   "gs" '(avy-goto-char-2 :whihc-key "avy-goto-char-2")
-
   )
 
 ;;; ----------- AVY --------------
