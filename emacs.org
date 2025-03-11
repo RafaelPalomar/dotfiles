@@ -455,7 +455,6 @@ Here are the most important Org Mode settings that enable me to edit files comfo
     "a" '(ace-window :which-key "ace-window")
     "l" '(ace-window :which-key "ace-window")
 
-
     ;; editor
     ;; "e" '(:ignore t :which-key "Editor")
     ;; "eu" '(vundo :which-key "vundo")
@@ -517,14 +516,14 @@ Here are the most important Org Mode settings that enable me to edit files comfo
     "h." '(display-local-help :which-key "display-local-help")
 
 
-    ;; zoom
-    ;; the hydra is nice but the rest is kind of janky, need to play around with this more
-    "=" '(text-scale-increase :which-key "text-scale-increase")
-    "-" '(text-scale-decrease :which-key "text-scale-decrease")
-    "z" '(:ignore t :which-key "zoom")
-    "z=" '(zoom-in :which-key "zoom-in")
-    "z-" '(zoom-out :which-key "zoom-out")
-    "zz" '(hydra-zoom/body :which-key "hydra-zoom")
+    ;; ;; zoom
+    ;; ;; the hydra is nice but the rest is kind of janky, need to play around with this more
+    ;; "=" '(text-scale-increase :which-key "text-scale-increase")
+    ;; "-" '(text-scale-decrease :which-key "text-scale-decrease")
+    ;; "z" '(:ignore t :which-key "zoom")
+    ;; "z=" '(zoom-in :which-key "zoom-in")
+    ;; "z-" '(zoom-out :which-key "zoom-out")
+    ;; "zz" '(hydra-zoom/body :which-key "hydra-zoom")
 
 
     ;; window
