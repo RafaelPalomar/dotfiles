@@ -34,6 +34,7 @@
         emacs-magit
         emacs-modus-themes
         emacs-paredit
+        emacs-perspective
         emacs-projectile
         emacs-undo-fu
         ))
@@ -59,7 +60,7 @@
                            (environment-variables '(("PS1" . "\\[\\e[1;32m\\]\\u \\[\\e[1;34m\\]\\w \\[\\e[0m\\]λ ")))
                            (aliases '(("gemacs" .
                                        (string-append "guix " "shell " "emacs-pgtk "
-                                                      (string-append "emacs-ace-window "
+                                                     (string-append "emacs-ace-window "
                                                                      "emacs-avy "
                                                                      "emacs-beacon "
                                                                      "emacs-consult "
@@ -76,6 +77,7 @@
                                                                      "emacs-modus-themes "
                                                                      "emacs-magit "
                                                                      "emacs-paredit "
+                                                                     "emacs-perspective "
                                                                      "emacs-projectile "
                                                                      "emacs-undo-fu "
 								     "ripgrep ")

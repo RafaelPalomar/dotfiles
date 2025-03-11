@@ -162,8 +162,8 @@
                       :weight 'normal)
 
   ;; Make frames transparent
-  (set-frame-parameter (selected-frame) 'alpha-background 93)
-  (add-to-list 'default-frame-alist '(alpha-background . 93))
+  (set-frame-parameter (selected-frame) 'alpha-background 95)
+  (add-to-list 'default-frame-alist '(alpha-background . 95))
   (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
   (add-to-list 'default-frame-alist '(fullscreen . maximized)))
 
@@ -273,11 +273,6 @@
         ("Asia/Shanghai" "Shanghai")
         ("Asia/Kolkata" "Hyderabad")))
 
-;;; -------------- Transparent background -------------
-
-(set-frame-parameter nil 'alpha-background 85) ; For current frame
-(add-to-list 'default-frame-alist '(alpha-background . 85)) ; For all new frames henceforth
-
 ;;; ----- Essential Org Mode Configuration -----
 
 (setq org-ellipsis " ▾"
@@ -358,10 +353,6 @@
   "fs" '(save-buffer :which-key "Save buffer")
   "qq" '(evil-quit :which-key "Quit Emacs")
 
-  ;; "." '(find-file :which-key "Find file")
-  ;; ">" '(find-file-other-frame :which-key "Find file (new frame)")
-  ;; "," '(consult-buffer :which-key "consult-buffer")
-                                        ;":" '(execute-extended-command :which-key "M-x")
   "x" '(open-scratch-buffer :which-key "Open scratch buffer")
   "d" '(dired-jump :which-key "dired-jump")
   "/" '(consult-ripgrep :which-key "consult-ripgrep")
@@ -432,26 +423,13 @@
   "h." '(display-local-help :which-key "display-local-help")
 
 
-  ;; ;; zoom
-  ;; ;; the hydra is nice but the rest is kind of janky, need to play around with this more
-  ;; "=" '(text-scale-increase :which-key "text-scale-increase")
-  ;; "-" '(text-scale-decrease :which-key "text-scale-decrease")
-  ;; "z" '(:ignore t :which-key "zoom")
-  ;; "z=" '(zoom-in :which-key "zoom-in")
-  ;; "z-" '(zoom-out :which-key "zoom-out")
-  ;; "zz" '(hydra-zoom/body :which-key "hydra-zoom")
-
-
   ;; window
   "w" '(:ignore t :which-key "Window")
   "ww" '(ace-window :which-key "ace-window")
   "ws" '(evil-window-split :which-key "evil-window-split")
   "wv" '(evil-window-vsplit :which-key "evil-window-vsplit")
   "wd" '(evil-window-delete :which-key "evil-window-delete")
-  "wm" '(ace-delete-other-windows :which-key "ace-delete-other-windows")
-  ;; "wt" '(toggle-window-split :which-key "toggle-window-split")
-  ;; "wa" '(ace-window :which-key "ace-window")
-  ;; "wr" '(hydra-window/body :which-key "hydra-window")
+  "wm" '(ace-delete-window :which-key "ace-delete-window")
 
 
   ;; toggles
@@ -463,15 +441,6 @@
   "tg" '(evil-goggles-mode :which-key "evil-goggles")
   "tI" '(toggle-indent-style :which-key "Indent style")
   "tv" '(visual-line-mode :which-key "visual-line-mode")
-
-
-  ;; notes/org
-  "n" '(:ignore t :which-key "Notes")
-  "nf" '(org-roam-node-find :which-key "find-node")
-  "ni" '(org-roam-node-insert :which-key "insert-node")
-  "nt" '(org-roam-dailies-goto-today :which-key "org-roam-dailies-goto-today")
-  "n/" '(+consult/org-roam-ripgrep :which-key "+consult/org-roam-ripgrep")
-  "na" '(org-agenda :which-key "org-agenda")
 
 
   ;; narrow
@@ -508,3 +477,10 @@
 (require 'beacon)
 
 (beacon-mode 1)
+
+;;; --------- Perspective Mode -------
+
+(require 'perspective)
+(global-set-key (kbd "C-x C-b") 'persp-list-buffers)
+(customize-set-variable 'persp-mode-prefix-key (kbd "C-c M-p"))
+(persp-mode)
