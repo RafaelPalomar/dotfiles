@@ -21,6 +21,7 @@
                  emacs-evil-collection
                  emacs-evil-paredit
                  emacs-evil-snipe
+                 emacs-general
                  emacs-modus-themes
                  emacs-paredit
                  emacs-projectile

@@ -3,7 +3,7 @@
   #:use-module (gnu packages)
   #:use-module (guix git-download)
   #:use-module (guix build-system emacs)
-  #:use-module ((gnu packages emacs-xyz) #:prefix upstream:) 
+  #:use-module ((gnu packages emacs-xyz) #:prefix upstream:)
   #:use-module (guix packages)
   #:use-module ((guix licenses) #:prefix license:))
 

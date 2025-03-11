@@ -390,3 +390,172 @@ Here are the most important Org Mode settings that enable me to edit files comfo
   (add-hook 'emacs-lisp-mode-hook 'evil-paredit-mode)
 
 #+end_src
+
+** Keybindings
+
+#+begin_src elisp :tangle files/.config/emacs/init.el
+
+                  ;;; ---------------- General Definitions -----------------
+
+  (setq general-override-states '(insert
+                                  emacs
+                                  hybrid
+                                  normal
+                                  visual
+                                  motion
+                                  operator
+                                  replace))
+
+  (require 'general)
+
+  (defconst my-leader "SPC")
+
+  (general-create-definer my-leader-def
+    :prefix my-leader)
+
+  (general-override-mode)
+
+  (my-leader-def
+    :states '(motion normal visual)
+    :keymaps 'override ;; https://github.com/noctuid/general.el/issues/99#issuecomment-360914335
+
+
+    ;; map universal argument to SPC-u
+    "u" '(universal-argument :which-key "Universal argument")
+    ";" '(eval-region :which-key "eval-region")
+    "SPC" '(projectile-find-file :which-key "Projectile find file")
+    "C-SPC" '(projectile-find-file-other-frame :which-key "Projectile find file (new frame)")
+    "S-SPC" '(projectile-find-file-other-frame :which-key "Projectile find file (new frame)")
+    "." '(find-file :which-key "Find file")
+    ">" '(find-file-other-frame :which-key "Find file (new frame)")
+    "," '(consult-buffer :which-key "consult-buffer")
+                                          ;":" '(execute-extended-command :which-key "M-x")
+    "x" '(open-scratch-buffer :which-key "Open scratch buffer")
+    "d" '(dired-jump :which-key "dired-jump")
+    "/" '(+consult/ripgrep :which-key "+consult/ripgrep")
+    "?" '(consult-ripgrep :which-key "consult-ripgrep")
+                                          ;"[" '(+tab-bar/switch-to-prev-tab :which-key "+tab-bar/switch-to-prev-tab")
+                                          ;"]" '(+tab-bar/switch-to-next-tab :which-key "+tab-bar/switch-to-next-tab")
+    "v" '(vterm-toggle :which-key "vterm-toggle")
+    "a" '(ace-window :which-key "ace-window")
+    "l" '(ace-window :which-key "ace-window")
+
+
+    ;; editor
+    "e" '(:ignore t :which-key "Editor")
+    "eu" '(vundo :which-key "vundo")
+    "ev" '(vundo :which-key "vundo")
+    "er" '(query-replace :which-key "query-replace")
+                                          ;"ec" '(consult-theme :which-key "consult-theme")
+    "ep" '(point-to-register :which-key "point-to-register")
+    "es" '(consult-register-store :which-key "consult-register-store")
+    "ej" '(jump-to-register :which-key "jump-to-register")
+    "ef" '(:ignore t :which-key "Fold")
+    "efh" '(hs-hide-block :which-key "hs-hide-block")
+    "efs" '(hs-show-block :which-key "hs-show-block")
+    "efa" '(hs-show-all :which-key "hs-show-all")
+
+
+    ;; consult
+    "c" '(:ignore t :which-key "consult")
+    "cf" '(consult-flymake :which-key "consult-flymake")
+    "ct" '(consult-theme :which-key "consult-theme")
+                                          ;"cg" '(:ignore t :which-key "Grep")
+                                          ;"cgr" '(consult-ripgrep :which-key "consult-ripgrep")
+                                          ;"cgg" '(consult-git-grep :which-key "consult-git-grep")
+                                          ;"cb" '(consult-buffer :which-key "consult-buffer")
+
+
+    ;; buffer
+                                          ;"TAB" '(switch-to-prev-buffer :which-key "Prev buffer")
+    "b" '(:ignore t :which-key "Buffer")
+    "bb" '(consult-buffer :which-key "consult-buffer")
+    "b[" '(previous-buffer :which-key "Previous buffer")
+    "b]" '(next-buffer :which-key "Next buffer")
+    "bd" '(kill-current-buffer :which-key "Kill buffer")
+    "bk" '(kill-current-buffer :which-key "Kill buffer")
+    "bl" '(evil-switch-to-windows-last-buffer :which-key "Switch to last buffer")
+    "br" '(revert-buffer-no-confirm :which-key "Revert buffer")
+    "bK" '(kill-other-buffers :which-key "Kill other buffers")
+
+
+    ;; open
+    "o" '(:ignore t :which-key "Open")
+    "oc" '(open-init-file :which-key "Open init.el")
+
+
+    ;; project
+    "p" '(:ignore t :which-key "Project")
+    "pp" '(projectile-switch-project :which-key "Switch Project")
+    "po" '(projectile-find-other-file :which-key "projectile-find-other-file")
+
+
+    ;; help
+    "h" '(:ignore t :which-key "Help")
+    "hf" '(helpful-callable :which-key "describe-function")
+    "hk" '(helpful-key :which-key "describe-key")
+    "hv" '(helpful-variable :which-key "describe-variable")
+    "ho" '(helpful-symbol :which-key "describe-symbol")
+    "hm" '(describe-mode :which-key "describe-mode")
+    "hF" '(describe-face :which-key "describe-face")
+    "hw" '(where-is :which-key "where-is")
+    "h." '(display-local-help :which-key "display-local-help")
+
+
+    ;; zoom
+    ;; the hydra is nice but the rest is kind of janky, need to play around with this more
+    "=" '(text-scale-increase :which-key "text-scale-increase")
+    "-" '(text-scale-decrease :which-key "text-scale-decrease")
+    "z" '(:ignore t :which-key "zoom")
+    "z=" '(zoom-in :which-key "zoom-in")
+    "z-" '(zoom-out :which-key "zoom-out")
+    "zz" '(hydra-zoom/body :which-key "hydra-zoom")
+
+
+    ;; window
+    "w" '(:ignore t :which-key "Window")
+    "ww" '(ace-window :which-key "ace-window")
+    "wt" '(toggle-window-split :which-key "toggle-window-split")
+    "wa" '(ace-window :which-key "ace-window")
+    "wr" '(hydra-window/body :which-key "hydra-window")
+
+
+    ;; toggles
+    "t" '(:ignore t :which-key "Toggles")
+                                          ;"ta" '(corfu-mode :which-key "corfu-mode") ;; 'a' for autocomplete
+    "ts" '(flyspell-mode :which-key "flyspell-mode")
+    "tf" '(flyspell-mode :which-key "flyspell-mode")
+    "tc" '(flymake-mode :which-key "flymake-mode")
+    "tg" '(evil-goggles-mode :which-key "evil-goggles")
+    "tI" '(toggle-indent-style :which-key "Indent style")
+    "tv" '(visual-line-mode :which-key "visual-line-mode")
+
+
+    ;; notes/org
+    "n" '(:ignore t :which-key "Notes")
+    "nf" '(org-roam-node-find :which-key "find-node")
+    "ni" '(org-roam-node-insert :which-key "insert-node")
+    "nt" '(org-roam-dailies-goto-today :which-key "org-roam-dailies-goto-today")
+    "n/" '(+consult/org-roam-ripgrep :which-key "+consult/org-roam-ripgrep")
+    "na" '(org-agenda :which-key "org-agenda")
+
+
+    ;; narrow
+    "N" '(:ignore t :which-key "Narrow")
+    "Nr" '(narrow-to-region :which-key "narrow-to-region")
+    "Nw" '(widen :which-key "widen")
+
+
+    ;; tabs
+    "TAB" '(:ignore t :which-key "Tabs")
+    "TAB TAB" '(tab-bar-switch-to-tab :which-key "tab-bar-switch-to-tab")
+    "TAB [" '(+tab-bar/switch-to-prev-tab :which-key "+tab-bar/switch-to-prev-tab")
+    "TAB ]" '(t+ab-bar/switch-to-next-tab :which-key "+tab-bar/switch-to-next-tab")
+    "TAB n" '(+tab-bar/add-new :which-key "+tab-bar/add-new")
+    "TAB k" '(+tab-bar/close-tab :which-key "+tab-bar/close-tab")
+    "TAB d" '(+tab-bar/close-tab :which-key "+tab-bar/close-tab")
+    "TAB K" '(+tab-bar/close-all-tabs-except-current :which-key "+tab-bar/close-all-tabs-except-current")
+    "TAB r" '(tab-rename :which-key "tab-rename")
+    )
+
+#+end_src
