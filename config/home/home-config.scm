@@ -11,6 +11,7 @@
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages fontutils)
   #:use-module (gnu packages fonts)
+  #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages version-control)
   #:use-module (config home services emacs))
 ;;  #:use-module (config packages emacs-evil-snipe))
@@ -19,6 +20,7 @@
   (list emacs-ace-window
         emacs-avy
         emacs-beacon
+        emacs-consult
         emacs-evil
         emacs-evil-collection
         emacs-evil-commentary
@@ -38,11 +40,12 @@
 
 (home-environment
  (packages (append %emacs-packages
-                   (list emacs
+                   (list emacs-pgtk
                          font-iosevka-aile
                          font-jetbrains-mono
                          fontconfig
                          git
+                         ripgrep
                          weechat)))
 
  (services (list (service home-emacs-config-service-type)
@@ -55,10 +58,11 @@
                           (home-bash-configuration
                            (environment-variables '(("PS1" . "\\[\\e[1;32m\\]\\u \\[\\e[1;34m\\]\\w \\[\\e[0m\\]λ ")))
                            (aliases '(("gemacs" .
-                                       (string-append "guix " "shell "
+                                       (string-append "guix " "shell " "emacs-pgtk "
                                                       (string-append "emacs-ace-window "
                                                                      "emacs-avy "
                                                                      "emacs-beacon "
+                                                                     "emacs-consult "
                                                                      "emacs-evil "
                                                                      "emacs-evil-collection "
                                                                      "emacs-evil-commentary "
@@ -73,6 +77,7 @@
                                                                      "emacs-magit "
                                                                      "emacs-paredit "
                                                                      "emacs-projectile "
-                                                                     "emacs-undo-fu ")
+                                                                     "emacs-undo-fu "
+								     "ripgrep ")
                                                       "-- "
                                                       "emacs")))))))))

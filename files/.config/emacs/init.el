@@ -273,6 +273,11 @@
         ("Asia/Shanghai" "Shanghai")
         ("Asia/Kolkata" "Hyderabad")))
 
+;;; -------------- Transparent background -------------
+
+(set-frame-parameter nil 'alpha-background 85) ; For current frame
+(add-to-list 'default-frame-alist '(alpha-background . 85)) ; For all new frames henceforth
+
 ;;; ----- Essential Org Mode Configuration -----
 
 (setq org-ellipsis " ▾"
@@ -359,8 +364,7 @@
                                         ;":" '(execute-extended-command :which-key "M-x")
   "x" '(open-scratch-buffer :which-key "Open scratch buffer")
   "d" '(dired-jump :which-key "dired-jump")
-  "/" '(+consult/ripgrep :which-key "+consult/ripgrep")
-  "?" '(consult-ripgrep :which-key "consult-ripgrep")
+  "/" '(consult-ripgrep :which-key "consult-ripgrep")
                                         ;"[" '(+tab-bar/switch-to-prev-tab :which-key "+tab-bar/switch-to-prev-tab")
                                         ;"]" '(+tab-bar/switch-to-next-tab :which-key "+tab-bar/switch-to-next-tab")
   "v" '(vterm-toggle :which-key "vterm-toggle")
