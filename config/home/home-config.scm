@@ -23,6 +23,7 @@
                  emacs-evil-commentary
                  emacs-evil-paredit
                  emacs-evil-snipe
+                 emacs-evil-surround
                  emacs-general
                  emacs-helpful
                  emacs-modus-themes

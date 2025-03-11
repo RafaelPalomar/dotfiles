@@ -91,13 +91,19 @@
 (require 'evil)
 
 (evil-mode 1)
-(evil-commentary-mode)
 
   ;;; --------- Evil Collection ---------
 
+(evil-commentary-mode)
+
+    ;;; --------- Evil Collection ---------
+
 (evil-collection-init)
 
-      ;;; --------- Evil Snipe ---------
+    ;;; --------- Evil Surround ---------
+(global-evil-surround-mode 1)
+
+        ;;; --------- Evil Snipe ---------
 
 ;;   (require 'evil-snipe)
 

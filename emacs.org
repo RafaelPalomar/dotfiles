@@ -101,7 +101,7 @@ This section enables evil mode (vim-type editing experience).
 
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
-        ;;; --------- Enable Evil Mode ---------
+          ;;; --------- Enable Evil Mode ---------
 
   ;; This is required here for evil-collection to work
   (setq evil-want-keybinding nil)
@@ -112,13 +112,19 @@ This section enables evil mode (vim-type editing experience).
   (require 'evil)
 
   (evil-mode 1)
-  (evil-commentary-mode)
 
     ;;; --------- Evil Collection ---------
 
+  (evil-commentary-mode)
+
+      ;;; --------- Evil Collection ---------
+
   (evil-collection-init)
 
-        ;;; --------- Evil Snipe ---------
+      ;;; --------- Evil Surround ---------
+  (global-evil-surround-mode 1)
+
+          ;;; --------- Evil Snipe ---------
 
   ;;   (require 'evil-snipe)
 
