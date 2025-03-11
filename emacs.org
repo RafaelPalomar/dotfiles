@@ -356,9 +356,21 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 #+end_src
 
-*** Programming languages
+** Projectile
 
-**** Guile scheme (and lisp in general)
+#+begin_src elisp :tangle files/.config/emacs/init.el
+
+  ;;; ------------ Projectile setup --------------
+
+  (projectile-mode +1)
+
+  (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+
+#+end_src
+
+** Programming languages
+
+*** Guile scheme (and lisp in general)
 
 #+begin_src elisp :tagle files/.config/emacs/init.el
 

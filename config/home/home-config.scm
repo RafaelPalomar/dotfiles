@@ -23,6 +23,7 @@
                  emacs-evil-snipe
                  emacs-modus-themes
                  emacs-paredit
+                 emacs-projectile
                  font-iosevka-aile
                  font-jetbrains-mono
                  fontconfig

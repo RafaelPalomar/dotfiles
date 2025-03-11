@@ -301,3 +301,9 @@
                   ("einit" . "src emacs-lisp :tangle emacs/init.el")
                   ("emodule" . "src emacs-lisp :tangle emacs/modules/dw-MODULE.el")))
     (add-to-list 'org-structure-template-alist item)))
+
+;;; ------------ Projectile setup --------------
+
+(projectile-mode +1)
+
+(define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
