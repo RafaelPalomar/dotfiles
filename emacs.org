@@ -113,7 +113,7 @@ Welcome to my Emacs configuration file! This file is largely based on the config
 
 This section enables evil mode (vim-type editing experience).
 
-#+begin_src elisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
       ;;; --------- Enable Evil Mode ---------
 
@@ -152,7 +152,7 @@ This section enables evil mode (vim-type editing experience).
 
 ** Appearance
 
-#+begin_src elisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
   ;;; ----- Appearance -----
 
@@ -367,7 +367,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 ** Projectile
 
-#+begin_src elisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
   ;;; ------------ Projectile setup --------------
 
@@ -381,7 +381,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 *** Guile scheme (and lisp in general)
 
-#+begin_src elisp :tagle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tagle files/.config/emacs/init.el
 
     ;;; ----- Guile Geiser setup -----
 
@@ -402,7 +402,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 ** Keybindings
 
-#+begin_src elisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
                   ;;; ---------------- General Definitions -----------------
 
@@ -584,7 +584,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 ** Misc
 
 *** avy
-#+begin_src elisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
   ;;; ----------- AVY --------------
 
@@ -594,7 +594,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 *** magit
 
-#+begin_src elisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
   (setq magit-status-buffer-switch-function 'switch-to-buffer)
 
@@ -602,7 +602,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 ***
 
 *** beacon
-#+begin_src elisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
   (require 'beacon)
 
   (beacon-mode 1)
