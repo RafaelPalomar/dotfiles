@@ -1,4 +1,4 @@
-define-module (config home home-config)
+(define-module (config home home-config)
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)

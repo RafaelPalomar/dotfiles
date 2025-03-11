@@ -80,29 +80,17 @@
 
 ;;(add-hook 'icomplete-minibuffer-setup-hook 'dw/override-fido-completion-styles)
 
-
-;; zoom in/out like we do everywhere else.
-
-(global-set-key (kbd "C-=") 'text-scale-increase)
-
-(global-set-key (kbd "C--") 'text-scale-decrease)
-
-(global-set-key (kbd "<C-wheel-down>") 'text-scale-decrease)
-
-(global-set-key (kbd "<C-wheel-up>") 'text-scale-increase)
-
-(global-set-key (kbd "C-r") 'undo-fu-only-redo)
-
 ;;; --------- Enable Evil Mode ---------
 
 ;; This is required here for evil-collection to work
 (setq evil-want-keybinding nil)
 
+;; configure undo system
+(setq evil-undo-system 'undo-fu)
+
 (require 'evil)
 (evil-mode 1)
 
-;; configure undo system
-(setq evil-undo-system 'undo-fu)
 
 ;;; --------- Evil Collection ---------
 
@@ -337,10 +325,15 @@
 
 (general-override-mode)
 
+(general-define-key
+ "C-=" 'text-scale-increase
+ "C--" 'text-scale-decrease
+ "<C-wheel-down>" 'text-scale-decrease
+ "<C-wheel-up>" 'text-scale-increase)
+
 (my-leader-def
   :states '(motion normal visual)
   :keymaps 'override ;; https://github.com/noctuid/general.el/issues/99#issuecomment-360914335
-
 
   ;; map universal argument to SPC-u
   "u" '(universal-argument :which-key "Universal argument")
@@ -349,10 +342,10 @@
   "C-SPC" '(projectile-find-file-other-frame :which-key "Projectile find file (new frame)")
   "S-SPC" '(projectile-find-file-other-frame :which-key "Projectile find file (new frame)")
 
-"ff" '(find-file :which-key "Find file")
-"fs" '(save-buffer :which-key "Save buffer")
-"gc" '(comment-dwim :which-key "Comment region")
-"qq" '(evil-quit :which-key "Quit Emacs")
+  "ff" '(find-file :which-key "Find file")
+  "fs" '(save-buffer :which-key "Save buffer")
+  "gc" '(comment-dwim :which-key "Comment region")
+  "qq" '(evil-quit :which-key "Quit Emacs")
 
   ;; "." '(find-file :which-key "Find file")
   ;; ">" '(find-file-other-frame :which-key "Find file (new frame)")
@@ -367,7 +360,6 @@
   "v" '(vterm-toggle :which-key "vterm-toggle")
   "a" '(ace-window :which-key "ace-window")
   "l" '(ace-window :which-key "ace-window")
-
 
   ;; editor
   ;; "e" '(:ignore t :which-key "Editor")
@@ -430,14 +422,14 @@
   "h." '(display-local-help :which-key "display-local-help")
 
 
-  ;; zoom
-  ;; the hydra is nice but the rest is kind of janky, need to play around with this more
-  "=" '(text-scale-increase :which-key "text-scale-increase")
-  "-" '(text-scale-decrease :which-key "text-scale-decrease")
-  "z" '(:ignore t :which-key "zoom")
-  "z=" '(zoom-in :which-key "zoom-in")
-  "z-" '(zoom-out :which-key "zoom-out")
-  "zz" '(hydra-zoom/body :which-key "hydra-zoom")
+  ;; ;; zoom
+  ;; ;; the hydra is nice but the rest is kind of janky, need to play around with this more
+  ;; "=" '(text-scale-increase :which-key "text-scale-increase")
+  ;; "-" '(text-scale-decrease :which-key "text-scale-decrease")
+  ;; "z" '(:ignore t :which-key "zoom")
+  ;; "z=" '(zoom-in :which-key "zoom-in")
+  ;; "z-" '(zoom-out :which-key "zoom-out")
+  ;; "zz" '(hydra-zoom/body :which-key "hydra-zoom")
 
 
   ;; window
