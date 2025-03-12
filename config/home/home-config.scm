@@ -19,7 +19,8 @@
 ;;  #:use-module (config packages emacs-evil-snipe))
 
 (define %emacs-packages
-  (list emacs-ace-window
+  (list
+        ;; emacs-evil-snipe
         emacs-avy
         emacs-beacon
         emacs-cmake-mode
@@ -27,8 +28,8 @@
         emacs-evil
         emacs-evil-collection
         emacs-evil-commentary
+        emacs-evil-goggles
         emacs-evil-paredit
-        ;; emacs-evil-snipe
         emacs-evil-surround
         emacs-geiser
         emacs-geiser-guile
@@ -41,6 +42,7 @@
         emacs-projectile
         emacs-rg
         emacs-undo-fu
+        emacs-ace-window
         ))
 
 (home-environment
@@ -69,28 +71,29 @@
                                                       "emacs-pgtk "
                                                       "guile "
                                                       "ripgrep "
-                                                     (string-append "emacs-ace-window "
-                                                                     "emacs-avy "
+                                                      (string-append "emacs-avy "
                                                                      "emacs-beacon "
                                                                      "emacs-cmake-mode "
                                                                      "emacs-consult "
                                                                      "emacs-evil "
                                                                      "emacs-evil-collection "
                                                                      "emacs-evil-commentary "
+                                                                     "emacs-evil-goggles "
                                                                      "emacs-evil-paredit "
-                                                                     ;; "emacs-evil-snipe "
                                                                      "emacs-evil-surround "
                                                                      "emacs-geiser "
                                                                      "emacs-geiser-guile "
                                                                      "emacs-general "
                                                                      "emacs-helpful "
-                                                                     "emacs-modus-themes "
                                                                      "emacs-magit "
+                                                                     "emacs-modus-themes "
                                                                      "emacs-paredit "
                                                                      "emacs-perspective "
                                                                      "emacs-projectile "
                                                                      "emacs-rg "
                                                                      "emacs-undo-fu "
+                                                                     ;; "emacs-evil-snipe "
+                                                       "emacs-ace-window "
 								     "ripgrep ")
                                                       "-- "
                                                       "emacs")))))))))

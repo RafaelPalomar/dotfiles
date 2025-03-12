@@ -121,6 +121,17 @@
 ;;                         (evil-snipe-enable-highlight)
 ;;                         (evil-snipe-enable-incremental-highlight))))
 
+
+    ;;; ----- Evil Goggles -----
+
+(evil-goggles-mode)
+
+;; optionally use diff-mode's faces; as a result, deleted text
+;; will be highlighed with `diff-removed` face which is typically
+;; some red color (as defined by the color theme)
+;; other faces such as `diff-added` will be used for other actions
+(evil-goggles-use-diff-faces)
+
 ;;; ----- Appearance -----
 
 (defun dw/set-terminal-title (title)
@@ -311,6 +322,20 @@
 (projectile-mode +1)
 
 (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+
+;;; ----- Guile Geiser setup -----
+
+(require 'geiser-guile)
+
+(with-eval-after-load 'geiser-guile
+  (add-to-list 'geiser-guile-load-path "~/src/guix/guix"))
+
+    ;;; ----- Paredit -----
+
+(require 'paredit)
+
+;; Make evil play nicely with paredit
+(add-hook 'emacs-lisp-mode-hook 'evil-paredit-mode)
 
 ;;; ---------------- Configure cmake mode --------------------
 

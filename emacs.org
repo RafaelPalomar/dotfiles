@@ -101,7 +101,7 @@ This section enables evil mode (vim-type editing experience).
 
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
-          ;;; --------- Enable Evil Mode ---------
+    ;;; --------- Enable Evil Mode ---------
 
   ;; This is required here for evil-collection to work
   (setq evil-want-keybinding nil)
@@ -141,6 +141,18 @@ This section enables evil mode (vim-type editing experience).
   ;;                  :bind ((evil-snipe-scope 'buffer)
   ;;                         (evil-snipe-enable-highlight)
   ;;                         (evil-snipe-enable-incremental-highlight))))
+
+
+      ;;; ----- Evil Goggles -----
+
+  (evil-goggles-mode)
+
+  ;; optionally use diff-mode's faces; as a result, deleted text
+  ;; will be highlighed with `diff-removed` face which is typically
+  ;; some red color (as defined by the color theme)
+  ;; other faces such as `diff-added` will be used for other actions
+  (evil-goggles-use-diff-faces)
+
 
 #+end_src
 
@@ -375,19 +387,18 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 *** Guile scheme (and lisp in general)
 
-#+begin_src emacs-lisp :tagle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
-    ;;; ----- Guile Geiser setup -----
+      ;;; ----- Guile Geiser setup -----
 
   (require 'geiser-guile)
 
   (with-eval-after-load 'geiser-guile
     (add-to-list 'geiser-guile-load-path "~/src/guix/guix"))
 
-    ;;; ----- Paredit -----
+      ;;; ----- Paredit -----
 
   (require 'paredit)
-  (require 'evil-paredit-mode)
 
   ;; Make evil play nicely with paredit
   (add-hook 'emacs-lisp-mode-hook 'evil-paredit-mode)
