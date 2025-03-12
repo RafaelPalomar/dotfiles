@@ -7,6 +7,7 @@
   #:use-module (gnu packages disk)
   #:use-module (gnu packages gl)
   #:use-module (gnu packages irc)
+  #:use-module (gnu packages guile)
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages cmake)
   #:use-module (gnu packages emacs-xyz)
@@ -38,6 +39,7 @@
         emacs-paredit
         emacs-perspective
         emacs-projectile
+        emacs-rg
         emacs-undo-fu
         ))
 
@@ -48,6 +50,7 @@
                          font-jetbrains-mono
                          fontconfig
                          git
+                         guile-3.0
                          ripgrep
                          weechat)))
 
@@ -61,7 +64,11 @@
                           (home-bash-configuration
                            (environment-variables '(("PS1" . "\\[\\e[1;32m\\]\\u \\[\\e[1;34m\\]\\w \\[\\e[0m\\]λ ")))
                            (aliases '(("gemacs" .
-                                       (string-append "guix " "shell " "emacs-pgtk "
+                                       (string-append "guix "
+                                                      "shell "
+                                                      "emacs-pgtk "
+                                                      "guile "
+                                                      "ripgrep "
                                                      (string-append "emacs-ace-window "
                                                                      "emacs-avy "
                                                                      "emacs-beacon "
@@ -82,6 +89,7 @@
                                                                      "emacs-paredit "
                                                                      "emacs-perspective "
                                                                      "emacs-projectile "
+                                                                     "emacs-rg "
                                                                      "emacs-undo-fu "
 								     "ripgrep ")
                                                       "-- "
