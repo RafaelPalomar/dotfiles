@@ -312,6 +312,11 @@
 
 (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
 
+;;; ---------------- Configure cmake mode --------------------
+
+(add-to-list 'auto-mode-alist '("CMakeLists\\.txt\\'" . cmake-mode))
+(add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))
+
 ;;; ---------------- General Definitions -----------------
 
 (setq general-override-states '(insert

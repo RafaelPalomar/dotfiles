@@ -8,6 +8,7 @@
   #:use-module (gnu packages gl)
   #:use-module (gnu packages irc)
   #:use-module (gnu packages emacs)
+  #:use-module (gnu packages cmake)
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages fontutils)
   #:use-module (gnu packages fonts)
@@ -20,6 +21,7 @@
   (list emacs-ace-window
         emacs-avy
         emacs-beacon
+        emacs-cmake-mode
         emacs-consult
         emacs-evil
         emacs-evil-collection
@@ -63,6 +65,7 @@
                                                      (string-append "emacs-ace-window "
                                                                      "emacs-avy "
                                                                      "emacs-beacon "
+                                                                     "emacs-cmake-mode "
                                                                      "emacs-consult "
                                                                      "emacs-evil "
                                                                      "emacs-evil-collection "

@@ -394,6 +394,17 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 #+end_src
 
+*** CMake-mode
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+
+  ;;; ---------------- Configure cmake mode --------------------
+
+  (add-to-list 'auto-mode-alist '("CMakeLists\\.txt\\'" . cmake-mode))
+  (add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))
+
+#+end_src
+
 ** Keybindings
 
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
@@ -574,7 +585,6 @@ Here are the most important Org Mode settings that enable me to edit files comfo
   (setq magit-status-buffer-switch-function 'switch-to-buffer)
 
 #+end_src
-***
 
 *** beacon
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
