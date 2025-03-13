@@ -8,6 +8,7 @@
   #:use-module (gnu packages gl)
   #:use-module (gnu packages irc)
   #:use-module (gnu packages guile)
+  #:use-module (gnu packages gnome)
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages cmake)
   #:use-module (gnu packages emacs-xyz)
@@ -53,6 +54,8 @@
                          fontconfig
                          git
                          guile-3.0
+                         guile-git
+                         libgit2-glib
                          ripgrep
                          weechat)))
 
@@ -70,6 +73,8 @@
                                                       "shell "
                                                       "emacs-pgtk "
                                                       "guile "
+                                                      "guile-git "
+                                                      "libgit2-glib "
                                                       "ripgrep "
                                                       (string-append "emacs-avy "
                                                                      "emacs-beacon "
