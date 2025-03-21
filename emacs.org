@@ -616,3 +616,13 @@ Here are the most important Org Mode settings that enable me to edit files comfo
   (persp-mode)
 
 #+end_src
+
+*** gptel
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+
+  ;;; --------- gptel -------
+  ;; This is a workaround https://github.com/karthink/gptel/issues/342
+  (setq gptel-use-curl nil)
+
+
+#+end_src

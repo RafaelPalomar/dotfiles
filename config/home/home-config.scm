@@ -35,6 +35,7 @@
         emacs-geiser
         emacs-geiser-guile
         emacs-general
+        emacs-gptel
         emacs-helpful
         emacs-magit
         emacs-modus-themes
@@ -89,6 +90,7 @@
                                                                      "emacs-geiser "
                                                                      "emacs-geiser-guile "
                                                                      "emacs-general "
+                                                                     "emacs-gptel "
                                                                      "emacs-helpful "
                                                                      "emacs-magit "
                                                                      "emacs-modus-themes "
@@ -98,7 +100,7 @@
                                                                      "emacs-rg "
                                                                      "emacs-undo-fu "
                                                                      ;; "emacs-evil-snipe "
-                                                       "emacs-ace-window "
-								     "ripgrep ")
+                                                                     "emacs-ace-window "
+                                                                     "ripgrep ")
                                                       "-- "
                                                       "emacs")))))))))
