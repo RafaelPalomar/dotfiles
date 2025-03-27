@@ -516,4 +516,6 @@
 (persp-mode)
 
 ;;; --------- gptel -------
+;; This is a workaround https://github.com/karthink/gptel/issues/342
 (setq gptel-use-curl nil)
+(setq gptel-default-mode 'org-mode)
