@@ -22,6 +22,7 @@
 (define %emacs-packages
   (list
         ;; emacs-evil-snipe
+        emacs-all-the-icons-dired
         emacs-avy
         emacs-beacon
         emacs-cmake-mode
@@ -77,7 +78,8 @@
                                                       "guile-git "
                                                       "libgit2-glib "
                                                       "ripgrep "
-                                                      (string-append "emacs-avy "
+                                                      (string-append "emacs-all-the-icons-dired "
+                                                                     "emacs-avy "
                                                                      "emacs-beacon "
                                                                      "emacs-cmake-mode "
                                                                      "emacs-consult "

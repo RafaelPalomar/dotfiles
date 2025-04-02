@@ -526,3 +526,6 @@
 
 (with-eval-after-load 'tramp
   (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+
+;;; --------- dired -------
+(add-hook 'dired-mode-hook 'all-the-icons-dired-mode)
