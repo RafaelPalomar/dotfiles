@@ -626,3 +626,13 @@ Here are the most important Org Mode settings that enable me to edit files comfo
   (setq gptel-default-mode 'org-mode)
 
 #+end_src
+
+*** tramp
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+
+  ;;; --------- tramp -------
+
+  (with-eval-after-load 'tramp
+    (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+
+#+end_src

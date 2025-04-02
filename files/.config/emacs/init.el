@@ -519,3 +519,8 @@
 ;; This is a workaround https://github.com/karthink/gptel/issues/342
 (setq gptel-use-curl nil)
 (setq gptel-default-mode 'org-mode)
+
+;;; --------- tramp -------
+
+(with-eval-after-load 'tramp
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
