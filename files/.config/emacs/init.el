@@ -439,6 +439,8 @@
   "p" '(:ignore t :which-key "Project")
   "pp" '(projectile-switch-project :which-key "Switch Project")
   "po" '(projectile-find-other-file :which-key "projectile-find-other-file")
+  "pC" '(projectile-configure-project :which-key "projectile-configure-project")
+  "pc" '(projectile-compile-project :which-key "projectile-compile-project")
 
 
   ;; help
