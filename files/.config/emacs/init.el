@@ -319,6 +319,10 @@
 
 ;;; ------------ Projectile setup --------------
 
+;; https://github.com/bbatsov/projectile/issues/1649
+;; This will allow remembering of remote projects
+(require 'tramp)
+
 (projectile-mode +1)
 
 (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)

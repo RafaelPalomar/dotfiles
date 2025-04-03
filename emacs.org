@@ -377,6 +377,10 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
   ;;; ------------ Projectile setup --------------
 
+  ;; https://github.com/bbatsov/projectile/issues/1649
+  ;; This will allow remembering of remote projects
+  (require 'tramp)
+
   (projectile-mode +1)
 
   (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
