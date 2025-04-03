@@ -39,6 +39,7 @@
         emacs-gptel
         emacs-helpful
         emacs-magit
+        emacs-marginalia
         emacs-modus-themes
         emacs-paredit
         emacs-perspective
@@ -95,6 +96,7 @@
                                                                      "emacs-gptel "
                                                                      "emacs-helpful "
                                                                      "emacs-magit "
+                                                                     "emacs-marginalia "
                                                                      "emacs-modus-themes "
                                                                      "emacs-paredit "
                                                                      "emacs-perspective "
