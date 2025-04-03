@@ -445,6 +445,7 @@
   "po" '(projectile-find-other-file :which-key "projectile-find-other-file")
   "pC" '(projectile-configure-project :which-key "projectile-configure-project")
   "pc" '(projectile-compile-project :which-key "projectile-compile-project")
+  "pi" '(projectile-invalidate-cache :which-key "projectile-invalidate-cache")
 
 
   ;; help
