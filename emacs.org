@@ -648,3 +648,10 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 
 #+end_src
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+
+  ;;; ----Enable dired-find-alternate-file------
+  (put 'dired-find-alternate-file 'disabled nil)
+
+#+end_src

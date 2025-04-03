@@ -529,3 +529,9 @@
 
 ;;; --------- dired -------
 (add-hook 'dired-mode-hook 'all-the-icons-dired-mode)
+
+;;; ----Enable dired-find-alternate-file------
+(put 'dired-find-alternate-file 'disabled nil)
+
+;;; --------- enable marginalia -------
+(marginalia-mode)
