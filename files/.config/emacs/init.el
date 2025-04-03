@@ -446,6 +446,7 @@
   "pC" '(projectile-configure-project :which-key "projectile-configure-project")
   "pc" '(projectile-compile-project :which-key "projectile-compile-project")
   "pi" '(projectile-invalidate-cache :which-key "projectile-invalidate-cache")
+  "pa" '(projectile-add-known-project :which-key "projectile-add-known-project")
 
 
   ;; help

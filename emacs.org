@@ -524,6 +524,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
     "pC" '(projectile-configure-project :which-key "projectile-configure-project")
     "pc" '(projectile-compile-project :which-key "projectile-compile-project")
     "pi" '(projectile-invalidate-cache :which-key "projectile-invalidate-cache")
+    "pa" '(projectile-add-known-project :which-key "projectile-add-known-project")
 
 
     ;; help
