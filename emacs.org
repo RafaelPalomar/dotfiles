@@ -330,6 +330,15 @@ Time is relative, OK?
 
 #+end_src
 
+*** Color ASCII buffers
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+
+  ;; From https://emacs.stackexchange.com/questions/72572/how-to-see-color-output-when-compiling
+  ;; this will help the compilation buffer to interpret correcly color characters as color, instead of
+  ;; characters
+  (add-hook 'compilation-filter-hook 'ansi-color-compilation-filter)
+
+#+end_src
 ** Essential Org Mode Configuration
 
 Here are the most important Org Mode settings that enable me to edit files comfortably, especially my literate configuration files.

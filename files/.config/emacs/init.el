@@ -284,6 +284,9 @@
         ("Asia/Shanghai" "Shanghai")
         ("Asia/Kolkata" "Hyderabad")))
 
+;; From https://emacs.stackexchange.com/questions/72572/how-to-see-color-output-when-compiling
+(add-hook 'compilation-filter-hook 'ansi-color-compilation-filter)
+
 ;;; ----- Essential Org Mode Configuration -----
 
 (setq org-ellipsis " ▾"
