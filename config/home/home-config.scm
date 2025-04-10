@@ -1,5 +1,6 @@
 (define-module (config home home-config)
   #:use-module (config home services emacs)
+  #:use-module (config packages mutt-oauth2)
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)
@@ -69,6 +70,7 @@
                          guile-3.0
                          guile-git
                          libgit2-glib
+                         mutt-oauth2
                          ripgrep
                          weechat)))
 
