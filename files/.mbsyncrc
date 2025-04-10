@@ -1,0 +1,75 @@
+IMAPStore rafael.palomar@ntnu.no-remote
+Host outlook.office365.com
+Port 993
+User rafael.palomar@ntnu.no
+PassCmd "mutt_oauth2.py ~/.password-store/email/ntnu.no"
+AuthMechs XOAUTH2
+SSLType IMAPS
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+MaildirStore rafael.palomar@ntnu.no-local
+Subfolders Verbatim
+Path /home/rafael/.local/share/mail/rafael.palomar@ntnu.no/
+Inbox /home/rafael/.local/share/mail/rafael.palomar@ntnu.no/INBOX
+
+Channel rafael.palomar@ntnu.no
+Expunge Both
+Master :rafael.palomar@ntnu.no-remote:
+Slave :rafael.palomar@ntnu.no-local:
+Patterns * !"[Gmail]/All Mail"
+Create Both
+SyncState *
+MaxMessages 0
+ExpireUnread no
+# End profile
+
+
+IMAPStore rafaelpa@uio.no-remote
+Host outlook.office365.com
+Port 993
+User rafaelpa@uio.no
+PassCmd "mutt_oauth2.py ~/.password-store/email/uio.no"
+AuthMechs XOAUTH2
+SSLType IMAPS
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+MaildirStore rafaelpa@uio.no-local
+Subfolders Verbatim
+Path /home/rafael/.local/share/mail/rafael.palomar@ous-research.no/
+Inbox /home/rafael/.local/share/mail/rafael.palomar@uio.no/INBOX
+
+Channel rafaelpa@uio.no
+Expunge Both
+Master :rafaelpa@uio.no-remote:
+Slave :rafaelpa@uio.no-local:
+Patterns * !"[Gmail]/All Mail"
+Create Both
+SyncState *
+MaxMessages 0
+ExpireUnread no
+# End profile
+
+IMAPStore rafaelpalomaravalos@gmail.com-remote
+Host imap.gmail.com
+Port 993
+User rafaelpalomaravalos@gmail.com
+PassCmd "mutt_oauth2.py ~/.password-store/email/rafaelpalomaravalos_gmail.com"
+AuthMechs XOAUTH2
+SSLType IMAPS
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+# MaildirStore rafaelpalomaravalos@gmail.com-local
+# Subfolders Verbatim
+# Path /home/rafael/.local/share/mail/rafaelpalomaravalos@gmail.com/
+# Inbox /home/rafael/.local/share/mail/rafaelpalomaravalos@gmail.com/INBOX
+
+# Channel rafaelpalomaravalos@gmail.com
+# Expunge Both
+# Master :rafaelpalomaravalos@gmail.com-remote:
+# Slave :rafaelpalomaravalos@gmail.com-local:
+# Patterns * !"[Gmail]/All Mail"
+# Create Both
+# SyncState *
+# MaxMessages 0
+# ExpireUnread no
+# End profile
