@@ -1,4 +1,5 @@
 (define-module (config home home-config)
+  #:use-module (config home services emacs)
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)
@@ -16,8 +17,7 @@
   #:use-module (gnu packages fonts)
   #:use-module (gnu packages mail)
   #:use-module (gnu packages rust-apps)
-  #:use-module (gnu packages version-control)
-  #:use-module (config home services emacs))
+  #:use-module (gnu packages version-control))
 ;;  #:use-module (config packages emacs-evil-snipe))
 
 (define %email-packages

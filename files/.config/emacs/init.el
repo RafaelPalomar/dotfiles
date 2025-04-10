@@ -291,36 +291,44 @@
 
 ;;; ----- Essential Org Mode Configuration -----
 
-(setq org-ellipsis " ▾"
-      org-startup-folded 'content
-      org-cycle-separator-lines 2
-      org-fontify-quote-and-verse-blocks t)
+  (setq org-ellipsis " ▾"
+        org-startup-folded 'content
+        org-cycle-separator-lines 2
+        org-fontify-quote-and-verse-blocks t)
 
-;; Indent org-mode buffers for readability
-(add-hook 'org-mode-hook #'org-indent-mode)
+  ;; Indent org-mode buffers for readability
+  (add-hook 'org-mode-hook #'org-indent-mode)
 
-;; Set up Org Babel languages
-(org-babel-do-load-languages
- 'org-babel-load-languages
- '((emacs-lisp . t)
-   (shell . t)))
+  ;; Set up Org Babel languages
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((emacs-lisp . t)
+     (shell . t)))
 
-;; Use org-tempo
-(use-package org-tempo
-  :ensure nil
-  :demand t
-  :config
-  (dolist (item '(("sh" . "src sh")
-                  ("el" . "src emacs-lisp")
-                  ("li" . "src lisp")
-                  ("sc" . "src scheme")
-                  ("ts" . "src typescript")
-                  ("py" . "src python")
-                  ("yaml" . "src yaml")
-                  ("json" . "src json")
-                  ("einit" . "src emacs-lisp :tangle emacs/init.el")
-                  ("emodule" . "src emacs-lisp :tangle emacs/modules/dw-MODULE.el")))
-    (add-to-list 'org-structure-template-alist item)))
+  ;; Use org-tempo
+  (use-package org-tempo
+    :ensure nil
+    :demand t
+    :config
+    (dolist (item '(("sh" . "src sh")
+                    ("el" . "src emacs-lisp")
+                    ("li" . "src lisp")
+                    ("sc" . "src scheme")
+                    ("ts" . "src typescript")
+                    ("py" . "src python")
+                    ("yaml" . "src yaml")
+                    ("json" . "src json")
+                    ("einit" . "src emacs-lisp :tangle emacs/init.el")
+                    ("emodule" . "src emacs-lisp :tangle emacs/modules/dw-MODULE.el")))
+      (add-to-list 'org-structure-template-alist item)))
+
+  ;; Follow zotero links
+  ;; https://plexwave.org/blog/org-zotero-links
+  ;; Pay attention to the requirements in terms of zotero, plugins, action scripts and manual modification to the action script
+  (defun my-org-zotero-open (path _)
+  (call-process "open" nil nil nil (concat "zotero:" path)))
+
+(org-link-set-parameters "zotero" :follow #'my-org-zotero-open)
 
 ;;; ------------ Projectile setup --------------
 
