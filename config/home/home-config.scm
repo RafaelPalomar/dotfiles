@@ -1,6 +1,7 @@
 (define-module (config home home-config)
   #:use-module (config home services emacs)
   #:use-module (config packages mutt-oauth2)
+  #:use-module (config packages cyrus-sasl-xoauth2)
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)
