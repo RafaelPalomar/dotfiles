@@ -285,6 +285,8 @@
         ("Asia/Kolkata" "Hyderabad")))
 
 ;; From https://emacs.stackexchange.com/questions/72572/how-to-see-color-output-when-compiling
+;; this will help the compilation buffer to interpret correcly color characters as color, instead of
+;; characters
 (add-hook 'compilation-filter-hook 'ansi-color-compilation-filter)
 
 ;;; ----- Essential Org Mode Configuration -----
@@ -485,9 +487,9 @@
 
 
   ;; narrow
-  "N" '(:ignore t :which-key "Narrow")
-  "Nr" '(narrow-to-region :which-key "narrow-to-region")
-  "Nw" '(widen :which-key "widen")
+  ;; "N" '(:ignore t :which-key "Narrow")
+  ;; "Nr" '(narrow-to-region :which-key "narrow-to-region")
+  ;; "Nw" '(widen :which-key "widen")
 
 
   ;; tabs
@@ -507,6 +509,10 @@
 
   ;; AVY
   "gs" '(avy-goto-char-2 :whihc-key "avy-goto-char-2")
+
+  ;; Denote
+  "nn" '(denote-open-or-create :which-key "denote-open-or-create")
+
   )
 
 ;;; ----------- AVY --------------
@@ -544,3 +550,41 @@
 
 ;;; --------- enable marginalia -------
 (marginalia-mode)
+
+;;; ----------- Denote Configuration -----------
+
+;; Ensure Denote is loaded
+(require 'denote)
+
+;; Define silos for Work and Personal notes
+(setq denote-directory "~/Notes/Work/")
+
+(setq denote-silo-extras-directories
+      '(("personal" . "~/Notes/Personal/")))
+
+(defvar my-denote-to-agenda-regexp "_agenda"
+  "Denote file names that are added to the agenda.
+    See `my-add-denote-to-agenda'.")
+
+(defun my-denote-add-to-agenda ()
+  "Add current file to the `org-agenda-files', if needed.
+    The file's name must match the `my-denote-to-agenda-regexp'.
+
+    Add this to the `after-save-hook' or call it interactively."
+  (interactive)
+  (when-let* ((file (buffer-file-name))
+              ((denote-file-is-note-p file))
+              ((string-match-p my-denote-to-agenda-regexp (buffer-file-name))))
+    (add-to-list 'org-agenda-files file)))
+
+;; Example to add the file automatically. Comment/Uncomment it:
+(add-hook 'after-save-hook #'my-denote-add-to-agenda)
+
+(defun my-denote-remove-from-agenda ()
+  "Remove current file from the `org-agenda-files'.
+    See `my-denote-add-to-agenda' for how to add files to the Org
+    agenda."
+  (interactive)
+  (when-let* ((file (buffer-file-name))
+              ((string-match-p my-denote-to-agenda-regexp (buffer-file-name))))
+    (setq org-agenda-files (delete file org-agenda-files))))

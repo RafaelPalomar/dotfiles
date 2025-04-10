@@ -24,21 +24,20 @@
   (list isync))
 
 (define %emacs-packages
-  (list
-        ;; emacs-evil-snipe
-
-        emacs-ace-window
+  (list emacs-ace-window
         emacs-all-the-icons-dired
         emacs-avy
         emacs-beacon
         emacs-cmake-mode
         emacs-consult
+        emacs-denote
         emacs-embark
         emacs-evil
         emacs-evil-collection
         emacs-evil-commentary
         emacs-evil-goggles
         emacs-evil-paredit
+        ;; emacs-evil-snipe
         emacs-evil-surround
         emacs-geiser
         emacs-geiser-guile
@@ -96,12 +95,14 @@
                                                                      "emacs-beacon "
                                                                      "emacs-cmake-mode "
                                                                      "emacs-consult "
+                                                                     "emacs-denote "
                                                                      "emacs-embark "
                                                                      "emacs-evil "
                                                                      "emacs-evil-collection "
                                                                      "emacs-evil-commentary "
                                                                      "emacs-evil-goggles "
                                                                      "emacs-evil-paredit "
+                                                                     ;; "emacs-evil-snipe "
                                                                      "emacs-evil-surround "
                                                                      "emacs-geiser "
                                                                      "emacs-geiser-guile "
@@ -120,8 +121,6 @@
                                                                      "emacs-undo-fu "
                                                                      "emacs-yaml "
                                                                      "emacs-yaml-mode "
-                                                                     "ripgrep "
-                                                                     ;; "emacs-evil-snipe ")
-)
+                                                                     "ripgrep ")
                                                       "-- "
                                                       "emacs")))))))))
