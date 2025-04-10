@@ -86,46 +86,5 @@
                  (service home-bash-service-type
                           (home-bash-configuration
                            (environment-variables '(("PS1" . "\\[\\e[1;32m\\]\\u \\[\\e[1;34m\\]\\w \\[\\e[0m\\]λ ")))
-                           (aliases '(("gemacs" .
-                                       (string-append "guix "
-                                                      "shell "
-                                                      "emacs-pgtk "
-                                                      "guile "
-                                                      "guile-git "
-                                                      "libgit2-glib "
-                                                      "ripgrep "
-                                                      (string-append "emacs-ace-window "
-                                                                     "emacs-all-the-icons-dired "
-                                                                     "emacs-avy "
-                                                                     "emacs-beacon "
-                                                                     "emacs-cmake-mode "
-                                                                     "emacs-consult "
-                                                                     "emacs-denote "
-                                                                     "emacs-embark "
-                                                                     "emacs-evil "
-                                                                     "emacs-evil-collection "
-                                                                     "emacs-evil-commentary "
-                                                                     "emacs-evil-goggles "
-                                                                     "emacs-evil-paredit "
-                                                                     ;; "emacs-evil-snipe "
-                                                                     "emacs-evil-surround "
-                                                                     "emacs-geiser "
-                                                                     "emacs-geiser-guile "
-                                                                     "emacs-general "
-                                                                     "emacs-gptel "
-                                                                     "emacs-helpful "
-                                                                     "emacs-magit "
-                                                                     "emacs-marginalia "
-                                                                     "emacs-markdown-mode "
-                                                                     "emacs-modus-themes "
-                                                                     "emacs-orderless "
-                                                                     "emacs-paredit "
-                                                                     "emacs-perspective "
-                                                                     "emacs-projectile "
-                                                                     "emacs-rg "
-                                                                     "emacs-undo-fu "
-                                                                     "emacs-yaml "
-                                                                     "emacs-yaml-mode "
-                                                                     "ripgrep ")
-                                                      "-- "
-                                                      "emacs")))))))))
+                           (aliases '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/ntnu.no --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
+                                      ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/uio.no --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no"))))))))
