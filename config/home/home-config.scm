@@ -17,6 +17,7 @@
   #:use-module (gnu packages fontutils)
   #:use-module (gnu packages fonts)
   #:use-module (gnu packages mail)
+  #:use-module (gnu packages password-utils)
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages version-control))
 ;;  #:use-module (config packages emacs-evil-snipe))
@@ -71,6 +72,7 @@
                          guile-git
                          libgit2-glib
                          mutt-oauth2
+                         password-store
                          ripgrep
                          weechat)))
 
