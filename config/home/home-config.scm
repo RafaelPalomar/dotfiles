@@ -14,19 +14,26 @@
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages fontutils)
   #:use-module (gnu packages fonts)
+  #:use-module (gnu packages mail)
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages version-control)
   #:use-module (config home services emacs))
 ;;  #:use-module (config packages emacs-evil-snipe))
 
+(define %email-packages
+  (list isync))
+
 (define %emacs-packages
   (list
         ;; emacs-evil-snipe
+
+        emacs-ace-window
         emacs-all-the-icons-dired
         emacs-avy
         emacs-beacon
         emacs-cmake-mode
         emacs-consult
+        emacs-embark
         emacs-evil
         emacs-evil-collection
         emacs-evil-commentary
@@ -40,17 +47,21 @@
         emacs-helpful
         emacs-magit
         emacs-marginalia
+        emacs-markdown-mode
         emacs-modus-themes
+        emacs-orderless
         emacs-paredit
         emacs-perspective
         emacs-projectile
         emacs-rg
         emacs-undo-fu
-        emacs-ace-window
+        emacs-yaml
+        emacs-yaml-mode
         ))
 
 (home-environment
  (packages (append %emacs-packages
+                   %email-packages
                    (list emacs-pgtk
                          font-iosevka-aile
                          font-jetbrains-mono
@@ -79,11 +90,13 @@
                                                       "guile-git "
                                                       "libgit2-glib "
                                                       "ripgrep "
-                                                      (string-append "emacs-all-the-icons-dired "
+                                                      (string-append "emacs-ace-window "
+                                                                     "emacs-all-the-icons-dired "
                                                                      "emacs-avy "
                                                                      "emacs-beacon "
                                                                      "emacs-cmake-mode "
                                                                      "emacs-consult "
+                                                                     "emacs-embark "
                                                                      "emacs-evil "
                                                                      "emacs-evil-collection "
                                                                      "emacs-evil-commentary "
@@ -97,14 +110,18 @@
                                                                      "emacs-helpful "
                                                                      "emacs-magit "
                                                                      "emacs-marginalia "
+                                                                     "emacs-markdown-mode "
                                                                      "emacs-modus-themes "
+                                                                     "emacs-orderless "
                                                                      "emacs-paredit "
                                                                      "emacs-perspective "
                                                                      "emacs-projectile "
                                                                      "emacs-rg "
                                                                      "emacs-undo-fu "
-                                                                     ;; "emacs-evil-snipe "
-                                                                     "emacs-ace-window "
-                                                                     "ripgrep ")
+                                                                     "emacs-yaml "
+                                                                     "emacs-yaml-mode "
+                                                                     "ripgrep "
+                                                                     ;; "emacs-evil-snipe ")
+)
                                                       "-- "
                                                       "emacs")))))))))
