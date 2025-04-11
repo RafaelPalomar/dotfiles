@@ -24,7 +24,8 @@
 ;;  #:use-module (config packages emacs-evil-snipe))
 
 (define %email-packages
-  (list isync))
+  (list cyrus-sasl-xoauth2
+        isync))
 
 (define %emacs-packages
   (list emacs-ace-window
@@ -54,6 +55,7 @@
         emacs-orderless
         emacs-paredit
         emacs-perspective
+        emacs-pgtk
         emacs-projectile
         emacs-rg
         emacs-undo-fu
@@ -64,8 +66,7 @@
 (home-environment
  (packages (append %emacs-packages
                    %email-packages
-                   (list emacs-pgtk
-                         font-iosevka-aile
+                   (list font-iosevka-aile
                          font-jetbrains-mono
                          fontconfig
                          git
@@ -85,6 +86,7 @@
                  ;; Bashrc
                  (service home-bash-service-type
                           (home-bash-configuration
-                           (environment-variables '(("PS1" . "\\[\\e[1;32m\\]\\u \\[\\e[1;34m\\]\\w \\[\\e[0m\\]λ ")))
                            (aliases '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/ntnu.no --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
-                                      ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/uio.no --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no"))))))))
+                                      ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/uio.no --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no")
+                                      ("mbsync-all" . "guix shell cyrus-sasl-xoauth2 -L ~/dotfiles -- mbsync -a")
+                                      )))))))
