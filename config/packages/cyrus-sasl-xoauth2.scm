@@ -5,6 +5,7 @@
   #:use-module (guix download)
   #:use-module (guix gexp)
   #:use-module (guix build utils)
+  #:use-module (guix search-paths)
   #:use-module (guix packages))
 
 (define-public cyrus-sasl-xoauth2
@@ -45,7 +46,10 @@
            (let ((out (assoc-ref outputs "out")))
              (invoke "make" "install"
                      (string-append "pkglibdir=" out "/lib/sasl2"))))))))
-
+   (native-search-paths
+    (list (search-path-specification
+            (variable "SASL_PATH")
+            (files '("lib/sasl2")))))
    (synopsis "Cyrus SASL XOAUTH2 plugin")
    (description "This package provides the XOAUTH2 plugin for Cyrus SASL.")
    (home-page "https://github.com/moriyoshi/cyrus-sasl-xoauth2")
