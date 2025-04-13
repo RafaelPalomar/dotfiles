@@ -523,6 +523,87 @@
 
   )
 
+;;; ----------- mu4e configuration --------------
+
+(require 'mu4e)  ;; Ensure mu4e is loaded
+(setq mu4e-change-filenames-when-moving t)
+(setq mu4e-maildir "~/.local/share/mail")
+(setq mu4e-get-mail-command "guix shell -L ~/dotfiles cyrus-sasl-xoauth2 -- mbsync -a")
+(setq mu4e-update-interval (* 10 60))
+
+(setq sendmail-program "guix shell msmtp -- msmtp"
+      send-mail-function 'smtpmail-send-it
+      message-sendmail-f-is-evil t
+      message-sendmail-extra-arguments '("--read-envelope-from")
+      message-send-mail-function 'message-send-mail-with-sendmail)
+
+(setq mu4e-contexts
+      (list
+       ;; NTNU Account
+       (make-mu4e-context
+        :name "NTNU"
+        :match-func
+        (lambda (msg)
+          (when msg
+            (string-prefix-p "/rafael.palomar@ntnu.no" (mu4e-message-field msg :maildir))))
+        :vars '((user-mail-address      . "rafael.palomar@ntnu.no")
+                (user-full-name         . "Rafael Palomar")
+                (mu4e-drafts-folder     . "/rafael.palomar@ntnu.no/Drafts")
+                (mu4e-sent-folder       . "/rafael.palomar@ntnu.no/Sent")
+                (mu4e-trash-folder      . "/rafael.palomar@ntnu.no/Trash")
+                (mu4e-refile-folder     . "/rafael.palomar@ntnu.no/Archive")
+                ;; Configure SMTP
+                (smtpmail-smtp-user     . "rafael.palomar@ntnu.no")
+                (smtpmail-smtp-server   . "smtp.office365.com")
+                (smtpmail-smtp-service  . 587)
+                (smtpmail-stream-type   . starttls)
+                ;; Signature
+                (mu4e-compose-signature . "Best regards,\nYour Name"))) ;; Update your signature
+
+       ;; UIO Account
+       (make-mu4e-context
+        :name "UIO"
+        :match-func
+        (lambda (msg)
+          (when msg
+            (string-prefix-p "/rafaelpa@uio.no" (mu4e-message-field msg :maildir))))
+        :vars '((user-mail-address      . "rafaelpa@uio.no")
+                (user-full-name         . "Rafael Palomar")
+                (mu4e-drafts-folder     . "/rafaelpa@uio.no/Drafts")
+                (mu4e-sent-folder       . "/rafaelpa@uio.no/Sent")
+                (mu4e-trash-folder      . "/rafaelpa@uio.no/Trash")
+                (mu4e-refile-folder     . "/rafaelpa@uio.no/Archive")
+                ;; Configure SMTP
+                (smtpmail-smtp-user     . "rafaelpa@uio.no")
+                (smtpmail-smtp-server   . "smtp.office365.com")
+                (smtpmail-smtp-service  . 587)
+                (smtpmail-stream-type   . starttls)
+                ;; Signature
+                (mu4e-compose-signature . "Best regards,\nYour Name"))) ;; Update your signature
+
+       ;; Gmail Account
+       ;; (make-mu4e-context
+       ;;  :name "Gmail"
+       ;;  :match-func
+       ;;  (lambda (msg)
+       ;;    (when msg
+       ;;      (string-prefix-p "/rafaelpalomaravalos@gmail.com" (mu4e-message-field msg :maildir))))
+       ;;  :vars '((user-mail-address      . "rafaelpalomaravalos@gmail.com")
+       ;;          (user-full-name         . "Your Name")  ;; Replace with your name
+       ;;          (mu4e-drafts-folder     . "/rafaelpalomaravalos@gmail.com/[Gmail]/Drafts")
+       ;;          (mu4e-sent-folder       . "/rafaelpalomaravalos@gmail.com/[Gmail]/Sent Mail")
+       ;;          (mu4e-trash-folder      . "/rafaelpalomaravalos@gmail.com/[Gmail]/Trash")
+       ;;          (mu4e-refile-folder     . "/rafaelpalomaravalos@gmail.com/[Gmail]/All Mail")
+       ;;          ;; Configure SMTP
+       ;;          (smtpmail-smtp-user     . "rafaelpalomaravalos@gmail.com")
+       ;;          (smtpmail-smtp-server   . "smtp.gmail.com")
+       ;;          (smtpmail-smtp-service  . 587)
+       ;;          (smtpmail-stream-type   . starttls)
+       ;;          ;; Signature
+       ;;          (mu4e-compose-signature . "Best regards,\nYour Name")))
+       ;; Update your signature
+       ))
+
 ;;; ----------- AVY --------------
 
 (require 'avy)

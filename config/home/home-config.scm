@@ -25,7 +25,8 @@
 
 (define %email-packages
   (list cyrus-sasl-xoauth2
-        isync))
+        isync
+        msmtp))
 
 (define %emacs-packages
   (list emacs-ace-window
@@ -73,6 +74,7 @@
                          guile-3.0
                          guile-git
                          libgit2-glib
+                         mu
                          mutt-oauth2
                          password-store
                          ripgrep

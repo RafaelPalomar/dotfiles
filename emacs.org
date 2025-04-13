@@ -607,6 +607,174 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 #+end_src
 
+** Email
+
+*** Setup
+
+This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff8d6aa5c8e424bd4850bbc9b79470b/dotemacs.org#setup][rougier/dotemacs]]:
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+
+    ;;; ----------- mu4e general configuration --------------
+
+  (require 'mu4e)  ;; Ensure mu4e is loaded
+
+  (setq mu4e-maildir "~/.local/share/mail"
+        ;;mu4e-mu-binary "/usr/local/bin/mu"
+        mu4e-attachment-dir "~/Downloads"
+        mu4e-get-mail-command  "guix shell -L ~/dotfiles cyrus-sasl-xoauth2 -- mbsync -a"
+        mu4e-update-interval 300            ; Update interval (seconds)
+        mu4e-index-cleanup t                ; Cleanup after indexing
+        mu4e-index-update-error-warning t   ; Warnings during update
+        mu4e-hide-index-messages t          ; Hide indexing messages
+        mu4e-index-update-in-background t   ; Background update
+        mu4e-change-filenames-when-moving t ; Needed for mbsync
+        mu4e-index-lazy-check nil           ; Don't be lazy, index everything
+
+        mu4e-confirm-quit nil
+        mu4e-split-view 'single-window
+
+        mu4e-headers-auto-update nil
+        mu4e-headers-date-format "%d-%m"
+        mu4e-headers-time-format "%H:%M"
+        mu4e-headers-from-or-to-prefix '("" . "To ")
+        mu4e-headers-include-related t
+        mu4e-headers-skip-duplicates t)
+
+  (setq sendmail-program "guix shell msmtp -- msmtp"
+        send-mail-function 'smtpmail-send-it
+        message-sendmail-f-is-evil t
+        message-sendmail-extra-arguments '("--read-envelope-from")
+        message-send-mail-function 'message-send-mail-with-sendmail)
+
+  ;; Reset variables, as our configurtion is based on contexts
+  (setq mu4e-contexts nil
+        mu4e-drafts-folder nil
+        mu4e-compose-reply-to-address nil
+        mu4e-compose-signature t
+        mu4e-compose-signature-auto-include t
+        mu4e-sent-folder nil
+        mu4e-trash-folder nil)
+
+#+end_src
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+  (setq mu4e-compose-signature "Prof. Rafael Palomar, Ph.D.
+  __________________________________
+  Head of Medical Software Research Laboratory (MESH|Lab)
+  The Intervention Centre, Oslo University Hospital (OUH)
+  Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)
+  N-0372 Oslo, Norway
+  rafael.palomar@ous-research.no
+  https://ivs.no
+
+  Associate Professor
+  Norwegian University of Science and Technology (NTNU)
+  Teknologiveien 22, 2815 Gjøvik, Norway
+  rafael.palomar@ntnu.no
+  https://ntnu.no
+  --")
+
+
+  (setq mu4e-contexts
+        (list
+         ;; NTNU Account
+         (make-mu4e-context
+          :name "NTNU"
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-prefix-p "/rafael.palomar@ntnu.no" (mu4e-message-field msg :maildir))))
+          :vars '((user-mail-address      . "rafael.palomar@ntnu.no")
+                  (user-full-name         . "Rafael Palomar")
+                  (mu4e-drafts-folder     . "/rafael.palomar@ntnu.no/Drafts")
+                  (mu4e-sent-folder       . "/rafael.palomar@ntnu.no/Sent")
+                  (mu4e-trash-folder      . "/rafael.palomar@ntnu.no/Trash")
+                  (mu4e-refile-folder     . "/rafael.palomar@ntnu.no/Archive")
+                  ;; Configure SMTP
+                  (smtpmail-smtp-user     . "rafael.palomar@ntnu.no")
+                  (smtpmail-smtp-server   . "smtp.office365.com")
+                  (smtpmail-smtp-service  . 587)
+                  (smtpmail-stream-type   . starttls)
+                  ))
+
+         ;; UIO Account
+         (make-mu4e-context
+          :name "UIO"
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-prefix-p "/rafaelpa@uio.no" (mu4e-message-field msg :maildir))))
+          :vars '((user-mail-address      . "rafaelpa@uio.no")
+                  (user-full-name         . "Rafael Palomar")
+                  (mu4e-drafts-folder     . "/rafaelpa@uio.no/Drafts")
+                  (mu4e-sent-folder       . "/rafaelpa@uio.no/Sent")
+                  (mu4e-trash-folder      . "/rafaelpa@uio.no/Trash")
+                  (mu4e-refile-folder     . "/rafaelpa@uio.no/Archive")
+                  ;; Configure SMTP
+                  (smtpmail-smtp-user     . "rafaelpa@uio.no")
+                  (smtpmail-smtp-server   . "smtp.office365.com")
+                  (smtpmail-smtp-service  . 587)
+                  (smtpmail-stream-type   . starttls)
+
+                  ;; Gmail Account
+                  ;; (make-mu4e-context
+                  ;;  :name "Gmail"
+                  ;;  :match-func
+                  ;;  (lambda (msg)
+                  ;;    (when msg
+                  ;;      (string-prefix-p "/rafaelpalomaravalos@gmail.com" (mu4e-message-field msg :maildir))))
+                  ;;  :vars '((user-mail-address      . "rafaelpalomaravalos@gmail.com")
+                  ;;          (user-full-name         . "Your Name")  ;; Replace with your name
+                  ;;          (mu4e-drafts-folder     . "/rafaelpalomaravalos@gmail.com/[Gmail]/Drafts")
+                  ;;          (mu4e-sent-folder       . "/rafaelpalomaravalos@gmail.com/[Gmail]/Sent Mail")
+                  ;;          (mu4e-trash-folder      . "/rafaelpalomaravalos@gmail.com/[Gmail]/Trash")
+                  ;;          (mu4e-refile-folder     . "/rafaelpalomaravalos@gmail.com/[Gmail]/All Mail")
+                  ;;          ;; Configure SMTP
+                  ;;          (smtpmail-smtp-user     . "rafaelpalomaravalos@gmail.com")
+                  ;;          (smtpmail-smtp-server   . "smtp.gmail.com")
+                  ;;          (smtpmail-smtp-service  . 587)
+                  ;;          (smtpmail-stream-type   . starttls)
+                  ;;          ;; Signature
+                  ;;          (mu4e-compose-signature . "Best regards,\nYour Name")))
+                  ;; Update your signature
+                  ))))
+
+#+end_src
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+
+  (require 'mu4e-dashboard)
+  (require 'svg-lib)
+
+  (setq mu4e-dashboard-propagate-keymap nil)
+
+  (defun mu4e-dashboard ()
+    "Open the mu4e dashboard on the left side."
+
+    (interactive)
+    (with-selected-window
+        (split-window (selected-window) -34 'left)
+
+      (find-file (expand-file-name "mu4e-dashboard.org" user-emacs-directory))
+      (mu4e-dashboard-mode)
+      (hl-line-mode)
+      (set-window-dedicated-p nil t)
+      (defvar svg-font-lock-keywords
+        `(("\\!\\([\\ 0-9]+\\)\\!"
+           (0 (list 'face nil 'display (svg-font-lock-tag (match-string 1)))))))
+      (defun svg-font-lock-tag (label)
+        (svg-lib-tag label nil
+                     :stroke 0 :margin 1 :font-weight 'bold
+                     :padding (max 0 (- 3 (length label)))
+                     :foreground (face-foreground 'nano-popout-i)
+                     :background (face-background 'nano-popout-i)))
+      (push 'display font-lock-extra-managed-props)
+      (font-lock-add-keywords nil svg-font-lock-keywords)
+      (font-lock-flush (point-min) (point-max))))
+
+#+end_src
+
 ** Misc
 
 *** avy
