@@ -132,10 +132,21 @@
 ;; other faces such as `diff-added` will be used for other actions
 (evil-goggles-use-diff-faces)
 
-;;; ----- Appearance -----
+(require 'nano-theme)
+  (setq nano-fonts-use t) ; Use theme font stack
+  (nano-dark)             ; Use theme dark version
+  (nano-mode)             ; Recommended settings
 
-(defun dw/set-terminal-title (title)
-  (send-string-to-terminal (format "\e]0;%s\a" title)))
+
+  (defun my/set-face (face style)
+    "Reset FACE and make it inherit STYLE."
+    (set-face-attribute face nil
+                        :foreground 'unspecified :background 'unspecified
+                        :family     'unspecified :slant      'unspecified
+                        :weight     'unspecified :height     'unspecified
+                        :underline  'unspecified :overline   'unspecified
+                        :box        'unspecified :inherit    style))
+  (my/set-face 'italic 'nano-faded)
 
 (defun dw/clear-background-color (&optional frame)
   (interactive)
@@ -170,93 +181,13 @@
   (set-face-attribute 'variable-pitch nil
                       :font "Iosevka Aile"
                       :height 120
-                      :weight 'normal)
+                      :weight 'normal))
 
   ;; Make frames transparent
   (set-frame-parameter (selected-frame) 'alpha-background 95)
   (add-to-list 'default-frame-alist '(alpha-background . 95))
   (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
-  (add-to-list 'default-frame-alist '(fullscreen . maximized)))
-
-(use-package modus-themes
-  :ensure nil
-  :demand t
-  :custom
-  (modus-themes-italic-constructs t)
-  (modus-themes-bold-constructs t)
-  (modus-themes-common-palette-overrides
-   `((bg-main "#292D3E")
-     (bg-active bg-main)
-     (fg-main "#EEFFFF")
-     (fg-active fg-main)
-     (fringe unspecified)
-     (border-mode-line-active unspecified)
-     (border-mode-line-inactive unspecified)
-     (fg-mode-line-active "#A6Accd")
-     (bg-mode-line-active "#232635")
-     (fg-mode-line-inactive "#676E95")
-     (bg-mode-line-inactive "#282c3d")
-     (bg-tab-bar      "#242837")
-     (bg-tab-current  bg-main)
-     (bg-tab-other    bg-active)
-     (fg-prompt "#c792ea")
-     (bg-prompt unspecified)
-     (bg-hover-secondary "#676E95")
-     (bg-completion "#2f447f")
-     (fg-completion white)
-     (bg-region "#3C435E")
-     (fg-region white)
-
-     (fg-heading-0 "#82aaff")
-     (fg-heading-1 "#82aaff")
-     (fg-heading-2 "#c792ea")
-     (fg-heading-3 "#bb80b3")
-     (fg-heading-4 "#a1bfff")
-
-     (fg-prose-verbatim "#c3e88d")
-     (bg-prose-block-contents "#232635")
-     (fg-prose-block-delimiter "#676E95")
-     (bg-prose-block-delimiter bg-prose-block-contents)
-
-     (accent-1 "#79a8ff")
-
-     (keyword "#89DDFF")
-     (builtin "#82aaff")
-     (comment "#676E95")
-     (string "#c3e88d")
-     (fnname "#82aaff")
-     (type "#c792ea")
-     (variable "#ffcb6b")
-     (docstring "#8d92af")
-     (constant "#f78c6c")))
-  :init
-  (load-theme 'modus-vivendi-tinted t)
-  (add-hook 'modus-themes-after-load-theme-hook #'dw/clear-background-color))
-
-;; Make vertical window separators look nicer in terminal Emacs
-(set-display-table-slot standard-display-table 'vertical-border (make-glyph-code ?│))
-
-;; Clean up the mode line
-(setq-default mode-line-format
-              '("%e" "  "
-                (:propertize
-                 ("" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote))
-                mode-line-frame-identification
-                mode-line-buffer-identification
-                "   "
-                mode-line-position
-                mode-line-format-right-align
-                "  "
-                (project-mode-line project-mode-line-format)
-                " "
-                (vc-mode vc-mode)
-                "  "
-                mode-line-modes
-                mode-line-misc-info
-                "  ")
-              project-mode-line t
-              mode-line-buffer-identification '(" %b")
-              mode-line-position-column-line-format '(" %l:%c"))
+  (add-to-list 'default-frame-alist '(fullscreen . maximized))
 
 ;; Move global mode string to the tab-bar and hide tab close buttons
 (setq tab-bar-close-button-show nil
@@ -291,41 +222,41 @@
 
 ;;; ----- Essential Org Mode Configuration -----
 
-  (setq org-ellipsis " ▾"
-        org-startup-folded 'content
-        org-cycle-separator-lines 2
-        org-fontify-quote-and-verse-blocks t)
+(setq org-ellipsis " ▾"
+      org-startup-folded 'content
+      org-cycle-separator-lines 2
+      org-fontify-quote-and-verse-blocks t)
 
-  ;; Indent org-mode buffers for readability
-  (add-hook 'org-mode-hook #'org-indent-mode)
+;; Indent org-mode buffers for readability
+(add-hook 'org-mode-hook #'org-indent-mode)
 
-  ;; Set up Org Babel languages
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((emacs-lisp . t)
-     (shell . t)))
+;; Set up Org Babel languages
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((emacs-lisp . t)
+   (shell . t)))
 
-  ;; Use org-tempo
-  (use-package org-tempo
-    :ensure nil
-    :demand t
-    :config
-    (dolist (item '(("sh" . "src sh")
-                    ("el" . "src emacs-lisp")
-                    ("li" . "src lisp")
-                    ("sc" . "src scheme")
-                    ("ts" . "src typescript")
-                    ("py" . "src python")
-                    ("yaml" . "src yaml")
-                    ("json" . "src json")
-                    ("einit" . "src emacs-lisp :tangle emacs/init.el")
-                    ("emodule" . "src emacs-lisp :tangle emacs/modules/dw-MODULE.el")))
-      (add-to-list 'org-structure-template-alist item)))
+;; Use org-tempo
+(use-package org-tempo
+  :ensure nil
+  :demand t
+  :config
+  (dolist (item '(("sh" . "src sh")
+                  ("el" . "src emacs-lisp")
+                  ("li" . "src lisp")
+                  ("sc" . "src scheme")
+                  ("ts" . "src typescript")
+                  ("py" . "src python")
+                  ("yaml" . "src yaml")
+                  ("json" . "src json")
+                  ("einit" . "src emacs-lisp :tangle emacs/init.el")
+                  ("emodule" . "src emacs-lisp :tangle emacs/modules/dw-MODULE.el")))
+    (add-to-list 'org-structure-template-alist item)))
 
-  ;; Follow zotero links
-  ;; https://plexwave.org/blog/org-zotero-links
-  ;; Pay attention to the requirements in terms of zotero, plugins, action scripts and manual modification to the action script
-  (defun my-org-zotero-open (path _)
+;; Follow zotero links
+;; https://plexwave.org/blog/org-zotero-links
+;; Pay attention to the requirements in terms of zotero, plugins, action scripts and manual modification to the action script
+(defun my-org-zotero-open (path _)
   (call-process "open" nil nil nil (concat "zotero:" path)))
 
 (org-link-set-parameters "zotero" :follow #'my-org-zotero-open)
@@ -523,19 +454,63 @@
 
   )
 
-;;; ----------- mu4e configuration --------------
+;;; ----------- mu4e general configuration --------------
 
 (require 'mu4e)  ;; Ensure mu4e is loaded
-(setq mu4e-change-filenames-when-moving t)
-(setq mu4e-maildir "~/.local/share/mail")
-(setq mu4e-get-mail-command "guix shell -L ~/dotfiles cyrus-sasl-xoauth2 -- mbsync -a")
-(setq mu4e-update-interval (* 10 60))
+
+(setq mu4e-maildir "~/.local/share/mail"
+      ;;mu4e-mu-binary "/usr/local/bin/mu"
+      mu4e-attachment-dir "~/Downloads"
+      mu4e-get-mail-command  "guix shell -L ~/dotfiles cyrus-sasl-xoauth2 -- mbsync -a"
+      mu4e-update-interval 300            ; Update interval (seconds)
+      mu4e-index-cleanup t                ; Cleanup after indexing
+      mu4e-index-update-error-warning t   ; Warnings during update
+      mu4e-hide-index-messages t          ; Hide indexing messages
+      mu4e-index-update-in-background t   ; Background update
+      mu4e-change-filenames-when-moving t ; Needed for mbsync
+      mu4e-index-lazy-check nil           ; Don't be lazy, index everything
+
+      mu4e-confirm-quit nil
+      mu4e-split-view 'single-window
+
+      mu4e-headers-auto-update nil
+      mu4e-headers-date-format "%d-%m"
+      mu4e-headers-time-format "%H:%M"
+      mu4e-headers-from-or-to-prefix '("" . "To ")
+      mu4e-headers-include-related t
+      mu4e-headers-skip-duplicates t)
 
 (setq sendmail-program "guix shell msmtp -- msmtp"
       send-mail-function 'smtpmail-send-it
       message-sendmail-f-is-evil t
       message-sendmail-extra-arguments '("--read-envelope-from")
       message-send-mail-function 'message-send-mail-with-sendmail)
+
+;; Reset variables, as our configurtion is based on contexts
+(setq mu4e-contexts nil
+      mu4e-drafts-folder nil
+      mu4e-compose-reply-to-address nil
+      mu4e-compose-signature t
+      mu4e-compose-signature-auto-include t
+      mu4e-sent-folder nil
+      mu4e-trash-folder nil)
+
+(setq mu4e-compose-signature "Prof. Rafael Palomar, Ph.D.
+__________________________________
+Head of Medical Software Research Laboratory (MESH|Lab)
+The Intervention Centre, Oslo University Hospital (OUH)
+Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)
+N-0372 Oslo, Norway
+rafael.palomar@ous-research.no
+https://ivs.no
+
+Associate Professor
+Norwegian University of Science and Technology (NTNU)
+Teknologiveien 22, 2815 Gjøvik, Norway
+rafael.palomar@ntnu.no
+https://ntnu.no
+--")
+
 
 (setq mu4e-contexts
       (list
@@ -557,8 +532,7 @@
                 (smtpmail-smtp-server   . "smtp.office365.com")
                 (smtpmail-smtp-service  . 587)
                 (smtpmail-stream-type   . starttls)
-                ;; Signature
-                (mu4e-compose-signature . "Best regards,\nYour Name"))) ;; Update your signature
+                ))
 
        ;; UIO Account
        (make-mu4e-context
@@ -578,31 +552,58 @@
                 (smtpmail-smtp-server   . "smtp.office365.com")
                 (smtpmail-smtp-service  . 587)
                 (smtpmail-stream-type   . starttls)
-                ;; Signature
-                (mu4e-compose-signature . "Best regards,\nYour Name"))) ;; Update your signature
 
-       ;; Gmail Account
-       ;; (make-mu4e-context
-       ;;  :name "Gmail"
-       ;;  :match-func
-       ;;  (lambda (msg)
-       ;;    (when msg
-       ;;      (string-prefix-p "/rafaelpalomaravalos@gmail.com" (mu4e-message-field msg :maildir))))
-       ;;  :vars '((user-mail-address      . "rafaelpalomaravalos@gmail.com")
-       ;;          (user-full-name         . "Your Name")  ;; Replace with your name
-       ;;          (mu4e-drafts-folder     . "/rafaelpalomaravalos@gmail.com/[Gmail]/Drafts")
-       ;;          (mu4e-sent-folder       . "/rafaelpalomaravalos@gmail.com/[Gmail]/Sent Mail")
-       ;;          (mu4e-trash-folder      . "/rafaelpalomaravalos@gmail.com/[Gmail]/Trash")
-       ;;          (mu4e-refile-folder     . "/rafaelpalomaravalos@gmail.com/[Gmail]/All Mail")
-       ;;          ;; Configure SMTP
-       ;;          (smtpmail-smtp-user     . "rafaelpalomaravalos@gmail.com")
-       ;;          (smtpmail-smtp-server   . "smtp.gmail.com")
-       ;;          (smtpmail-smtp-service  . 587)
-       ;;          (smtpmail-stream-type   . starttls)
-       ;;          ;; Signature
-       ;;          (mu4e-compose-signature . "Best regards,\nYour Name")))
-       ;; Update your signature
-       ))
+                ;; Gmail Account
+                ;; (make-mu4e-context
+                ;;  :name "Gmail"
+                ;;  :match-func
+                ;;  (lambda (msg)
+                ;;    (when msg
+                ;;      (string-prefix-p "/rafaelpalomaravalos@gmail.com" (mu4e-message-field msg :maildir))))
+                ;;  :vars '((user-mail-address      . "rafaelpalomaravalos@gmail.com")
+                ;;          (user-full-name         . "Your Name")  ;; Replace with your name
+                ;;          (mu4e-drafts-folder     . "/rafaelpalomaravalos@gmail.com/[Gmail]/Drafts")
+                ;;          (mu4e-sent-folder       . "/rafaelpalomaravalos@gmail.com/[Gmail]/Sent Mail")
+                ;;          (mu4e-trash-folder      . "/rafaelpalomaravalos@gmail.com/[Gmail]/Trash")
+                ;;          (mu4e-refile-folder     . "/rafaelpalomaravalos@gmail.com/[Gmail]/All Mail")
+                ;;          ;; Configure SMTP
+                ;;          (smtpmail-smtp-user     . "rafaelpalomaravalos@gmail.com")
+                ;;          (smtpmail-smtp-server   . "smtp.gmail.com")
+                ;;          (smtpmail-smtp-service  . 587)
+                ;;          (smtpmail-stream-type   . starttls)
+                ;;          ;; Signature
+                ;;          (mu4e-compose-signature . "Best regards,\nYour Name")))
+                ;; Update your signature
+                ))))
+
+(require 'mu4e-dashboard)
+(require 'svg-lib)
+
+(setq mu4e-dashboard-propagate-keymap nil)
+
+(defun mu4e-dashboard ()
+  "Open the mu4e dashboard on the left side."
+
+  (interactive)
+  (with-selected-window
+      (split-window (selected-window) -34 'left)
+
+    (find-file (expand-file-name "mu4e-dashboard.org" user-emacs-directory))
+    (mu4e-dashboard-mode)
+    (hl-line-mode)
+    (set-window-dedicated-p nil t)
+    (defvar svg-font-lock-keywords
+      `(("\\!\\([\\ 0-9]+\\)\\!"
+         (0 (list 'face nil 'display (svg-font-lock-tag (match-string 1)))))))
+    (defun svg-font-lock-tag (label)
+      (svg-lib-tag label nil
+                   :stroke 0 :margin 1 :font-weight 'bold
+                   :padding (max 0 (- 3 (length label)))
+                   :foreground (face-foreground 'nano-popout-i)
+                   :background (face-background 'nano-popout-i)))
+    (push 'display font-lock-extra-managed-props)
+    (font-lock-add-keywords nil svg-font-lock-keywords)
+    (font-lock-flush (point-min) (point-max))))
 
 ;;; ----------- AVY --------------
 

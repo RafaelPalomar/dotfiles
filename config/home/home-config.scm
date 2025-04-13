@@ -53,12 +53,16 @@
         emacs-marginalia
         emacs-markdown-mode
         emacs-modus-themes
+        emacs-nano-theme
+        emacs-nano-modeline
+        emacs-mu4e-dashboard
         emacs-orderless
         emacs-paredit
         emacs-perspective
         emacs-pgtk
         emacs-projectile
         emacs-rg
+        emacs-svg-lib
         emacs-undo-fu
         emacs-yaml
         emacs-yaml-mode
@@ -67,7 +71,10 @@
 (home-environment
  (packages (append %emacs-packages
                    %email-packages
-                   (list font-iosevka-aile
+                   (list font-fira-code
+                         font-google-roboto
+                         font-inconsolata
+                         font-iosevka-aile
                          font-jetbrains-mono
                          fontconfig
                          git
@@ -78,7 +85,8 @@
                          mutt-oauth2
                          password-store
                          ripgrep
-                         weechat)))
+                         weechat
+                         )))
 
  (services (list (service home-emacs-config-service-type)
                  ;; Drop files (gnu stow replacement)
