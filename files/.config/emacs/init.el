@@ -189,18 +189,6 @@
   (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
   (add-to-list 'default-frame-alist '(fullscreen . maximized))
 
-;; Move global mode string to the tab-bar and hide tab close buttons
-(setq tab-bar-close-button-show nil
-      tab-bar-separator " "
-      tab-bar-format '(tab-bar-format-menu-bar
-                       tab-bar-format-tabs-groups
-                       tab-bar-separator
-                       tab-bar-format-align-right
-                       tab-bar-format-global))
-
-;; Turn on the tab-bar
-(tab-bar-mode 1)
-
 ;; Customize time display
 (setq display-time-load-average nil
       display-time-format "%l:%M %p %b %d W%U"
