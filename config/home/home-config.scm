@@ -35,6 +35,7 @@
         emacs-beacon
         emacs-cmake-mode
         emacs-consult
+        emacs-dashboard
         emacs-denote
         emacs-embark
         emacs-evil
@@ -55,6 +56,7 @@
         emacs-modus-themes
         emacs-nano-theme
         emacs-nano-modeline
+        emacs-nerd-icons
         emacs-mu4e-dashboard
         emacs-orderless
         emacs-paredit

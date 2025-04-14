@@ -977,3 +977,14 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
       (setq org-agenda-files (delete file org-agenda-files))))
 
 #+end_src
+
+*** dashboard
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+
+  ;;; ------------------- Emacs Dashboard ---------------
+
+  (require 'dashboard)
+  (dashboard-setup-startup-hook)
+
+#+end_src

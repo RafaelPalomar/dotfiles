@@ -676,3 +676,8 @@ https://ntnu.no
   (when-let* ((file (buffer-file-name))
               ((string-match-p my-denote-to-agenda-regexp (buffer-file-name))))
     (setq org-agenda-files (delete file org-agenda-files))))
+
+;;; ------------------- Emacs Dashboard ---------------
+
+(require 'dashboard)
+(dashboard-setup-startup-hook)
