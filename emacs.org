@@ -678,9 +678,19 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
-    ;;; ----------- mu4e general configuration --------------
+  ;;; ----------- mu4e general configuration --------------
 
   (require 'mu4e)  ;; Ensure mu4e is loaded
+
+  (with-eval-after-load 'mu4e
+    ;; Option 1: Unbind C--
+    (define-key mu4e-headers-mode-map (kbd "C--") nil)
+    (define-key mu4e-view-mode-map (kbd "C--") nil)
+
+    ;; Option 2: Rebind C-- to text-scale-decrease
+    ;; (define-key mu4e-headers-mode-map (kbd "C--") 'text-scale-decrease)
+    ;; (define-key mu4e-view-mode-map (kbd "C--") 'text-scale-decrease)
+    )
 
   (setq mu4e-maildir "~/.local/share/mail"
         ;;mu4e-mu-binary "/usr/local/bin/mu"

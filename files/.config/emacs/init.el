@@ -446,6 +446,16 @@
 
 (require 'mu4e)  ;; Ensure mu4e is loaded
 
+(with-eval-after-load 'mu4e
+  ;; Option 1: Unbind C--
+  (define-key mu4e-headers-mode-map (kbd "C--") nil)
+  (define-key mu4e-view-mode-map (kbd "C--") nil)
+
+  ;; Option 2: Rebind C-- to text-scale-decrease
+  ;; (define-key mu4e-headers-mode-map (kbd "C--") 'text-scale-decrease)
+  ;; (define-key mu4e-view-mode-map (kbd "C--") 'text-scale-decrease)
+  )
+
 (setq mu4e-maildir "~/.local/share/mail"
       ;;mu4e-mu-binary "/usr/local/bin/mu"
       mu4e-attachment-dir "~/Downloads"
