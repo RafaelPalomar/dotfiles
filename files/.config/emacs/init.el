@@ -210,6 +210,11 @@
 
 ;;; ----- Essential Org Mode Configuration -----
 
+(require 'org-superstar)
+(add-hook 'org-mode-hook (lambda () (org-superstar-mode 1)))
+
+;;; ----- Essential Org Mode Configuration -----
+
 (setq org-ellipsis " ▾"
       org-startup-folded 'content
       org-cycle-separator-lines 2
