@@ -254,6 +254,21 @@
 
 (org-link-set-parameters "zotero" :follow #'my-org-zotero-open)
 
+(setq org-capture-templates
+      '(("m" "Email Workflow")
+        ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
+         "* TODO Follow up with %:fromname on [[%:link][%:subject]]
+SCHEDULED: %t
+DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
+
+%i" :immediate-finish nil)
+        ("mr" "Reply" entry (file+olp "~/org/inbox.org" "E-Mail")
+         "* TODO [#A] Reply to %:fromname on [[%:link][%:subject]]
+SCHEDULED: %t
+DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
+
+%i" :immediate-finish nil)))
+
 ;;; ------------ Projectile setup --------------
 
 ;; https://github.com/bbatsov/projectile/issues/1649
@@ -483,7 +498,7 @@
       mu4e-headers-include-related t
       mu4e-headers-skip-duplicates t)
 
-(setq sendmail-program "guix shell msmtp -- msmtp"
+(setq sendmail-program "msmtp"
       send-mail-function 'smtpmail-send-it
       message-sendmail-f-is-evil t
       message-sendmail-extra-arguments '("--read-envelope-from")
@@ -579,6 +594,20 @@ https://ntnu.no
                 ;; Update your signature
                 ))))
 
+;; Fixing keybindings and other configurations
+(with-eval-after-load 'mu4e
+  ;; Unbind conflicting keys if necessary
+  (define-key mu4e-headers-mode-map (kbd "C--") nil)
+  (define-key mu4e-view-mode-map (kbd "C--") nil)
+
+  ;; Ensure 'a' is available in visual state in mu4e-view-mode
+  (evil-define-key 'visual mu4e-view-mode-map (kbd "a") 'mu4e-view-action)
+  ;; Similarly, for mu4e-headers-mode if needed
+  (evil-define-key 'visual mu4e-headers-mode-map (kbd "a") 'mu4e-headers-mark-for-*)
+
+  ;; Additional mu4e configurations can go here
+  )
+
 (require 'mu4e-dashboard)
 (require 'svg-lib)
 
@@ -607,6 +636,96 @@ https://ntnu.no
     (push 'display font-lock-extra-managed-props)
     (font-lock-add-keywords nil svg-font-lock-keywords)
     (font-lock-flush (point-min) (point-max))))
+
+;; Define quick action capture
+              ;; https://systemcrafters.net/emacs-mail/email-workflow-with-org-mode/
+
+  ;; Helper function to get the current message
+  (defun efs/get-current-message ()
+    "Get the current message in mu4e, whether in view or headers mode."
+    (cond
+     ((eq major-mode 'mu4e-view-mode)
+      mu4e~view-message)
+     ((eq major-mode 'mu4e-headers-mode)
+      (mu4e-message-at-point))
+     (t
+      (mu4e-message-at-point))))
+
+
+  (defun efs/capture-mail-follow-up (msg)
+    "Create a follow-up task for the email message MSG."
+    (interactive (list (or msg (mu4e-message-at-point))))
+    (unless msg
+      (error "No message found."))
+    ;; Extract message details
+    (let* ((from (mu4e-message-field msg :from))
+           (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
+           (subject (mu4e-message-field msg :subject))
+           (message-id (mu4e-message-field msg :message-id))
+           (link (concat "mu4e:msgid:" message-id))
+           (region (when (use-region-p)
+                     (buffer-substring-no-properties
+                      (region-beginning) (region-end)))))
+      ;; Set the org-capture variables
+      (setq org-store-link-plist (list
+                                  :type "mu4e"
+                                  :fromname fromname
+                                  :subject subject
+                                  :message-id message-id
+                                  :link link))
+      (setq org-capture-initial region)
+      ;; Mark the message as read
+      (cond
+       ((eq major-mode 'mu4e-view-mode)
+        (mu4e-view-mark-for-read))
+       ((eq major-mode 'mu4e-headers-mode)
+        (mu4e-headers-mark-for-read)
+        (mu4e-mark-execute-all t)))
+      ;; Start the capture
+      (org-capture nil "mf")))
+
+
+(defun efs/capture-mail-reply (msg)
+  "Create a reply task for the email message MSG."
+  (interactive (list (or msg (mu4e-message-at-point))))
+  (unless msg
+    (error "No message found."))
+  ;; Extract message details
+  (let* ((from (mu4e-message-field msg :from))
+         (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
+         (subject (mu4e-message-field msg :subject))
+         (message-id (mu4e-message-field msg :message-id))
+         (link (concat "mu4e:msgid:" message-id))
+         (region (when (use-region-p)
+                   (buffer-substring-no-properties
+                    (region-beginning) (region-end)))))
+    ;; Set the org-capture variables
+    (setq org-store-link-plist (list
+                                :type "mu4e"
+                                :fromname fromname
+                                :subject subject
+                                :message-id message-id
+                                :link link))
+    (setq org-capture-initial region)
+    ;; Mark the message as read
+    (cond
+     ((eq major-mode 'mu4e-view-mode)
+      (mu4e-view-mark-for-read))
+     ((eq major-mode 'mu4e-headers-mode)
+      (mu4e-headers-mark-for-read)
+      (mu4e-mark-execute-all t)))
+    ;; Start the capture
+    (org-capture nil "mr")))
+
+              ;; Add custom actions for our capture templates
+              (add-to-list 'mu4e-headers-actions
+                           '("follow up" . efs/capture-mail-follow-up) t)
+              (add-to-list 'mu4e-view-actions
+                           '("follow up" . efs/capture-mail-follow-up) t)
+              (add-to-list 'mu4e-headers-actions
+                           '("reply" . efs/capture-mail-reply) t)
+              (add-to-list 'mu4e-view-actions
+                           '("reply" . efs/capture-mail-reply) t)
 
 ;;; ----------- AVY --------------
 
