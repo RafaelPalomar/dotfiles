@@ -74,7 +74,8 @@
 (home-environment
  (packages (append %emacs-packages
                    %email-packages
-                   (list font-fira-code
+                   (list font-cica
+                         font-fira-code
                          font-google-roboto
                          font-inconsolata
                          font-iosevka-aile
