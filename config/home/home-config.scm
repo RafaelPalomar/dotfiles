@@ -59,7 +59,7 @@
         emacs-nerd-icons
         emacs-mu4e-dashboard
         emacs-orderless
-        emacs-org-superstar
+        emacs-org-modern
         emacs-paredit
         emacs-perspective
         emacs-pgtk
