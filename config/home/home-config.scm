@@ -2,6 +2,8 @@
   #:use-module (config home services emacs)
   #:use-module (config packages mutt-oauth2)
   #:use-module (config packages cyrus-sasl-xoauth2)
+  #:use-module (config packages emacs-evil-snipe)
+  #:use-module (config packages emacs-persp-projectile)
   #:use-module (config packages emacs-tabspaces)
   #:use-module (gnu home)
   #:use-module (gnu home services)
@@ -20,9 +22,10 @@
   #:use-module (gnu packages fonts)
   #:use-module (gnu packages mail)
   #:use-module (gnu packages password-utils)
+  #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages rust-apps)
+  #:use-module (gnu packages tex)
   #:use-module (gnu packages version-control))
-;;  #:use-module (config packages emacs-evil-snipe))
 
 (define %email-packages
   (list cyrus-sasl-xoauth2
@@ -31,11 +34,13 @@
 
 (define %emacs-packages
   (list emacs-ace-window
+        emacs-all-the-icons
         emacs-all-the-icons-dired
         emacs-avy
         emacs-beacon
         emacs-cmake-mode
-        emacs-consult
+        emacs-counsel
+        emacs-counsel-projectile
         emacs-dashboard
         emacs-denote
         emacs-embark
@@ -44,32 +49,42 @@
         emacs-evil-commentary
         emacs-evil-goggles
         emacs-evil-paredit
-        ;; emacs-evil-snipe
+        emacs-evil-snipe
         emacs-evil-surround
+        emacs-evil-matchit
+        emacs-evil-org
         emacs-geiser
         emacs-geiser-guile
         emacs-general
         emacs-gptel
         emacs-helpful
+        emacs-ivy
+        emacs-ivy-rich
         emacs-magit
-        emacs-marginalia
         emacs-markdown-mode
+        emacs-mixed-pitch
         emacs-modus-themes
+        emacs-mu4e-dashboard
         emacs-nano-theme
         emacs-nano-modeline
         emacs-nerd-icons
-        emacs-mu4e-dashboard
         emacs-orderless
+        emacs-org-appear
         emacs-org-modern
         emacs-paredit
-        ;;emacs-perspective
-        emacs-persp-mode
+        emacs-perspective
+        emacs-persp-projectile
+        ;;emacs-persp-mode
         emacs-pgtk
         emacs-projectile
+        emacs-restart-emacs
         emacs-rg
         emacs-svg-lib
+        emacs-swiper
         emacs-tabspaces
         emacs-undo-fu
+        emacs-use-package
+        emacs-visual-fill-column
         emacs-which-key
         emacs-yaml
         emacs-yaml-mode
@@ -79,6 +94,7 @@
  (packages (append %emacs-packages
                    %email-packages
                    (list font-cica
+                         font-abattis-cantarell
                          font-fira-code
                          font-google-roboto
                          font-inconsolata
@@ -92,7 +108,9 @@
                          mu
                          mutt-oauth2
                          password-store
+                         python-pygments
                          ripgrep
+                         texlive-minted
                          weechat
                          )))
 

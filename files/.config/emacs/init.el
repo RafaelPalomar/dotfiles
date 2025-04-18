@@ -1,42 +1,96 @@
 ;; -*- lexical-binding: t; -*-
 
-            ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
+;;; This file is generated from the =emacs.org= file in my dotfiles repository!
 
-            ;;; ----- Basic Configuration -----
+;;; ----- Basic Configuration -----
+
+;; Increase the garbage collection threshold during startup for faster startup
+(setq gc-cons-threshold most-positive-fixnum)
+
+;; Reset garbage collection thresholds after startup
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (setq gc-cons-threshold (* 16 1024 1024))  ;; 16MB
+            (setq gc-cons-percentage 0.1)))
 
 ;; Core settings
-(setq ;; Flash the UI instead of beeping
- visible-bell t
+(setq visible-bell t                         ;; Flash the screen instead of beeping
+      inhibit-startup-message t              ;; Suppress the startup message
+      inhibit-startup-screen t               ;; Disable the startup screen
+      initial-scratch-message ";; Welcome to Emacs!\n\n"  ;; Set the scratch message
+      make-backup-files nil                  ;; Disable backup files
+      auto-save-default nil                  ;; Disable auto-saving to backup files
+      ad-redefinition-action 'accept         ;; Silence function redefinition warnings
+      ring-bell-function 'ignore             ;; Disable the bell completely
+      vc-follow-symlinks t                   ;; Always follow symlinks
+      large-file-warning-threshold nil       ;; Disable large file warnings
+      custom-file (expand-file-name "custom.el" user-emacs-directory) ;; Set custom file
+      frame-title-format
+      '((:eval (if (buffer-file-name)
+                   (abbreviate-file-name (buffer-file-name))
+                 "%b")))                     ;; Show full path in frame title
+      )
 
- ;; Yes, this is Emacs
- inhibit-startup-message t
+;; Load the custom file if it exists
+(when (file-exists-p custom-file)
+  (load custom-file t))
 
- ;; Instruct auto-save-mode to save to the current file, not a backup file
- auto-save-default nil
+;; Set default encoding to UTF-8
+(prefer-coding-system 'utf-8)
 
- ;; No backup files, please
- make-backup-files nil
+;; Set tabs to spaces and define tab width
+(setq-default indent-tabs-mode nil           ;; Use spaces instead of tabs
+              tab-width 2)                   ;; Set default tab width to 2
 
- ;; Make it easy to cycle through previous items in the mark ring
- set-mark-command-repeat-pop t
+;; Simplify the interface
+(menu-bar-mode -1)                           ;; Disable the menu bar
+(tool-bar-mode -1)                           ;; Disable the tool bar
+(scroll-bar-mode -1)                         ;; Disable the scroll bar
 
- ;; Don't warn on large files
- large-file-warning-threshold nil
+;; Core modes
+(repeat-mode 1)                              ;; Enable repeat mode
+(savehist-mode 1)                            ;; Save minibuffer history
+(save-place-mode 1)                          ;; Remember cursor positions in files
+(recentf-mode 1)                             ;; Enable recent files mode
+(which-key-mode 1)                           ;; Enable which-key mode (if installed)
+(column-number-mode 1)                       ;; Show column numbers
+(display-time-mode 1)                        ;; Display time in mode line
+(global-visual-line-mode 1)                  ;; Wrap long lines visually
+(xterm-mouse-mode 1)                         ;; Enable mouse support in terminal
+(auto-save-visited-mode 1)                   ;; Auto-save files at intervals
+(tab-bar-history-mode 1)                     ;; Enable tab bar history
+(global-auto-revert-mode 1)                  ;; Refresh buffers when files change
 
- ;; Follow symlinks to VC-controlled files without warning
- ;; TODO This goes potentially out as I'll be using magit
- ;;vc-follow-symlinks t
+;; Display line numbers in programming modes
+(add-hook 'prog-mode-hook #'display-line-numbers-mode)
 
- ;; Don't warn on advice
- ad-redefinition-action 'accept
+;; Delete trailing whitespace before saving files
+(add-hook 'before-save-hook 'delete-trailing-whitespace)
 
- ;; Revert Dired and other buffers
- global-auto-revert-non-file-buffers t
+;; Set default directory to home
+(setq default-directory "~/")
 
- ;; Silence compiler warnings as they can be pretty disruptive
- ;; TODO This goes potentially out
- ;; native-comp-async-report-warnings-errors nil
- )
+;; Fix locale settings (if needed)
+(when (and (not (getenv "LC_ALL"))
+           (or (not (getenv "LANG"))
+               (string= (getenv "LANG") "")))
+  (setenv "LANG" "en_US.UTF-8"))
+
+;; -*- lexical-binding: t; -*-
+
+;;; This file is generated from the =emacs.org= file in my dotfiles repository!
+
+;;; ----- Basic Configuration -----
+
+;; Core settings
+(setq visible-bell t                        ;; Flash the UI instead of beeping
+      inhibit-startup-message t             ;; Yes, this is emacs
+      auto-save-default nil                 ;; Save to the current file, not a backup file
+      make-backup-files nil                 ;; No backup files, please
+      large-file-warning-threshold nil      ;; Don't warn on large files
+      ad-redefinition-action 'accept        ;; Don't warn on advice
+      global-auto-revert-non-file-buffers t ;; Revert Dired and other buffers
+      )
 
 ;; Core modes
 (repeat-mode 1)                ;; Enable repeating key maps
@@ -46,7 +100,6 @@
 (scroll-bar-mode 0)            ;; Hide the scroll bar
 (xterm-mouse-mode 1)           ;; Enable mouse events in terminal Emacs
 (display-time-mode 1)          ;; Display time in mode line / tab bar
-(fido-vertical-mode 1)         ;; Improved vertical minibuffer completions
 (column-number-mode 1)         ;; Show column number on mode line
 (tab-bar-history-mode 1)       ;; Remember previous tab window configurations
 (auto-save-visited-mode 1)     ;; Auto-save files at an interval
@@ -60,11 +113,6 @@
 ;; Display line numbers in programming modes
 (add-hook 'prog-mode-hook #'display-line-numbers-mode)
 
-;; Make icomplete slightly more convenient
-;; TODO this potentiall goes out
-;; (keymap-set icomplete-fido-mode-map "M-h" 'icomplete-fido-backward-updir)
-;; (keymap-set icomplete-fido-mode-map "TAB" 'icomplete-force-complete)
-
 ;; Delete trailing whitespace before saving buffers
 (add-hook 'before-save-hook 'delete-trailing-whitespace)
 
@@ -73,439 +121,558 @@
 (when (file-exists-p custom-file)
   (load custom-file t))
 
-;; Match completion substrings that may be out of order
-;; TODO this poentially goes out
-;; (defun dw/override-fido-completion-styles ()
-;;   (setq-local completion-styles '(substring partial-completion emacs22)))
+;; Load nano-theme without installing it via package.el
+(use-package nano-theme
+  :ensure nil
+  :config
+  ;; Use the dark variant of the theme
+  (nano-dark))
 
-;;(add-hook 'icomplete-minibuffer-setup-hook 'dw/override-fido-completion-styles)
+;; Enable nano-modeline for a minimalist mode line
+(use-package nano-modeline
+  :ensure nil
+  :config
+  (add-hook 'prog-mode-hook            'nano-modeline-prog-mode)
+  (add-hook 'text-mode-hook            'nano-modeline-text-mode)
+  (add-hook 'org-mode-hook             'nano-modeline-org-mode)
+  (add-hook 'pdf-view-mode-hook        'nano-modeline-pdf-mode)
+  (add-hook 'mu4e-headers-mode-hook    'nano-modeline-mu4e-headers-mode)
+  (add-hook 'mu4e-view-mode-hook       'nano-modeline-mu4e-message-mode)
+  (add-hook 'elfeed-show-mode-hook     #'nano-modeline-elfeed-entry-mode)
+  (add-hook 'elfeed-search-mode-hook   #'nano-modeline-elfeed-search-mode)
+  (add-hook 'term-mode-hook            'nano-modeline-term-mode)
+  (add-hook 'xwidget-webkit-mode-hook  #'nano-modeline-xwidget-mode)
+  (add-hook 'messages-buffer-mode-hook 'nano-modeline-message-mode)
+  (add-hook 'org-capture-mode-hook     'nano-modeline-org-capture-mode)
+  (add-hook 'org-agenda-mode-hook      'nano-modeline-org-agenda-mode)
+  )
 
-;;; --------- Enable Evil Mode ---------
-
-;; This is required here for evil-collection to work
-(setq evil-want-keybinding nil)
-
-;; configure undo system
-(setq evil-undo-system 'undo-fu)
-
-(require 'evil)
-
-(evil-mode 1)
-
-  ;;; --------- Evil Collection ---------
-
-(evil-commentary-mode)
-
-    ;;; --------- Evil Collection ---------
-
-(evil-collection-init)
-
-    ;;; --------- Evil Surround ---------
-(global-evil-surround-mode 1)
-
-        ;;; --------- Evil Snipe ---------
-
-;;   (require 'evil-snipe)
-
-;;   (evil-snipe-mode +1)
-;;   (evil-snipe-override-mode +1)
-
-;;   (setq evil-snipe-scope 'whole-visible)
-
-
-
-;; ;; Play nicely with avy
-;; (define-key evil-snipe-parent-transient-map (kbd "C-;")
-;;   (evilem-create 'evil-snipe-repeat
-;;                  :bind ((evil-snipe-scope 'buffer)
-;;                         (evil-snipe-enable-highlight)
-;;                         (evil-snipe-enable-incremental-highlight))))
-
-
-    ;;; ----- Evil Goggles -----
-
-(evil-goggles-mode)
-
-;; optionally use diff-mode's faces; as a result, deleted text
-;; will be highlighed with `diff-removed` face which is typically
-;; some red color (as defined by the color theme)
-;; other faces such as `diff-added` will be used for other actions
-(evil-goggles-use-diff-faces)
-
-(require 'nano-theme)
-  (setq nano-fonts-use t) ; Use theme font stack
-  (nano-dark)             ; Use theme dark version
-  (nano-mode)             ; Recommended settings
-
-
-  (defun my/set-face (face style)
-    "Reset FACE and make it inherit STYLE."
-    (set-face-attribute face nil
-                        :foreground 'unspecified :background 'unspecified
-                        :family     'unspecified :slant      'unspecified
-                        :weight     'unspecified :height     'unspecified
-                        :underline  'unspecified :overline   'unspecified
-                        :box        'unspecified :inherit    style))
-  (my/set-face 'italic 'nano-faded)
-
-(defun dw/clear-background-color (&optional frame)
-  (interactive)
-  (or frame (setq frame (selected-frame)))
-  "unsets the background color in terminal mode"
-  (unless (display-graphic-p frame)
-    ;; Set the terminal to a transparent version of the background color
-    (send-string-to-terminal
-     (format "\033]11;[90]%s\033\\"
-             (face-attribute 'default :background)))
-    (set-face-background 'default "unspecified-bg" frame)))
-
-;; Clear the background color for transparent terminals
-(unless (display-graphic-p)
-  (add-hook 'after-make-frame-functions 'dw/clear-background-color)
-  (add-hook 'window-setup-hook 'dw/clear-background-color)
-  (add-hook 'ef-themes-post-load-hook 'dw/clear-background-color))
-
+;; Font configurations
 (when (display-graphic-p)
+  ;; Set default font for fixed-pitch (monospace) text
   (set-face-attribute 'default nil
                       :font "JetBrains Mono"
-                      :weight 'normal
-                      :height 140)
+                      :weight 'normal)
 
-  ;; Set the fixed pitch face
+  ;; Set the fixed-pitch face
   (set-face-attribute 'fixed-pitch nil
-                      :font "JetBrains Mono"
-                      :weight 'normal
-                      :height 140)
+                      :inherit 'default
+                      :font "Fira Code Retina"
+                      :weight 'normal)
 
-  ;; Set the variable pitch face
+  ;; Set the variable-pitch face
   (set-face-attribute 'variable-pitch nil
-                      :font "Iosevka Aile"
-                      :height 120
+                      :font "Cantarell"
                       :weight 'normal))
 
-  ;; Make frames transparent
-  (set-frame-parameter (selected-frame) 'alpha-background 95)
-  (add-to-list 'default-frame-alist '(alpha-background . 95))
-  (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
-  (add-to-list 'default-frame-alist '(fullscreen . maximized))
+;; Frame transparency and maximization
+(when (display-graphic-p)
+  ;; Set frame transparency
+  (set-frame-parameter (selected-frame) 'alpha 95)
+  (add-to-list 'default-frame-alist '(alpha . 95))
 
-;; Move global mode string to the tab-bar and hide tab close buttons
+  ;; Maximize the frame on startup
+  (add-to-list 'initial-frame-alist '(fullscreen . maximized))
+  (add-to-list 'default-frame-alist '(fullscreen . maximized)))
+
+;; Adjust settings for terminal Emacs
+(unless (display-graphic-p)
+  ;; Clear background color for transparent terminals
+  (set-face-background 'default "unspecified-bg"))
+
+;; Simplify the mode line
+(setq-default mode-line-format
+              '("%e"
+                mode-line-front-space
+                "%b"           ; Buffer name
+                " [%*] "       ; Modification status
+                "("
+                mode-line-position
+                ") "
+                mode-line-modes
+                mode-line-end-spaces))
+
+;; Load all-the-icons without installing via package.el
+(use-package all-the-icons
+  :ensure nil)
+
+;; Tweak the tab bar to match the minimalist theme
 (setq tab-bar-close-button-show nil
-      tab-bar-separator " "
-      tab-bar-format '(tab-bar-format-menu-bar
-                       tab-bar-format-tabs-groups
+      tab-bar-new-button-show nil
+      tab-bar-separator " | "
+      tab-bar-format '(tab-bar-format-tabs
                        tab-bar-separator
-                       tab-bar-format-align-right
-                       tab-bar-format-global))
+                       tab-bar-format-align-right))
 
-;; Turn on the tab-bar
+;; Enable the tab bar
 (tab-bar-mode 1)
 
-;; Customize time display
-(setq display-time-load-average nil
-      display-time-format "%l:%M %p %b %d W%U"
-      display-time-world-time-format "%a, %d %b %I:%M %p %Z"
-      display-time-world-list
-      '(("Etc/UTC" "UTC")
-        ("Europe/Oslo" "Oslo")
-        ("America/Los_Angeles" "Seattle")
-        ("America/Denver" "Denver")
-        ("America/Boston" "Boston")
-        ("Pacific/Auckland" "Auckland")
-        ("Asia/Shanghai" "Shanghai")
-        ("Asia/Kolkata" "Hyderabad")))
+;; Set the frame title to show the buffer or file name
+(setq frame-title-format
+      '((:eval (if (buffer-file-name)
+                   (abbreviate-file-name (buffer-file-name))
+                 "%b"))))
 
-;; From https://emacs.stackexchange.com/questions/72572/how-to-see-color-output-when-compiling
-;; this will help the compilation buffer to interpret correcly color characters as color, instead of
-;; characters
-(add-hook 'compilation-filter-hook 'ansi-color-compilation-filter)
+;; Enable Evil Mode
+(use-package evil
+  :ensure nil
+  :init
+  ;; Required for Evil Collection
+  (setq evil-want-keybinding nil)
+  ;; Use `undo-fu` for undo system
+  (setq evil-undo-system 'undo-fu)
+  :config
+  ;; Enable Evil Mode
+  (evil-mode 1))
 
-;; enable org-modern globally
-(with-eval-after-load 'org (global-org-modern-mode))
+;; Enhance Evil Mode with Evil Collection
+(use-package evil-collection
+  :after (evil magit)
+  :ensure nil
+  :hook (magit-mode . evil-collection-magit-setup) ;; Initialize Evil Collection for Magit
+  :config
+  (evil-collection-init))
 
-  ;;; ----- Essential Org Mode Configuration -----
+;; Add Evil Surround
+(use-package evil-surround
+  :ensure nil
+  :config
+  (global-evil-surround-mode 1))
 
-  (setq org-startup-folded 'content
-        org-cycle-separator-lines 2
-        org-fontify-quote-and-verse-blocks t)
+;; Enable Evil Commentary
+(use-package evil-commentary
+  :ensure nil
+  :config
+  (evil-commentary-mode))
 
-  ;; Indent org-mode buffers for readability
-  (add-hook 'org-mode-hook #'org-indent-mode)
+;; Add Visual Feedback with Evil Goggles
+(use-package evil-goggles
+  :ensure nil
+  :config
+  (evil-goggles-mode)
+  ;; Optional: Use diff-mode faces
+  (evil-goggles-use-diff-faces))
 
-  ;; Set up Org Babel languages
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((emacs-lisp . t)
-     (shell . t)))
+;; Enable Evil Matchit
+(use-package evil-matchit
+  :ensure nil
+  :config
+  (global-evil-matchit-mode 1))
 
-  ;; Use org-tempo
-  (use-package org-tempo
+;; Use Undo-Fu for Enhanced Undo/Redo
+(use-package undo-fu
+  :ensure nil)
+
+(use-package evil-snipe
+  :ensure nil
+  :config
+  (evil-snipe-mode 1)
+  (evil-snipe-override-mode 1))
+
+;; Integrate Evil with Paredit for Lisp Editing
+(use-package evil-paredit
+  :ensure nil
+  :after (evil paredit)
+  :hook
+  ((emacs-lisp-mode lisp-mode scheme-mode) . evil-paredit-mode))
+
+;; Adjust Evil Keybindings and Settings
+(setq evil-want-C-u-scroll t             ;; Enable Vim-style C-u scrolling
+      evil-want-C-d-scroll t             ;; Enable Vim-style C-d scrolling
+      evil-search-module 'evil-search    ;; Use Evil's search module
+      evil-want-fine-undo t              ;; More granular undo steps
+      evil-kill-on-visual-paste nil)     ;; Don't replace clipboard on paste
+
+;; Customize Cursor Appearance
+(setq evil-normal-state-cursor 'box      ;; Normal mode cursor is a box
+      evil-insert-state-cursor 'bar      ;; Insert mode cursor is a bar
+      evil-visual-state-cursor 'hollow)  ;; Visual mode cursor is hollow
+
+;; Evil Org Mode Integration
+(use-package evil-org
+  :ensure nil
+  :after (evil org)
+  :hook (org-mode . evil-org-mode)
+  :config
+  (add-hook 'org-mode-hook #'evil-org-mode)
+  (require 'evil-org-agenda)
+  (evil-org-set-key-theme '(navigation insert textobjects additional))
+  (evil-org-agenda-set-keys))
+
+;; Enhance Org Mode appearance with org-modern
+(use-package org-modern
+  :after (org)
+  :ensure nil
+  :hook
+  (org-mode . org-modern-mode)
+  :config
+  ;; Enable org-modern globally for all Org buffers
+  (global-org-modern-mode))
+
+;; Enhance text layout with visual-fill-column
+(use-package visual-fill-column
+  :after (org)
+  :ensure nil
+  :hook (org-mode . visual-fill-column-mode)
+  :config
+  (setq visual-fill-column-width 100  ;; Set text width
+        visual-fill-column-center-text t))  ;; Center the text
+
+;; Customize Org Mode appearance
+(setq org-hide-emphasis-markers t       ;; Hide *, /, etc.
+      org-pretty-entities t             ;; Replace entities with symbols
+      org-ellipsis "⤵")                ;; Ellipsis for folded content
+
+(defun my/org-mode-setup ()
+  "Custom configurations for Org Mode."
+  ;; Get the default face height
+  (let ((base-height (face-attribute 'default :height)))
+    (dolist (face '((org-level-1)
+                    (org-level-2)
+                    (org-level-3)
+                    (org-level-4)
+                    (org-level-5)))
+      (set-face-attribute (car face) nil
+                          :family "Iosevka Aile"
+                          :weight 'regular
+                          :height (truncate (* base-height (cdr face)))))))
+
+(add-hook 'org-mode-hook 'my/org-mode-setup)
+
+;; Enable Org Indent Mode for better alignment
+(add-hook 'org-mode-hook 'org-indent-mode)
+
+;; Use org-appear to show hidden emphasis markers on cursor
+(use-package org-appear
+  :after (org)
+  :ensure nil
+  :hook (org-mode . org-appear-mode)
+  :config
+  (setq org-appear-autolinks t
+        org-appear-autosubmarkers t
+        org-appear-autoentities t
+        org-appear-autokeywords t
+        org-appear-delay 0.5))
+
+;; Configure Org Babel languages
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((emacs-lisp . t)
+   (shell . t)
+   (python . t)
+   (latex . t)
+   (C . t)
+   (dot . t)))
+
+;; Don't ask for confirmation before executing code blocks
+(setq org-confirm-babel-evaluate nil)
+
+;; LaTeX export settings using minted
+(setq org-latex-listings 'minted
+      org-latex-packages-alist '(("" "minted"))
+      org-latex-minted-options
+      '(("frame" "lines")
+        ("fontsize" "\\scriptsize")
+        ("linenos" "true")))
+
+;; Enable Ivy for enhanced completion
+(use-package ivy
+  :ensure nil
+  :diminish
+  :hook (after-init . ivy-mode)
+  :config
+  (setq ivy-use-virtual-buffers t       ;; Extend searching to recent files and bookmarks
+        ivy-count-format "(%d/%d) "     ;; Display the current and total number of candidates
+        ivy-wrap t                      ;; Allow wrapping around completion candidates
+        ivy-height 15                   ;; Set the height of the Ivy completion window
+        ivy-fixed-height-minibuffer t ;; Maintain the completion window height
+        )
+  :bind (("C-s" . swiper)
+         :map ivy-minibuffer-map
+         ("TAB" . ivy-alt-done)
+         ("C-j" . ivy-next-line)
+         ("C-k" . ivy-previous-line)))
+
+;; Use Counsel to enhance built-in Emacs commands
+(use-package counsel
+  :ensure nil
+  :after ivy
+  :config
+  (counsel-mode 1)
+  ;; Replace some default commands with counsel alternatives
+  (global-set-key (kbd "M-x") 'counsel-M-x)
+  (global-set-key (kbd "C-x b") 'counsel-switch-buffer)
+  (global-set-key (kbd "C-x C-f") 'counsel-find-file)
+  ;; Additional keybindings for counsel commands
+  (global-set-key (kbd "C-c k") 'counsel-rg)          ;; Ripgrep search
+  (global-set-key (kbd "C-c g") 'counsel-git)         ;; Git files
+  (global-set-key (kbd "C-c j") 'counsel-git-grep)    ;; Git grep
+  (global-set-key (kbd "C-c L") 'counsel-load-library))
+
+;; Enable Swiper for improved in-buffer searching
+(use-package swiper
+  :ensure nil
+  :after ivy
+  :bind (("C-s" . swiper)             ;; Replace default search with swiper
+         ("C-r" . swiper)))           ;; Replace reverse search
+
+;; Enhance Ivy with ivy-rich
+(use-package ivy-rich
+  :ensure nil
+  :after ivy
+  :init
+  (ivy-rich-mode 1))
+
+;; Load general.el for keybinding management
+(use-package general
+  :ensure nil
+  :config
+  ;; Set up 'SPC' as the leader key
+  (general-create-definer my/leader-keys
+    :keymaps '(normal insert visual emacs)
+    :prefix "SPC"
+    :non-normal-prefix "M-SPC")
+  (general-define-key
+   :states '(normal insert visual emacs)
+   :keymaps 'override
+   "C-+" 'text-scale-increase
+   "C-=" 'text-scale-increase
+   "C--" 'text-scale-decrease
+   "C-0" '(text-scale-set :which-key "Reset text scale")))
+
+;; Basic keybindings
+(my/leader-keys
+  "SPC" '(counsel-M-x :which-key "M-x")
+  "f"   '(:ignore t :which-key "Files")
+  "ff"  '(counsel-find-file :which-key "Find file")
+  "fs"  '(save-buffer :which-key "Save buffer")
+  "fr"  '(counsel-recentf :which-key "Recent files")
+  "fS"  '(write-file :which-key "Save file as...")
+  "b"   '(:ignore t :which-key "Buffers")
+  "bb"  '(ivy-switch-buffer :which-key "Switch buffer")
+  "bk"  '(kill-this-buffer :which-key "Kill buffer")
+  "br"  '(revert-buffer :which-key "Revert buffer")
+  "w"   '(:ignore t :which-key "Windows")
+  "wd"  '(delete-window :which-key "Delete window")
+  "wo"  '(delete-other-windows :which-key "Delete other windows")
+  "ws"  '(split-window-below :which-key "Split window below")
+  "wv"  '(split-window-right :which-key "Split window right")
+  ;;"TAB" '(:ignore t :which-key "Tabs")
+  ;;"TAB" '(switch-to-prev-buffer :which-key "Previous buffer")
+  "u"   '(universal-argument :which-key "Universal argument")
+  "q"   '(:ignore t :which-key "Quit/Restart")
+  "qq"  '(save-buffers-kill-terminal :which-key "Quit Emacs"))
+
+;; Search and completion
+(my/leader-keys
+  "/"    '(swiper :which-key "Swiper search")
+  "s"    '(:ignore t :which-key "Search")
+  "sa"   '(swiper-all :which-key "Swiper all buffers")
+  "sb"   '(swiper :which-key "Search buffer")
+  "sd"   '(counsel-rg :which-key "Ripgrep search")
+  "sp"   '(counsel-projectile-rg :which-key "Search project with rg")
+  "sg"   '(counsel-git-grep :which-key "Search in Git repo")
+  "sr"   '(ivy-resume :which-key "Resume last search")
+  )
+
+;; Ensure counsel-projectile is loaded
+(use-package counsel-projectile
+  :ensure nil
+  :after (counsel projectile)
+  :config
+  (counsel-projectile-mode 1))
+
+;; Project management
+(my/leader-keys
+  "p"   '(:ignore t :which-key "Project")
+  "pp"  '(counsel-projectile-switch-project :which-key "Switch project")
+  "pf"  '(counsel-projectile-find-file :which-key "Find file in project")
+  "pb"  '(counsel-projectile-switch-to-buffer :which-key "Switch buffer in project")
+  "pd"  '(projectile-dired :which-key "Project Dired")
+  "ps"  '(counsel-projectile-rg :which-key "Search in project")
+  "pR"  '(projectile-replace :which-key "Replace in project")
+  "pD"  '(projectile-kill-buffers :which-key "Kill project buffers")
+  "pc"  '(projectile-compile-project :which-key "Compile project")
+  "pC"  '(projectile-configure-project :which-key "Configure project")
+  )
+
+;; Window and buffer navigation
+(my/leader-keys
+  "w"   '(:ignore t :which-key "Windows")
+  "wh"  '(evil-window-left :which-key "Window left")
+  "wl"  '(evil-window-right :which-key "Window right")
+  "wk"  '(evil-window-up :which-key "Window up")
+  "wj"  '(evil-window-down :which-key "Window down")
+  "w/"  '(split-window-right :which-key "Split window right")
+  "w-"  '(split-window-below :which-key "Split window below")
+  "w="  '(balance-windows :which-key "Balance windows")
+  "wm"  '(delete-other-windows :which-key "Maximize window")
+  "wd"  '(delete-window :which-key "Delete window")
+  ;;"TAB" '(mode-line-other-buffer :which-key "Switch to last buffer")
+  "b"   '(:ignore t :which-key "Buffers")
+  "bn"  '(next-buffer :which-key "Next buffer")
+  "bp"  '(previous-buffer :which-key "Previous buffer")
+  "bl"  '(list-buffers :which-key "List buffers")
+  )
+
+;; Org Mode keybindings
+(my/leader-keys
+  "n"   '(:ignore t :which-key "Notes")
+  "nn"  '(org-capture :which-key "Org Capture")
+  "na"  '(org-agenda :which-key "Org Agenda")
+  "nl"  '(org-store-link :which-key "Store org link")
+  "nb"  '(org-switchb :which-key "Switch Org buffer")
+  )
+
+;; Git keybindings
+(my/leader-keys
+  "g"   '(:ignore t :which-key "Git")
+  "gs"  '(magit-status :which-key "Magit Status")
+  "gg"  '(magit-status :which-key "Magit Status")
+  "gb"  '(magit-branch-checkout :which-key "Checkout branch")
+  "gc"  '(magit-commit :which-key "Commit changes")
+  "gp"  '(magit-push-current :which-key "Push changes")
+  "gl"  '(magit-log :which-key "Show log")
+  )
+
+;; Utility keybindings
+(my/leader-keys
+  "t"   '(:ignore t :which-key "Toggle")
+  "ts"  '(flyspell-mode :which-key "Toggle Flyspell")
+  "tn"  '(display-line-numbers-mode :which-key "Toggle line numbers")
+  "tp"  '(visual-line-mode :which-key "Toggle Visual Line Mode")
+  "a"   '(align-regexp :which-key "Align with Regexp")
+  )
+
+;; Help and documentation
+(my/leader-keys
+  "h"   '(:ignore t :which-key "Help")
+  "hf"  '(describe-function :which-key "Describe function")
+  "hv"  '(describe-variable :which-key "Describe variable")
+  "hk"  '(describe-key :which-key "Describe key")
+  "hm"  '(describe-mode :which-key "Describe mode")
+  "ho"  '(counsel-describe-symbol :which-key "Describe symbol")
+  "hi"  '(info :which-key "Info manuals")
+  )
+
+;; Code and development tools
+(my/leader-keys
+  "c"   '(:ignore t :which-key "Code")
+  "cc"  '(compile :which-key "Compile")
+  "cr"  '(recompile :which-key "Recompile")
+  "cs"  '(counsel-imenu :which-key "Search symbols")
+  "cd"  '(xref-find-definitions :which-key "Find definitions")
+  "cD"  '(xref-find-references :which-key "Find references")
+  "ca"  '(lsp-execute-code-action :which-key "Code action")
+  )
+
+(my/leader-keys
+  "TAB" '(:ignore t :which-key "Tabs")
+  ;; Reassign 'switch-to-prev-buffer' if desired
+  "TAB TAB" '(switch-to-prev-buffer :which-key "Previous buffer")
+  "TAB n" '(tab-bar-new-tab :which-key "New Tab")
+  "TAB c" '(tab-bar-close-tab :which-key "Close Tab")
+  "TAB o" '(tab-bar-switch-to-tab :which-key "Switch to Tab")
+  "TAB [" '(tab-bar-switch-to-prev-tab :which-key "Previous Tab")
+  "TAB ]" '(tab-bar-switch-to-next-tab :which-key "Next Tab")
+  "TAB r" '(tab-bar-rename-tab :which-key "Rename Tab")
+  )
+
+;; Restart Emacs
+(use-package restart-emacs
+  :ensure nil)
+
+(my/leader-keys
+  "qr" '(restart-emacs :which-key "Restart Emacs"))
+
+(my/leader-keys
+  ;; Project bindings
+  "p" '(:ignore t :which-key "project")
+  "p p" '(projectile-switch-project :which-key "Switch project")
+  "p f" '(projectile-find-file :which-key "Find file in project")
+  "p b" '(projectile-switch-to-buffer :which-key "Switch to buffer in project")
+  "p d" '(projectile-find-dir :which-key "Find directory in project")
+  "p s" '(projectile-ripgrep :which-key "Search in project")
+  "p g" '(projectile-vc :which-key "Open project in VC")
+  "p k" '(projectile-kill-buffers :which-key "Kill project buffers"))
+
+(my/leader-keys
+  ;; Layout/Workspace bindings
+  "l" '(:ignore t :which-key "layout")
+  "l l" '(persp-switch :which-key "Switch workspace")
+  "l n" '(persp-next :which-key "Next workspace")
+  "l p" '(persp-prev :which-key "Previous workspace")
+  "l r" '(persp-rename :which-key "Rename workspace")
+  "l k" '(persp-kill :which-key "Kill workspace")
+  "l s" '(persp-save-state-to-file :which-key "Save workspace state")
+  "l L" '(persp-load-state-from-file :which-key "Load workspace state"))
+
+(use-package projectile
+  :ensure nil
+  :defer t
+  :init
+  ;; Enable Projectile globally after initialization
+  (add-hook 'after-init-hook #'projectile-mode))
+
+(use-package projectile
+  :after (tramp)
+  :config
+  ;; Set Projectile to use the native indexing method
+  (setq projectile-indexing-method 'native)
+  ;; Enable caching for faster indexing
+  (setq projectile-enable-caching t)
+  ;; Set the Projectile cache file directory
+  (setq projectile-cache-file (expand-file-name "projectile.cache" user-emacs-directory))
+
+  ;; https://github.com/bbatsov/projectile/issues/1649
+  ;; This will allow remembering of remote projects
+  (require 'tramp)
+
+  (projectile-mode +1))
+
+(use-package counsel-projectile
+  :after (counsel projectile)
+  :ensure nil
+  :config
+  (counsel-projectile-mode))
+
+(use-package perspective
+  :ensure nil
+  :bind
+  ;; Bind perspective commands under "C-c p"
+  (("C-c p s" . persp-switch)
+   ("C-c p k" . persp-kill)
+   ("C-c p r" . persp-rename))
+  :init
+  ;; Suppress the warning about missing persp-mode-prefix-key
+  (setq persp-suppress-no-prefix-key-warning t)
+  (persp-mode))
+
+(use-package perspective
+  :config
+  ;; Integrate Perspective with Projectile
+  (use-package persp-projectile
     :ensure nil
-    :demand t
-    :config
-    (dolist (item '(("sh" . "src sh")
-                    ("el" . "src emacs-lisp")
-                    ("li" . "src lisp")
-                    ("sc" . "src scheme")
-                    ("ts" . "src typescript")
-                    ("py" . "src python")
-                    ("yaml" . "src yaml")
-                    ("json" . "src json")
-                    ("einit" . "src emacs-lisp :tangle emacs/init.el")
-                    ("emodule" . "src emacs-lisp :tangle emacs/modules/dw-MODULE.el")))
-      (add-to-list 'org-structure-template-alist item)))
+    :bind (("C-c p p" . projectile-persp-switch-project))))
 
-  ;; Follow zotero links
-  ;; https://plexwave.org/blog/org-zotero-links
-  ;; Pay attention to the requirements in terms of zotero, plugins, action scripts and manual modification to the action script
-  (defun my-org-zotero-open (path _)
-    (call-process "open" nil nil nil (concat "zotero:" path)))
+;; This is a workaround https://github.com/karthink/gptel/issues/342
+(setq gptel-use-curl nil)
+(setq gptel-default-mode 'org-mode)
 
-  (org-link-set-parameters "zotero" :follow #'my-org-zotero-open)
-
-(setq org-agenda-files
-      '("~/org"))
-
-(setq org-agenda-start-with-log-mode t)
-(setq org-log-done 'time)
-(setq org-log-into-drawer t)
-
-(setq org-capture-templates
-      '(("m" "Email Workflow")
-        ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
-         "* TODO Follow up with %:fromname on [[%:link][%:subject]]
-SCHEDULED: %t
-DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
-
-%i" :immediate-finish nil)
-        ("mr" "Reply" entry (file+olp "~/org/inbox.org" "E-Mail")
-         "* TODO [#A] Reply to %:fromname on [[%:link][%:subject]]
-SCHEDULED: %t
-DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
-
-%i" :immediate-finish nil)))
-
-;;; ------------ Projectile setup --------------
-
-;; https://github.com/bbatsov/projectile/issues/1649
-;; This will allow remembering of remote projects
-(require 'tramp)
-
-(projectile-mode +1)
-
-(define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
-
-;;; ----- Guile Geiser setup -----
-
-(require 'geiser-guile)
-
-(with-eval-after-load 'geiser-guile
-  (add-to-list 'geiser-guile-load-path "~/src/guix/guix"))
-
-    ;;; ----- Paredit -----
-
-(require 'paredit)
-
-;; Make evil play nicely with paredit
-(add-hook 'emacs-lisp-mode-hook 'evil-paredit-mode)
-
-;;; ---------------- Configure cmake mode --------------------
+(my/leader-keys
+  "o"    '(:ignore t :which-key "AI models")
+  "og"   '(gptel :which-key "Invoke gptel")
+  "oa"   '(gptel-abort :which-key "Abort gptel invocation")
+  "om"   '(gptel-menu :which-key "gptel-menu")
+  "oc"   '(:ignore t :which-key "AI models context manipulation")
+  "ocb"  '(gptel-add :which-key "Add/Remove buffer to AI context")
+  "ocf"  '(gptel-context-add-file :which-key "Add file to AI context")
+  "ocr"  '(gptel-context-remove-all :which-key "Remove all AI context")
+  "or"   '(gptel-rewrite :which-key "AI model rewrite")
+  )
 
 (add-to-list 'auto-mode-alist '("CMakeLists\\.txt\\'" . cmake-mode))
 (add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))
-
-;;; ---------------- General Definitions -----------------
-
-(setq general-override-states '(insert
-                                emacs
-                                hybrid
-                                normal
-                                visual
-                                motion
-                                operator
-                                replace))
-
-(require 'general)
-
-(defconst my-leader "SPC")
-
-(general-create-definer my-leader-def
-  :prefix my-leader)
-
-(general-override-mode)
-
-(general-define-key
- "C-=" 'text-scale-increase
- "C--" 'text-scale-decrease
- "<C-wheel-down>" 'text-scale-decrease
- "<C-wheel-up>" 'text-scale-increase)
-
-(my-leader-def
-  :states '(motion normal visual)
-  :keymaps 'override ;; https://github.com/noctuid/general.el/issues/99#issuecomment-360914335
-
-  ;; map universal argument to SPC-u
-  "u" '(universal-argument :which-key "Universal argument")
-  ";" '(eval-region :which-key "eval-region")
-  "SPC" '(projectile-find-file :which-key "Projectile find file")
-  "C-SPC" '(projectile-find-file-other-frame :which-key "Projectile find file (new frame)")
-  "S-SPC" '(projectile-find-file-other-frame :which-key "Projectile find file (new frame)")
-
-  "ff" '(find-file :which-key "Find file")
-  "fs" '(save-buffer :which-key "Save buffer")
-  "qq" '(evil-quit :which-key "Quit Emacs")
-
-  "x" '(open-scratch-buffer :which-key "Open scratch buffer")
-  "d" '(dired-jump :which-key "dired-jump")
-  "/" '(consult-ripgrep :which-key "consult-ripgrep")
-                                        ;"[" '(+tab-bar/switch-to-prev-tab :which-key "+tab-bar/switch-to-prev-tab")
-                                        ;"]" '(+tab-bar/switch-to-next-tab :which-key "+tab-bar/switch-to-next-tab")
-  "v" '(vterm-toggle :which-key "vterm-toggle")
-  "a" '(ace-window :which-key "ace-window")
-  ;;"l" '(ace-window :which-key "ace-window")
-
-  ;; editor
-  ;; "e" '(:ignore t :which-key "Editor")
-  ;; "eu" '(vundo :which-key "vundo")
-  ;; "ev" '(vundo :which-key "vundo")
-  ;; "er" '(query-replace :which-key "query-replace")
-                                        ;"ec" '(consult-theme :which-key "consult-theme")
-  "ep" '(point-to-register :which-key "point-to-register")
-  "es" '(consult-register-store :which-key "consult-register-store")
-  "ej" '(jump-to-register :which-key "jump-to-register")
-  "ef" '(:ignore t :which-key "Fold")
-  "efh" '(hs-hide-block :which-key "hs-hide-block")
-  "efs" '(hs-show-block :which-key "hs-show-block")
-  "efa" '(hs-show-all :which-key "hs-show-all")
-
-
-  ;; consult
-  "c" '(:ignore t :which-key "consult")
-  "cf" '(consult-flymake :which-key "consult-flymake")
-  "ct" '(consult-theme :which-key "consult-theme")
-                                        ;"cg" '(:ignore t :which-key "Grep")
-                                        ;"cgr" '(consult-ripgrep :which-key "consult-ripgrep")
-                                        ;"cgg" '(consult-git-grep :which-key "consult-git-grep")
-                                        ;"cb" '(consult-buffer :which-key "consult-buffer")
-
-
-  ;; buffer
-                                        ;"TAB" '(switch-to-prev-buffer :which-key "Prev buffer")
-  "b" '(:ignore t :which-key "Buffer")
-  "bb" '(consult-buffer :which-key "consult-buffer")
-  "b[" '(previous-buffer :which-key "Previous buffer")
-  "b]" '(next-buffer :which-key "Next buffer")
-  "bd" '(kill-current-buffer :which-key "Kill buffer")
-  "bk" '(kill-current-buffer :which-key "Kill buffer")
-  "bl" '(evil-switch-to-windows-last-buffer :which-key "Switch to last buffer")
-  "br" '(revert-buffer-no-confirm :which-key "Revert buffer")
-  "bK" '(kill-other-buffers :which-key "Kill other buffers")
-
-
-  ;; open
-  "o" '(:ignore t :which-key "Open")
-  "oc" '(open-init-file :which-key "Open init.el")
-
-
-  ;; project
-  "p" '(:ignore t :which-key "Project")
-  "pp" '(projectile-switch-project :which-key "Switch Project")
-  "po" '(projectile-find-other-file :which-key "projectile-find-other-file")
-  "pC" '(projectile-configure-project :which-key "projectile-configure-project")
-  "pc" '(projectile-compile-project :which-key "projectile-compile-project")
-  "pi" '(projectile-invalidate-cache :which-key "projectile-invalidate-cache")
-  "pa" '(projectile-add-known-project :which-key "projectile-add-known-project")
-
-
-  ;; help
-  "h" '(:ignore t :which-key "Help")
-  "hf" '(helpful-callable :which-key "describe-function")
-  "hk" '(helpful-key :which-key "describe-key")
-  "hv" '(helpful-variable :which-key "describe-variable")
-  "ho" '(helpful-symbol :which-key "describe-symbol")
-  "hm" '(describe-mode :which-key "describe-mode")
-  "hF" '(describe-face :which-key "describe-face")
-  "hw" '(where-is :which-key "where-is")
-  "h." '(display-local-help :which-key "display-local-help")
-
-
-  ;; window
-  "w" '(:ignore t :which-key "Window")
-  "ww" '(ace-window :which-key "ace-window")
-  "ws" '(evil-window-split :which-key "evil-window-split")
-  "wv" '(evil-window-vsplit :which-key "evil-window-vsplit")
-  "wd" '(evil-window-delete :which-key "evil-window-delete")
-  "wm" '(ace-delete-window :which-key "ace-delete-window")
-
-
-  ;; toggles
-  "t" '(:ignore t :which-key "Toggles")
-                                        ;"ta" '(corfu-mode :which-key "corfu-mode") ;; 'a' for autocomplete
-  "ts" '(flyspell-mode :which-key "flyspell-mode")
-  "tf" '(flyspell-mode :which-key "flyspell-mode")
-  "tc" '(flymake-mode :which-key "flymake-mode")
-  "tg" '(evil-goggles-mode :which-key "evil-goggles")
-  "tI" '(toggle-indent-style :which-key "Indent style")
-  "tv" '(visual-line-mode :which-key "visual-line-mode")
-
-
-  ;; narrow
-  ;; "N" '(:ignore t :which-key "Narrow")
-  ;; "Nr" '(narrow-to-region :which-key "narrow-to-region")
-  ;; "Nw" '(widen :which-key "widen")
-
-
-  ;; tabs
-  "TAB" '(:ignore t :which-key "Tabs")
-  "TAB TAB" '(tab-bar-switch-to-tab :which-key "tab-bar-switch-to-tab")
-  "TAB [" '(+tab-bar/switch-to-prev-tab :which-key "+tab-bar/switch-to-prev-tab")
-  "TAB ]" '(t+ab-bar/switch-to-next-tab :which-key "+tab-bar/switch-to-next-tab")
-  "TAB n" '(+tab-bar/add-new :which-key "+tab-bar/add-new")
-  "TAB k" '(+tab-bar/close-tab :which-key "+tab-bar/close-tab")
-  "TAB d" '(+tab-bar/close-tab :which-key "+tab-bar/close-tab")
-  "TAB K" '(+tab-bar/close-all-tabs-except-current :which-key "+tab-bar/close-all-tabs-except-current")
-  "TAB r" '(tab-rename :which-key "tab-rename")
-
-  ;; Magit
-  "gg" '(magit-status :which-key "magit-status")
-  "gC" '(magit-clone :which-key "magit-clone")
-
-  ;; AVY
-  "gs" '(avy-goto-char-2 :whihc-key "avy-goto-char-2")
-
-  ;; Denote
-  "nn" '(denote-open-or-create :which-key "denote-open-or-create")
-
-  ;; Workspaces (persp-mode commands) under "SPC l"
-  "l"   '(:ignore t :which-key "Workspace")
-
-  ;; Workspace Switching
-  "ll"  '(persp-switch :which-key "Switch Workspace")
-  "ln"  '(persp-next :which-key "Next Workspace")
-  "lp"  '(persp-prev :which-key "Previous Workspace")
-  "lr"  '(persp-rename :which-key "Rename Workspace")
-  "lk"  '(persp-kill :which-key "Kill Workspace")
-  "lc"  '(persp-copy :which-key "Copy Workspace")
-
-  ;; Buffer Management within Workspaces
-  "la"  '(persp-add-buffer :which-key "Add Buffer to Workspace")
-  "lA"  '(persp-remove-buffer :which-key "Remove Buffer from Workspace")
-  "lb"  '(persp-switch-to-buffer :which-key "Switch Buffer in Workspace")
-  "li"  '(persp-import :which-key "Import Buffer to Workspace")
-
-  ;; Workspace Persistence
-  "ls"  '(persp-save-state-to-file :which-key "Save Workspaces to File")
-  "lo"  '(persp-load-state-from-file :which-key "Load Workspaces from File")
-  "ld"  '(persp-remove-some :which-key "Remove Some Workspaces")
-
-  ;; Tabs under "SPC TAB"
-  "TAB" '(:ignore t :which-key "Tabs")
-  "TAB c" '(tab-bar-new-tab :which-key "New Tab")
-  "TAB k" '(tab-bar-close-tab :which-key "Close Tab")
-  "TAB n" '(tab-bar-switch-to-next-tab :which-key "Next Tab")
-  "TAB p" '(tab-bar-switch-to-prev-tab :which-key "Previous Tab")
-  "TAB r" '(tab-bar-rename-tab :which-key "Rename Tab")
-  )
 
 ;;; ----------- mu4e general configuration --------------
 
@@ -683,51 +850,51 @@ https://ntnu.no
     (font-lock-flush (point-min) (point-max))))
 
 ;; Define quick action capture
-              ;; https://systemcrafters.net/emacs-mail/email-workflow-with-org-mode/
+;; https://systemcrafters.net/emacs-mail/email-workflow-with-org-mode/
 
-  ;; Helper function to get the current message
-  (defun efs/get-current-message ()
-    "Get the current message in mu4e, whether in view or headers mode."
+;; Helper function to get the current message
+(defun efs/get-current-message ()
+  "Get the current message in mu4e, whether in view or headers mode."
+  (cond
+   ((eq major-mode 'mu4e-view-mode)
+    mu4e~view-message)
+   ((eq major-mode 'mu4e-headers-mode)
+    (mu4e-message-at-point))
+   (t
+    (mu4e-message-at-point))))
+
+
+(defun efs/capture-mail-follow-up (msg)
+  "Create a follow-up task for the email message MSG."
+  (interactive (list (or msg (mu4e-message-at-point))))
+  (unless msg
+    (error "No message found."))
+  ;; Extract message details
+  (let* ((from (mu4e-message-field msg :from))
+         (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
+         (subject (mu4e-message-field msg :subject))
+         (message-id (mu4e-message-field msg :message-id))
+         (link (concat "mu4e:msgid:" message-id))
+         (region (when (use-region-p)
+                   (buffer-substring-no-properties
+                    (region-beginning) (region-end)))))
+    ;; Set the org-capture variables
+    (setq org-store-link-plist (list
+                                :type "mu4e"
+                                :fromname fromname
+                                :subject subject
+                                :message-id message-id
+                                :link link))
+    (setq org-capture-initial region)
+    ;; Mark the message as read
     (cond
      ((eq major-mode 'mu4e-view-mode)
-      mu4e~view-message)
+      (mu4e-view-mark-for-read))
      ((eq major-mode 'mu4e-headers-mode)
-      (mu4e-message-at-point))
-     (t
-      (mu4e-message-at-point))))
-
-
-  (defun efs/capture-mail-follow-up (msg)
-    "Create a follow-up task for the email message MSG."
-    (interactive (list (or msg (mu4e-message-at-point))))
-    (unless msg
-      (error "No message found."))
-    ;; Extract message details
-    (let* ((from (mu4e-message-field msg :from))
-           (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
-           (subject (mu4e-message-field msg :subject))
-           (message-id (mu4e-message-field msg :message-id))
-           (link (concat "mu4e:msgid:" message-id))
-           (region (when (use-region-p)
-                     (buffer-substring-no-properties
-                      (region-beginning) (region-end)))))
-      ;; Set the org-capture variables
-      (setq org-store-link-plist (list
-                                  :type "mu4e"
-                                  :fromname fromname
-                                  :subject subject
-                                  :message-id message-id
-                                  :link link))
-      (setq org-capture-initial region)
-      ;; Mark the message as read
-      (cond
-       ((eq major-mode 'mu4e-view-mode)
-        (mu4e-view-mark-for-read))
-       ((eq major-mode 'mu4e-headers-mode)
-        (mu4e-headers-mark-for-read)
-        (mu4e-mark-execute-all t)))
-      ;; Start the capture
-      (org-capture nil "mf")))
+      (mu4e-headers-mark-for-read)
+      (mu4e-mark-execute-all t)))
+    ;; Start the capture
+    (org-capture nil "mf")))
 
 
 (defun efs/capture-mail-reply (msg)
@@ -762,53 +929,15 @@ https://ntnu.no
     ;; Start the capture
     (org-capture nil "mr")))
 
-              ;; Add custom actions for our capture templates
-              (add-to-list 'mu4e-headers-actions
-                           '("follow up" . efs/capture-mail-follow-up) t)
-              (add-to-list 'mu4e-view-actions
-                           '("follow up" . efs/capture-mail-follow-up) t)
-              (add-to-list 'mu4e-headers-actions
-                           '("reply" . efs/capture-mail-reply) t)
-              (add-to-list 'mu4e-view-actions
-                           '("reply" . efs/capture-mail-reply) t)
-
-;;; ----------- AVY --------------
-
-(require 'avy)
-
-(setq magit-status-buffer-switch-function 'switch-to-buffer)
-
-(require 'beacon)
-
-(beacon-mode 1)
-
-(setq persp-keymap-prefix (kbd "C-c M-p"))
-(setq persp-auto-save-opt 0)
-(persp-mode 1)
-
-(use-package tabspaces
-  :ensure nil
-  :after (persp-mode)
-  :hook (after-init . tabspaces-mode)
-  :init
-  (setq tabspaces-use-filtered-buffers-as-default t
-        tabspaces-default-tab "Main"
-        tabspaces-remove-to-default t
-        tabspaces-include-buffers '("*scratch*")
-        tabspaces-session t)
-  :config
-  ;; Automatically create workspaces when switching projects
-  (defun my/project-switch ()
-    "Switch project and create a new tab/workspace."
-    (interactive)
-    (let ((project (project-prompt-project-dir)))
-      (tabspaces-switch-or-create-workspace (car (last (split-string project "/" t))))
-      (project-switch-project project))))
-
-;;; --------- gptel -------
-;; This is a workaround https://github.com/karthink/gptel/issues/342
-(setq gptel-use-curl nil)
-(setq gptel-default-mode 'org-mode)
+;; Add custom actions for our capture templates
+(add-to-list 'mu4e-headers-actions
+             '("follow up" . efs/capture-mail-follow-up) t)
+(add-to-list 'mu4e-view-actions
+             '("follow up" . efs/capture-mail-follow-up) t)
+(add-to-list 'mu4e-headers-actions
+             '("reply" . efs/capture-mail-reply) t)
+(add-to-list 'mu4e-view-actions
+             '("reply" . efs/capture-mail-reply) t)
 
 ;;; --------- tramp -------
 
@@ -820,9 +949,6 @@ https://ntnu.no
 
 ;;; ----Enable dired-find-alternate-file------
 (put 'dired-find-alternate-file 'disabled nil)
-
-;;; --------- enable marginalia -------
-(marginalia-mode)
 
 ;;; ----------- Denote Configuration -----------
 
@@ -866,3 +992,41 @@ https://ntnu.no
 
 (require 'dashboard)
 (dashboard-setup-startup-hook)
+
+;;; ----------- AVY --------------
+
+(require 'avy)
+
+(with-eval-after-load 'magit
+  (define-key magit-status-mode-map (kbd "SPC") nil)
+  (setq magit-status-buffer-switch-function 'switch-to-buffer))
+
+(require 'beacon)
+
+(beacon-mode 1)
+
+(setq persp-keymap-prefix (kbd "C-c M-p"))
+(setq persp-auto-save-opt 0)
+(persp-mode 1)
+
+(use-package tabspaces
+  :ensure nil
+  :after (persp-mode)
+  :hook (after-init . tabspaces-mode)
+  :init
+  (setq tabspaces-use-filtered-buffers-as-default t
+        tabspaces-default-tab "Main"
+        tabspaces-remove-to-default t
+        tabspaces-include-buffers '("*scratch*")
+        tabspaces-session t)
+  :config
+  ;; Automatically create workspaces when switching projects
+  (defun my/project-switch ()
+    "Switch project and create a new tab/workspace."
+    (interactive)
+    (let ((project (project-prompt-project-dir)))
+      (tabspaces-switch-or-create-workspace (car (last (split-string project "/" t))))
+      (project-switch-project project))))
+
+(with-eval-after-load 'dired
+  (define-key dired-mode-map (kbd "SPC") nil))  ;; unbind SPC in dired
