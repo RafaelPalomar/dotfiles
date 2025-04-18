@@ -189,6 +189,18 @@
   (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
   (add-to-list 'default-frame-alist '(fullscreen . maximized))
 
+;; Move global mode string to the tab-bar and hide tab close buttons
+(setq tab-bar-close-button-show nil
+      tab-bar-separator " "
+      tab-bar-format '(tab-bar-format-menu-bar
+                       tab-bar-format-tabs-groups
+                       tab-bar-separator
+                       tab-bar-format-align-right
+                       tab-bar-format-global))
+
+;; Turn on the tab-bar
+(tab-bar-mode 1)
+
 ;; Customize time display
 (setq display-time-load-average nil
       display-time-format "%l:%M %p %b %d W%U"
@@ -350,7 +362,7 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
                                         ;"]" '(+tab-bar/switch-to-next-tab :which-key "+tab-bar/switch-to-next-tab")
   "v" '(vterm-toggle :which-key "vterm-toggle")
   "a" '(ace-window :which-key "ace-window")
-  "l" '(ace-window :which-key "ace-window")
+  ;;"l" '(ace-window :which-key "ace-window")
 
   ;; editor
   ;; "e" '(:ignore t :which-key "Editor")
@@ -464,6 +476,35 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   ;; Denote
   "nn" '(denote-open-or-create :which-key "denote-open-or-create")
 
+  ;; Workspaces (persp-mode commands) under "SPC l"
+  "l"   '(:ignore t :which-key "Workspace")
+
+  ;; Workspace Switching
+  "ll"  '(persp-switch :which-key "Switch Workspace")
+  "ln"  '(persp-next :which-key "Next Workspace")
+  "lp"  '(persp-prev :which-key "Previous Workspace")
+  "lr"  '(persp-rename :which-key "Rename Workspace")
+  "lk"  '(persp-kill :which-key "Kill Workspace")
+  "lc"  '(persp-copy :which-key "Copy Workspace")
+
+  ;; Buffer Management within Workspaces
+  "la"  '(persp-add-buffer :which-key "Add Buffer to Workspace")
+  "lA"  '(persp-remove-buffer :which-key "Remove Buffer from Workspace")
+  "lb"  '(persp-switch-to-buffer :which-key "Switch Buffer in Workspace")
+  "li"  '(persp-import :which-key "Import Buffer to Workspace")
+
+  ;; Workspace Persistence
+  "ls"  '(persp-save-state-to-file :which-key "Save Workspaces to File")
+  "lo"  '(persp-load-state-from-file :which-key "Load Workspaces from File")
+  "ld"  '(persp-remove-some :which-key "Remove Some Workspaces")
+
+  ;; Tabs under "SPC TAB"
+  "TAB" '(:ignore t :which-key "Tabs")
+  "TAB c" '(tab-bar-new-tab :which-key "New Tab")
+  "TAB k" '(tab-bar-close-tab :which-key "Close Tab")
+  "TAB n" '(tab-bar-switch-to-next-tab :which-key "Next Tab")
+  "TAB p" '(tab-bar-switch-to-prev-tab :which-key "Previous Tab")
+  "TAB r" '(tab-bar-rename-tab :which-key "Rename Tab")
   )
 
 ;;; ----------- mu4e general configuration --------------
@@ -741,12 +782,28 @@ https://ntnu.no
 
 (beacon-mode 1)
 
-;;; --------- Perspective Mode -------
+(setq persp-keymap-prefix (kbd "C-c M-p"))
+(setq persp-auto-save-opt 0)
+(persp-mode 1)
 
-(require 'perspective)
-(global-set-key (kbd "C-x C-b") 'persp-list-buffers)
-(customize-set-variable 'persp-mode-prefix-key (kbd "C-c M-p"))
-(persp-mode)
+(use-package tabspaces
+  :ensure nil
+  :after (persp-mode)
+  :hook (after-init . tabspaces-mode)
+  :init
+  (setq tabspaces-use-filtered-buffers-as-default t
+        tabspaces-default-tab "Main"
+        tabspaces-remove-to-default t
+        tabspaces-include-buffers '("*scratch*")
+        tabspaces-session t)
+  :config
+  ;; Automatically create workspaces when switching projects
+  (defun my/project-switch ()
+    "Switch project and create a new tab/workspace."
+    (interactive)
+    (let ((project (project-prompt-project-dir)))
+      (tabspaces-switch-or-create-workspace (car (last (split-string project "/" t))))
+      (project-switch-project project))))
 
 ;;; --------- gptel -------
 ;; This is a workaround https://github.com/karthink/gptel/issues/342

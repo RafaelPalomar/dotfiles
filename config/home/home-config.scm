@@ -2,6 +2,7 @@
   #:use-module (config home services emacs)
   #:use-module (config packages mutt-oauth2)
   #:use-module (config packages cyrus-sasl-xoauth2)
+  #:use-module (config packages emacs-tabspaces)
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)
@@ -61,12 +62,15 @@
         emacs-orderless
         emacs-org-modern
         emacs-paredit
-        emacs-perspective
+        ;;emacs-perspective
+        emacs-persp-mode
         emacs-pgtk
         emacs-projectile
         emacs-rg
         emacs-svg-lib
+        emacs-tabspaces
         emacs-undo-fu
+        emacs-which-key
         emacs-yaml
         emacs-yaml-mode
         ))

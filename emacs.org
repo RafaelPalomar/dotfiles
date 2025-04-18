@@ -350,7 +350,7 @@ This section enables evil mode (vim-type editing experience).
     (add-to-list 'default-frame-alist '(fullscreen . maximized))
 
 #+end_src
-*** COMMENT Tab Bar Appearance
+*** Tab Bar Appearance
 
 Tweak the tab bar to remove some unnecessary elements and shift the =global-mode-string= there.
 
@@ -533,7 +533,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
-                  ;;; ---------------- General Definitions -----------------
+                      ;;; ---------------- General Definitions -----------------
 
   (setq general-override-states '(insert
                                   emacs
@@ -581,7 +581,7 @@ Here are the most important Org Mode settings that enable me to edit files comfo
                                           ;"]" '(+tab-bar/switch-to-next-tab :which-key "+tab-bar/switch-to-next-tab")
     "v" '(vterm-toggle :which-key "vterm-toggle")
     "a" '(ace-window :which-key "ace-window")
-    "l" '(ace-window :which-key "ace-window")
+    ;;"l" '(ace-window :which-key "ace-window")
 
     ;; editor
     ;; "e" '(:ignore t :which-key "Editor")
@@ -695,6 +695,35 @@ Here are the most important Org Mode settings that enable me to edit files comfo
     ;; Denote
     "nn" '(denote-open-or-create :which-key "denote-open-or-create")
 
+    ;; Workspaces (persp-mode commands) under "SPC l"
+    "l"   '(:ignore t :which-key "Workspace")
+
+    ;; Workspace Switching
+    "ll"  '(persp-switch :which-key "Switch Workspace")
+    "ln"  '(persp-next :which-key "Next Workspace")
+    "lp"  '(persp-prev :which-key "Previous Workspace")
+    "lr"  '(persp-rename :which-key "Rename Workspace")
+    "lk"  '(persp-kill :which-key "Kill Workspace")
+    "lc"  '(persp-copy :which-key "Copy Workspace")
+
+    ;; Buffer Management within Workspaces
+    "la"  '(persp-add-buffer :which-key "Add Buffer to Workspace")
+    "lA"  '(persp-remove-buffer :which-key "Remove Buffer from Workspace")
+    "lb"  '(persp-switch-to-buffer :which-key "Switch Buffer in Workspace")
+    "li"  '(persp-import :which-key "Import Buffer to Workspace")
+
+    ;; Workspace Persistence
+    "ls"  '(persp-save-state-to-file :which-key "Save Workspaces to File")
+    "lo"  '(persp-load-state-from-file :which-key "Load Workspaces from File")
+    "ld"  '(persp-remove-some :which-key "Remove Some Workspaces")
+
+    ;; Tabs under "SPC TAB"
+    "TAB" '(:ignore t :which-key "Tabs")
+    "TAB c" '(tab-bar-new-tab :which-key "New Tab")
+    "TAB k" '(tab-bar-close-tab :which-key "Close Tab")
+    "TAB n" '(tab-bar-switch-to-next-tab :which-key "Next Tab")
+    "TAB p" '(tab-bar-switch-to-prev-tab :which-key "Previous Tab")
+    "TAB r" '(tab-bar-rename-tab :which-key "Rename Tab")
     )
 
 #+end_src
@@ -1014,7 +1043,37 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
   (beacon-mode 1)
 #+end_src
 
-*** perspective
+*** persp-mode
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+  (setq persp-keymap-prefix (kbd "C-c M-p"))
+  (setq persp-auto-save-opt 0)
+  (persp-mode 1)
+#+end_src
+
+*** tabspaces
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+(use-package tabspaces
+  :ensure nil
+  :after (persp-mode)
+  :hook (after-init . tabspaces-mode)
+  :init
+  (setq tabspaces-use-filtered-buffers-as-default t
+        tabspaces-default-tab "Main"
+        tabspaces-remove-to-default t
+        tabspaces-include-buffers '("*scratch*")
+        tabspaces-session t)
+  :config
+  ;; Automatically create workspaces when switching projects
+  (defun my/project-switch ()
+    "Switch project and create a new tab/workspace."
+    (interactive)
+    (let ((project (project-prompt-project-dir)))
+      (tabspaces-switch-or-create-workspace (car (last (split-string project "/" t))))
+      (project-switch-project project))))
+#+end_src
+*** COMMENT perspective
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
     ;;; --------- Perspective Mode -------
