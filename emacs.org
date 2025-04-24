@@ -399,13 +399,13 @@ Evil Collection provides comprehensive Evil keybindings for various built-in and
 
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
 
-;; Enhance Evil Mode with Evil Collection
 (use-package evil-collection
-  :after (evil magit dashboard)
+  :after evil
   :ensure nil
   :config
   ;; Initialize Evil Collection for all supported modes
-  (evil-collection-init))
+  (evil-collection-init '(magit dired mu4e dashboard)))
+
 #+end_src
 
 ** Add Evil Surround
@@ -477,7 +477,7 @@ Undo-Fu provides an intuitive and reliable undo/redo system, improving upon Emac
     :ensure nil)
 #+end_src
 
-** Configure Evil Snipe
+** COMMENT Configure Evil Snipe
 
 Evil Snipe provides Vim's =s= and =S= motions for quick navigation:
 
@@ -621,15 +621,18 @@ Adjust various Org settings for a cleaner and more modern look.
     "Custom configurations for Org Mode."
     ;; Get the default face height
     (let ((base-height (face-attribute 'default :height)))
-      (dolist (face '((org-level-1)
-                      (org-level-2)
-                      (org-level-3)
-                      (org-level-4)
-                      (org-level-5)))
-        (set-face-attribute (car face) nil
-                            :family "Iosevka Aile"
-                            :weight 'regular
-                            :height (truncate (* base-height (cdr face)))))))
+      (dolist (face-scale '((org-level-1 . 1.3)
+                            (org-level-2 . 1.2)
+                            (org-level-3 . 1.1)
+                            (org-level-4 . 1.0)
+                            (org-level-5 . 1.0)))
+        (let ((face (car face-scale))
+              (scale (cdr face-scale)))
+          (set-face-attribute face nil
+                              :family "Iosevka Aile"
+                              :weight 'regular
+                              :height (truncate (* base-height scale)))))))
+
 
   (add-hook 'org-mode-hook 'my/org-mode-setup)
 #+end_src
@@ -934,6 +937,7 @@ Keybindings for navigating between windows and buffers.
     "w="  '(balance-windows :which-key "Balance windows")
     "wm"  '(delete-other-windows :which-key "Maximize window")
     "wd"  '(delete-window :which-key "Delete window")
+    "ww"  '(other-window :which-key "Other window")
     ;;"TAB" '(mode-line-other-buffer :which-key "Switch to last buffer")
     "b"   '(:ignore t :which-key "Buffers")
     "bn"  '(next-buffer :which-key "Next buffer")
@@ -1426,7 +1430,8 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
                    '("reply" . efs/capture-mail-reply) t))
       (my/leader-keys
       "m"    '(:ignore t :which-key "Mail")
-      "mm"   '(mu4e :which-key "Open mu4e"))
+      "mm"   '(mu4e :which-key "Open mu4e")
+      "mq"   '(mu4e-quit :which-key "Quit mu4e"))
 
 #+end_src
 

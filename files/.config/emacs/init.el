@@ -233,13 +233,12 @@
   ;; Enable Evil Mode
   (evil-mode 1))
 
-;; Enhance Evil Mode with Evil Collection
 (use-package evil-collection
-  :after (evil magit dashboard)
+  :after evil
   :ensure nil
   :config
   ;; Initialize Evil Collection for all supported modes
-  (evil-collection-init))
+  (evil-collection-init '(magit dired mu4e dashboard)))
 
 ;; Add Evil Surround
 (use-package evil-surround
@@ -270,12 +269,6 @@
 ;; Use Undo-Fu for Enhanced Undo/Redo
 (use-package undo-fu
   :ensure nil)
-
-(use-package evil-snipe
-  :ensure nil
-  :config
-  (evil-snipe-mode 1)
-  (evil-snipe-override-mode 1))
 
 ;; Integrate Evil with Paredit for Lisp Editing
 (use-package evil-paredit
@@ -335,15 +328,18 @@
   "Custom configurations for Org Mode."
   ;; Get the default face height
   (let ((base-height (face-attribute 'default :height)))
-    (dolist (face '((org-level-1)
-                    (org-level-2)
-                    (org-level-3)
-                    (org-level-4)
-                    (org-level-5)))
-      (set-face-attribute (car face) nil
-                          :family "Iosevka Aile"
-                          :weight 'regular
-                          :height (truncate (* base-height (cdr face)))))))
+    (dolist (face-scale '((org-level-1 . 1.3)
+                          (org-level-2 . 1.2)
+                          (org-level-3 . 1.1)
+                          (org-level-4 . 1.0)
+                          (org-level-5 . 1.0)))
+      (let ((face (car face-scale))
+            (scale (cdr face-scale)))
+        (set-face-attribute face nil
+                            :family "Iosevka Aile"
+                            :weight 'regular
+                            :height (truncate (* base-height scale)))))))
+
 
 (add-hook 'org-mode-hook 'my/org-mode-setup)
 
@@ -426,7 +422,7 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 ;; Use Counsel to enhance built-in Emacs commands
 (use-package counsel
   :ensure nil
-:demand t
+  :demand t
   :after ivy
   :config
   (counsel-mode 1)
@@ -541,6 +537,7 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   "w="  '(balance-windows :which-key "Balance windows")
   "wm"  '(delete-other-windows :which-key "Maximize window")
   "wd"  '(delete-window :which-key "Delete window")
+  "ww"  '(other-window :which-key "Other window")
   ;;"TAB" '(mode-line-other-buffer :which-key "Switch to last buffer")
   "b"   '(:ignore t :which-key "Buffers")
   "bn"  '(next-buffer :which-key "Next buffer")
@@ -931,7 +928,8 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
                  '("reply" . efs/capture-mail-reply) t))
     (my/leader-keys
     "m"    '(:ignore t :which-key "Mail")
-    "mm"   '(mu4e :which-key "Open mu4e"))
+    "mm"   '(mu4e :which-key "Open mu4e")
+    "mq"   '(mu4e-quit :which-key "Quit mu4e"))
 
 ;;; --------- tramp -------
 
