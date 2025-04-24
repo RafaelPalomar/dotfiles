@@ -407,9 +407,10 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 ;; Enable Ivy for enhanced completion
 (use-package ivy
   :ensure nil
+  :demand t
   :diminish
-  :hook (after-init . ivy-mode)
   :config
+  (ivy-mode 1)
   (setq ivy-use-virtual-buffers t       ;; Extend searching to recent files and bookmarks
         ivy-count-format "(%d/%d) "     ;; Display the current and total number of candidates
         ivy-wrap t                      ;; Allow wrapping around completion candidates
@@ -425,6 +426,7 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 ;; Use Counsel to enhance built-in Emacs commands
 (use-package counsel
   :ensure nil
+:demand t
   :after ivy
   :config
   (counsel-mode 1)
