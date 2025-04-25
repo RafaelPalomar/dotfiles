@@ -603,7 +603,7 @@ Our goals are:
           visual-fill-column-center-text t))  ;; Center the text
 #+end_src
 
-** Customizing Org Mode Appearance
+** COMMENT Customizing Org Mode Appearance
 
 Adjust various Org settings for a cleaner and more modern look.
 
@@ -635,6 +635,7 @@ Adjust various Org settings for a cleaner and more modern look.
 
 
   (add-hook 'org-mode-hook 'my/org-mode-setup)
+
 #+end_src
 
 ** Enabling Org Indent Mode
@@ -723,7 +724,9 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
   (setq org-agenda-files '("~/org/inbox.org"
                            "~/org/archive.org"))
-  (setq org-refile-targets '((org-agenda-files :maxlevel . 9)))
+
+  (setq-default org-refile-targets '((nil :maxlevel . 9)
+                                     (org-agenda-files :maxlevel . 9)))
   (setq org-outline-path-complete-in-steps nil)
   (setq org-refile-use-outline-path t)
   #+end_src

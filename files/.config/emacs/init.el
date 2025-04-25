@@ -319,30 +319,6 @@
   (setq visual-fill-column-width 100  ;; Set text width
         visual-fill-column-center-text t))  ;; Center the text
 
-;; Customize Org Mode appearance
-(setq org-hide-emphasis-markers t       ;; Hide *, /, etc.
-      org-pretty-entities t             ;; Replace entities with symbols
-      org-ellipsis "⤵")                ;; Ellipsis for folded content
-
-(defun my/org-mode-setup ()
-  "Custom configurations for Org Mode."
-  ;; Get the default face height
-  (let ((base-height (face-attribute 'default :height)))
-    (dolist (face-scale '((org-level-1 . 1.3)
-                          (org-level-2 . 1.2)
-                          (org-level-3 . 1.1)
-                          (org-level-4 . 1.0)
-                          (org-level-5 . 1.0)))
-      (let ((face (car face-scale))
-            (scale (cdr face-scale)))
-        (set-face-attribute face nil
-                            :family "Iosevka Aile"
-                            :weight 'regular
-                            :height (truncate (* base-height scale)))))))
-
-
-(add-hook 'org-mode-hook 'my/org-mode-setup)
-
 ;; Enable Org Indent Mode for better alignment
 (add-hook 'org-mode-hook 'org-indent-mode)
 
@@ -398,7 +374,9 @@
 
 (setq org-agenda-files '("~/org/inbox.org"
                          "~/org/archive.org"))
-(setq org-refile-targets '((org-agenda-files :maxlevel . 9)))
+
+(setq-default org-refile-targets '((nil :maxlevel . 9)
+                                   (org-agenda-files :maxlevel . 9)))
 (setq org-outline-path-complete-in-steps nil)
 (setq org-refile-use-outline-path t)
 
