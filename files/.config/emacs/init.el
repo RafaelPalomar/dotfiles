@@ -380,25 +380,67 @@
         ("linenos" "true")))
 
 (setq org-capture-templates
-      '(("m" "Email Workflow")
+      '(("t" "Todo" entry (file "~/org/inbox.org")
+         "* TODO %?\nEntered on %U\n  %i\n  %a")
+        ("m" "Email Workflow")
         ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
          "* TODO Follow up with %:fromname on [[%:link][%:subject]]
-SCHEDULED: %t
-DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
+  SCHEDULED: %t
+  DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 
-%i" :immediate-finish nil)
+  %i" :immediate-finish nil)
         ("mr" "Reply" entry (file+olp "~/org/inbox.org" "E-Mail")
          "* TODO [#A] Reply to %:fromname on [[%:link][%:subject]]
-SCHEDULED: %t
-DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
+  SCHEDULED: %t
+  DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 
-%i" :immediate-finish nil)))
+  %i" :immediate-finish nil)))
 
-(setq org-agenda-files '(("~/org/inbox.org")
-                         ("~/org/archive.org")))
-(setq org-refile-targetsa '((nil :maxlevel . 9)))
+(setq org-agenda-files '("~/org/inbox.org"
+                         "~/org/archive.org"))
+(setq org-refile-targets '((org-agenda-files :maxlevel . 9)))
 (setq org-outline-path-complete-in-steps nil)
 (setq org-refile-use-outline-path t)
+
+(require 'mu4e-org)
+(use-package org-mime
+  :ensure nil
+  :after (mu4e org)
+  :config
+  ;; Set the default mail user agent to mu4e
+  (setq mail-user-agent 'mu4e-user-agent)
+  (setq org-mime-preserve-inline-images t)
+  ;; Optional: Set default export options for HTML emails
+  (setq org-mime-export-options '(:section-numbers nil
+                                                   :with-author nil
+                                                   :with-toc nil))
+  (setq mu4e-compose-format-flowed t)
+
+  ;; Define custom compose setup function
+  (defun my-mu4e-compose-org-mode-setup ()
+    "Set up Org-mode for composing emails when desired."
+    (unless (derived-mode-p 'org-mode)
+      (when (yes-or-no-p "Compose email in Org-mode with HTML conversion? ")
+        (mu4e-compose-org-mode)
+        (setq-local org-mu4e-convert-to-html t))))
+
+  ;; Add custom compose setup to mu4e compose hook
+  (add-hook 'mu4e-compose-mode-hook 'my-mu4e-compose-org-mode-setup)
+
+  ;; Define a function to toggle HTML conversion
+
+  (defun my-mu4e-toggle-html ()
+    "Toggle HTML conversion for the current email."
+    (interactive)
+    (if (eq mu4e-compose-format-flowed nil)
+        (progn
+          (setq-local mu4e-compose-format-flowed t)
+          (message "HTML conversion enabled for this email."))
+      (setq-local mu4e-compose-format-flowed nil)
+      (message "HTML conversion disabled for this email.")))
+
+  ;; Add keybinding to toggle HTML conversion in mu4e-compose-mode
+  (define-key mu4e-compose-mode-map (kbd "C-c M-h") 'my-mu4e-toggle-html))
 
 ;; Enable Ivy for enhanced completion
 (use-package ivy
@@ -700,236 +742,245 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 (add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))
 
 (use-package mu4e
-      :ensure nil  ;; mu4e is installed externally; not via package.el
-      :load-path "/usr/share/emacs/site-lisp/mu4e"  ;; Adjust this path if necessary
-      :defer t
-      :init
-      ;; General mu4e settings that need to be set before mu4e loads
-      (setq mu4e-maildir "~/.local/share/mail"
-            mu4e-attachment-dir "~/Downloads"
-            mu4e-get-mail-command  "guix shell -L ~/dotfiles cyrus-sasl-xoauth2 -- mbsync -a"
-            mu4e-update-interval 300
-            mu4e-index-cleanup t
-            mu4e-index-update-error-warning t
-            mu4e-hide-index-messages t
-            mu4e-index-update-in-background t
-            mu4e-change-filenames-when-moving t
-            mu4e-index-lazy-check nil
-            mu4e-confirm-quit nil
-            mu4e-split-view 'single-window
-            mu4e-headers-auto-update nil
-            mu4e-headers-date-format "%d-%m"
-            mu4e-headers-time-format "%H:%M"
-            mu4e-headers-from-or-to-prefix '("" . "To ")
-            mu4e-headers-include-related t
-            mu4e-headers-skip-duplicates t
-            sendmail-program "msmtp"
-            send-mail-function 'smtpmail-send-it
-            message-sendmail-f-is-evil t
-            message-sendmail-extra-arguments '("--read-envelope-from")
-            message-send-mail-function 'message-send-mail-with-sendmail)
-      :config
-      ;; Unbind conflicting keys if necessary
-      (define-key mu4e-headers-mode-map (kbd "C--") nil)
-      (define-key mu4e-view-mode-map (kbd "C--") nil)
+  :ensure nil  ;; mu4e is installed externally; not via package.el
+  :load-path "/usr/share/emacs/site-lisp/mu4e"  ;; Adjust this path if necessary
+  :defer t
+  :init
+  ;; General mu4e settings that need to be set before mu4e loads
+  (setq mu4e-maildir "~/.local/share/mail"
+        mu4e-attachment-dir "~/Downloads"
+        mu4e-get-mail-command  "guix shell -L ~/dotfiles cyrus-sasl-xoauth2 -- mbsync -a"
+        mu4e-update-interval 300
+        mu4e-index-cleanup t
+        mu4e-index-update-error-warning t
+        mu4e-hide-index-messages t
+        mu4e-index-update-in-background t
+        mu4e-change-filenames-when-moving t
+        mu4e-index-lazy-check nil
+        mu4e-confirm-quit nil
+        mu4e-split-view 'single-window
+        mu4e-headers-auto-update nil
+        mu4e-headers-date-format "%d-%m"
+        mu4e-headers-time-format "%H:%M"
+        mu4e-headers-from-or-to-prefix '("" . "To ")
+        mu4e-headers-include-related t
+        mu4e-headers-skip-duplicates t
+        sendmail-program "msmtp"
+        send-mail-function 'smtpmail-send-it
+        message-sendmail-f-is-evil t
+        message-sendmail-extra-arguments '("--read-envelope-from")
+        message-send-mail-function 'message-send-mail-with-sendmail)
+  :config
+  ;; Unbind conflicting keys if necessary
+  (define-key mu4e-headers-mode-map (kbd "C--") nil)
+  (define-key mu4e-view-mode-map (kbd "C--") nil)
 
-      ;; Custom keybindings with Evil
-      (with-eval-after-load 'evil
-        ;; Ensure 'a' is available in visual state in mu4e-view-mode
-        (evil-define-key 'visual mu4e-view-mode-map (kbd "a") 'mu4e-view-action)
-        ;; Similarly, for mu4e-headers-mode if needed
-        (evil-define-key 'visual mu4e-headers-mode-map (kbd "a") 'mu4e-headers-mark-for-*))
+  ;; Custom keybindings with Evil
+  (with-eval-after-load 'evil
+    ;; Ensure 'a' is available in visual state in mu4e-view-mode
+    (evil-define-key 'visual mu4e-view-mode-map (kbd "a") 'mu4e-view-action)
+    ;; Similarly, for mu4e-headers-mode if needed
+    (evil-define-key 'visual mu4e-headers-mode-map (kbd "a") 'mu4e-headers-mark-for-*))
 
-      ;; Reset variables, as our configuration is based on contexts
-      (setq mu4e-contexts nil
-            mu4e-drafts-folder nil
-            mu4e-compose-reply-to-address nil
-            mu4e-compose-signature t
-            mu4e-compose-signature-auto-include t
-            mu4e-sent-folder nil
-            mu4e-trash-folder nil)
+  ;; Reset variables, as our configuration is based on contexts
+  (setq mu4e-contexts nil
+        mu4e-drafts-folder nil
+        mu4e-compose-reply-to-address nil
+        mu4e-compose-signature t
+        mu4e-compose-signature-auto-include t
+        mu4e-sent-folder nil
+        mu4e-trash-folder nil)
 
-      ;; Set mu4e signature
-      (setq mu4e-compose-signature "Prof. Rafael Palomar, Ph.D.
-    __________________________________
-    Head of Medical Software Research Laboratory (MESH|Lab)
-    The Intervention Centre, Oslo University Hospital (OUH)
-    Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)
-    N-0372 Oslo, Norway
-    rafael.palomar@ous-research.no
-    https://ivs.no
+  ;; Set mu4e signature
+  (setq mu4e-compose-signature "Prof. Rafael Palomar, Ph.D.
+        __________________________________
+        Head of Medical Software Research Laboratory (MESH|Lab)
+        The Intervention Centre, Oslo University Hospital (OUH)
+        Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)
+        N-0372 Oslo, Norway
+        rafael.palomar@ous-research.no
+        https://ivs.no
 
-    Associate Professor
-    Norwegian University of Science and Technology (NTNU)
-    Teknologiveien 22, 2815 GjÃ¸vik, Norway
-    rafael.palomar@ntnu.no
-    https://ntnu.no
-    --")
+        Associate Professor
+        Norwegian University of Science and Technology (NTNU)
+        Teknologiveien 22, 2815 GjÃ¸vik, Norway
+        rafael.palomar@ntnu.no
+        https://ntnu.no
+        --")
 
-      ;; Define mu4e contexts
-      (setq mu4e-contexts
-            (list
-             ;; NTNU Account
-             (make-mu4e-context
-              :name "NTNU"
-              :match-func
-              (lambda (msg)
-                (when msg
-                  (string-prefix-p "/rafael.palomar@ntnu.no" (mu4e-message-field msg :maildir))))
-              :vars '((user-mail-address      . "rafael.palomar@ntnu.no")
-                      (user-full-name         . "Rafael Palomar")
-                      (mu4e-drafts-folder     . "/rafael.palomar@ntnu.no/Drafts")
-                      (mu4e-sent-folder       . "/rafael.palomar@ntnu.no/Sent")
-                      (mu4e-trash-folder      . "/rafael.palomar@ntnu.no/Trash")
-                      (mu4e-refile-folder     . "/rafael.palomar@ntnu.no/Archive")
-                      ;; Configure SMTP
-                      (smtpmail-smtp-user     . "rafael.palomar@ntnu.no")
-                      (smtpmail-smtp-server   . "smtp.office365.com")
-                      (smtpmail-smtp-service  . 587)
-                      (smtpmail-stream-type   . starttls)))
-             ;; UIO Account
-             (make-mu4e-context
-              :name "UIO"
-              :match-func
-              (lambda (msg)
-                (when msg
-                  (string-prefix-p "/rafaelpa@uio.no" (mu4e-message-field msg :maildir))))
-              :vars '((user-mail-address      . "rafaelpa@uio.no")
-                      (user-full-name         . "Rafael Palomar")
-                      (mu4e-drafts-folder     . "/rafaelpa@uio.no/Drafts")
-                      (mu4e-sent-folder       . "/rafaelpa@uio.no/Sent")
-                      (mu4e-trash-folder      . "/rafaelpa@uio.no/Trash")
-                      (mu4e-refile-folder     . "/rafaelpa@uio.no/Archive")
-                      ;; Configure SMTP
-                      (smtpmail-smtp-user     . "rafaelpa@uio.no")
-                      (smtpmail-smtp-server   . "smtp.office365.com")
-                      (smtpmail-smtp-service  . 587)
-                      (smtpmail-stream-type   . starttls))))))
+  ;; Define mu4e contexts
+  (setq mu4e-contexts
+        (list
+         ;; NTNU Account
+         (make-mu4e-context
+          :name "NTNU"
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-prefix-p "/rafael.palomar@ntnu.no" (mu4e-message-field msg :maildir))))
+          :vars '((user-mail-address      . "rafael.palomar@ntnu.no")
+                  (user-full-name         . "Rafael Palomar")
+                  (mu4e-drafts-folder     . "/rafael.palomar@ntnu.no/Drafts")
+                  (mu4e-sent-folder       . "/rafael.palomar@ntnu.no/Sent")
+                  (mu4e-trash-folder      . "/rafael.palomar@ntnu.no/Trash")
+                  (mu4e-refile-folder     . "/rafael.palomar@ntnu.no/Archive")
+                  ;; Configure SMTP
+                  (smtpmail-smtp-user     . "rafael.palomar@ntnu.no")
+                  (smtpmail-smtp-server   . "smtp.office365.com")
+                  (smtpmail-smtp-service  . 587)
+                  (smtpmail-stream-type   . starttls)))
+         ;; UIO Account
+         (make-mu4e-context
+          :name "UIO"
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-prefix-p "/rafaelpa@uio.no" (mu4e-message-field msg :maildir))))
+          :vars '((user-mail-address      . "rafaelpa@uio.no")
+                  (user-full-name         . "Rafael Palomar")
+                  (mu4e-drafts-folder     . "/rafaelpa@uio.no/Drafts")
+                  (mu4e-sent-folder       . "/rafaelpa@uio.no/Sent")
+                  (mu4e-trash-folder      . "/rafaelpa@uio.no/Trash")
+                  (mu4e-refile-folder     . "/rafaelpa@uio.no/Archive")
+                  ;; Configure SMTP
+                  (smtpmail-smtp-user     . "rafaelpa@uio.no")
+                  (smtpmail-smtp-server   . "smtp.office365.com")
+                  (smtpmail-smtp-service  . 587)
+                  (smtpmail-stream-type   . starttls))))))
 
 
-  (use-package mu4e-dashboard
-    :ensure nil  ;; Adjust accordingly if you install it via package.el
-    :after mu4e
-    :config
-    (require 'svg-lib)  ;; Ensure svg-lib is loaded
-    (setq mu4e-dashboard-propagate-keymap nil)
+(use-package mu4e-dashboard
+  :ensure nil  ;; Adjust accordingly if you install it via package.el
+  :after mu4e
+  :config
+  (require 'svg-lib)  ;; Ensure svg-lib is loaded
+  (setq mu4e-dashboard-propagate-keymap nil)
 
-    (defun mu4e-dashboard ()
-      "Open the mu4e dashboard on the left side."
-      (interactive)
-      (with-selected-window
-          (split-window (selected-window) -34 'left)
-        (find-file (expand-file-name "mu4e-dashboard.org" user-emacs-directory))
-        (mu4e-dashboard-mode)
-        (hl-line-mode)
-        (set-window-dedicated-p nil t)
-        (defvar svg-font-lock-keywords
-          `(("\\!\\([\\ 0-9]+\\)\\!"
-             (0 (list 'face nil 'display (svg-font-lock-tag (match-string 1)))))))
-        (defun svg-font-lock-tag (label)
-          (svg-lib-tag label nil
-                       :stroke 0 :margin 1 :font-weight 'bold
-                       :padding (max 0 (- 3 (length label)))
-                       :foreground (face-foreground 'nano-popout-i)
-                       :background (face-background 'nano-popout-i)))
-        (push 'display font-lock-extra-managed-props)
-        (font-lock-add-keywords nil svg-font-lock-keywords)
-        (font-lock-flush (point-min) (point-max)))))
+  (defun mu4e-dashboard ()
+    "Open the mu4e dashboard on the left side."
+    (interactive)
+    (with-selected-window
+        (split-window (selected-window) -34 'left)
+      (find-file (expand-file-name "mu4e-dashboard.org" user-emacs-directory))
+      (mu4e-dashboard-mode)
+      (hl-line-mode)
+      (set-window-dedicated-p nil t)
+      (defvar svg-font-lock-keywords
+        `(("\\!\\([\\ 0-9]+\\)\\!"
+           (0 (list 'face nil 'display (svg-font-lock-tag (match-string 1)))))))
+      (defun svg-font-lock-tag (label)
+        (svg-lib-tag label nil
+                     :stroke 0 :margin 1 :font-weight 'bold
+                     :padding (max 0 (- 3 (length label)))
+                     :foreground (face-foreground 'nano-popout-i)
+                     :background (face-background 'nano-popout-i)))
+      (push 'display font-lock-extra-managed-props)
+      (font-lock-add-keywords nil svg-font-lock-keywords)
+      (font-lock-flush (point-min) (point-max)))))
 
 (use-package mu4e
-    :defer t
-    :commands (mu4e)  ;; Ensure it's available for 'after' directives
-    :config
-    ;; Helper function to get the current message
-    (defun efs/get-current-message ()
-      "Get the current message in mu4e, whether in view or headers mode."
+  :defer t
+  :commands (mu4e)  ;; Ensure it's available for 'after' directives
+  :config
+  ;; Helper function to get the current message
+  (defun efs/get-current-message ()
+    "Get the current message in mu4e, whether in view or headers mode."
+    (cond
+     ((eq major-mode 'mu4e-view-mode)
+      mu4e~view-message)
+     ((eq major-mode 'mu4e-headers-mode)
+      (mu4e-message-at-point))
+     (t
+      (mu4e-message-at-point))))
+
+  ;; Function to create a follow-up task
+  (defun efs/capture-mail-follow-up (msg)
+    "Create a follow-up task for the email message MSG."
+    (interactive (list (or msg (mu4e-message-at-point))))
+    (unless msg
+      (error "No message found."))
+    ;; Extract message details
+    (let* ((from (mu4e-message-field msg :from))
+           (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
+           (subject (mu4e-message-field msg :subject))
+           (message-id (mu4e-message-field msg :message-id))
+           (link (concat "mu4e:msgid:" message-id))
+           (region (when (use-region-p)
+                     (buffer-substring-no-properties
+                      (region-beginning) (region-end)))))
+      ;; Set the org-capture variables
+      (setq org-store-link-plist (list
+                                  :type "mu4e"
+                                  :fromname fromname
+                                  :subject subject
+                                  :message-id message-id
+                                  :link link))
+      (setq org-capture-initial region)
+      ;; Mark the message as read
       (cond
        ((eq major-mode 'mu4e-view-mode)
-        mu4e~view-message)
+        (mu4e-view-mark-for-read))
        ((eq major-mode 'mu4e-headers-mode)
-        (mu4e-message-at-point))
-       (t
-        (mu4e-message-at-point))))
+        (mu4e-headers-mark-for-read)
+        (mu4e-mark-execute-all t)))
+      ;; Start the capture
+      (org-capture nil "mf")))
 
-    ;; Function to create a follow-up task
-    (defun efs/capture-mail-follow-up (msg)
-      "Create a follow-up task for the email message MSG."
-      (interactive (list (or msg (mu4e-message-at-point))))
-      (unless msg
-        (error "No message found."))
-      ;; Extract message details
-      (let* ((from (mu4e-message-field msg :from))
-             (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
-             (subject (mu4e-message-field msg :subject))
-             (message-id (mu4e-message-field msg :message-id))
-             (link (concat "mu4e:msgid:" message-id))
-             (region (when (use-region-p)
-                       (buffer-substring-no-properties
-                        (region-beginning) (region-end)))))
-        ;; Set the org-capture variables
-        (setq org-store-link-plist (list
-                                    :type "mu4e"
-                                    :fromname fromname
-                                    :subject subject
-                                    :message-id message-id
-                                    :link link))
-        (setq org-capture-initial region)
-        ;; Mark the message as read
-        (cond
-         ((eq major-mode 'mu4e-view-mode)
-          (mu4e-view-mark-for-read))
-         ((eq major-mode 'mu4e-headers-mode)
-          (mu4e-headers-mark-for-read)
-          (mu4e-mark-execute-all t)))
-        ;; Start the capture
-        (org-capture nil "mf")))
+  ;; Function to create a reply task
+  (defun efs/capture-mail-reply (msg)
+    "Create a reply task for the email message MSG."
+    (interactive (list (or msg (mu4e-message-at-point))))
+    (unless msg
+      (error "No message found."))
+    ;; Extract message details
+    (let* ((from (mu4e-message-field msg :from))
+           (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
+           (subject (mu4e-message-field msg :subject))
+           (message-id (mu4e-message-field msg :message-id))
+           (link (concat "mu4e:msgid:" message-id))
+           (region (when (use-region-p)
+                     (buffer-substring-no-properties
+                      (region-beginning) (region-end)))))
+      ;; Set the org-capture variables
+      (setq org-store-link-plist (list
+                                  :type "mu4e"
+                                  :fromname fromname
+                                  :subject subject
+                                  :message-id message-id
+                                  :link link))
+      (setq org-capture-initial region)
+      ;; Mark the message as read
+      (cond
+       ((eq major-mode 'mu4e-view-mode)
+        (mu4e-view-mark-for-read))
+       ((eq major-mode 'mu4e-headers-mode)
+        (mu4e-headers-mark-for-read)
+        (mu4e-mark-execute-all t)))
+      ;; Start the capture
+      (org-capture nil "mr")))
 
-    ;; Function to create a reply task
-    (defun efs/capture-mail-reply (msg)
-      "Create a reply task for the email message MSG."
-      (interactive (list (or msg (mu4e-message-at-point))))
-      (unless msg
-        (error "No message found."))
-      ;; Extract message details
-      (let* ((from (mu4e-message-field msg :from))
-             (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
-             (subject (mu4e-message-field msg :subject))
-             (message-id (mu4e-message-field msg :message-id))
-             (link (concat "mu4e:msgid:" message-id))
-             (region (when (use-region-p)
-                       (buffer-substring-no-properties
-                        (region-beginning) (region-end)))))
-        ;; Set the org-capture variables
-        (setq org-store-link-plist (list
-                                    :type "mu4e"
-                                    :fromname fromname
-                                    :subject subject
-                                    :message-id message-id
-                                    :link link))
-        (setq org-capture-initial region)
-        ;; Mark the message as read
-        (cond
-         ((eq major-mode 'mu4e-view-mode)
-          (mu4e-view-mark-for-read))
-         ((eq major-mode 'mu4e-headers-mode)
-          (mu4e-headers-mark-for-read)
-          (mu4e-mark-execute-all t)))
-        ;; Start the capture
-        (org-capture nil "mr")))
+  ;; Add custom actions for our capture templates
+  (add-to-list 'mu4e-headers-actions
+               '("follow up" . efs/capture-mail-follow-up) t)
+  (add-to-list 'mu4e-view-actions
+               '("follow up" . efs/capture-mail-follow-up) t)
+  (add-to-list 'mu4e-headers-actions
+               '("reply" . efs/capture-mail-reply) t)
+  (add-to-list 'mu4e-view-actions
+               '("reply" . efs/capture-mail-reply) t))
+(my/leader-keys
+  "m"    '(:ignore t :which-key "Mail")
+  "mm"   '(mu4e :which-key "Open mu4e")
+  "mq"   '(mu4e-quit :which-key "Quit mu4e")
 
-    ;; Add custom actions for our capture templates
-    (add-to-list 'mu4e-headers-actions
-                 '("follow up" . efs/capture-mail-follow-up) t)
-    (add-to-list 'mu4e-view-actions
-                 '("follow up" . efs/capture-mail-follow-up) t)
-    (add-to-list 'mu4e-headers-actions
-                 '("reply" . efs/capture-mail-reply) t)
-    (add-to-list 'mu4e-view-actions
-                 '("reply" . efs/capture-mail-reply) t))
-    (my/leader-keys
-    "m"    '(:ignore t :which-key "Mail")
-    "mm"   '(mu4e :which-key "Open mu4e")
-    "mq"   '(mu4e-quit :which-key "Quit mu4e"))
+  "mco"  '(lambda ()
+            (interactive)
+            ;; Compose a new email and enable Org-mode with HTML conversion
+            (mu4e-compose-new)
+            (org-mu4e-compose-org-mode)
+            (setq-local org-mu4e-convert-to-html t)
+            :which-key "Compose new email with Org-mode")
+  "mt"   '(my-org-mu4e-toggle-html :which-key "Toggle HTML conversion"))
 
 ;;; --------- tramp -------
 

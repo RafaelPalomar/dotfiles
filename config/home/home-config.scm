@@ -70,6 +70,7 @@
         emacs-nerd-icons
         emacs-orderless
         emacs-org-appear
+        emacs-org-mime
         emacs-org-modern
         emacs-paredit
         emacs-perspective
