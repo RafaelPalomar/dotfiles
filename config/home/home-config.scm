@@ -2,6 +2,7 @@
   #:use-module (config home services emacs)
   #:use-module (config packages mutt-oauth2)
   #:use-module (config packages cyrus-sasl-xoauth2)
+  #:use-module (config packages emacs-denote-silo)
   #:use-module (config packages emacs-evil-snipe)
   #:use-module (config packages emacs-persp-projectile)
   #:use-module (config packages emacs-tabspaces)
@@ -43,6 +44,7 @@
         emacs-counsel-projectile
         emacs-dashboard
         emacs-denote
+        emacs-denote-silo
         emacs-embark
         emacs-evil
         emacs-evil-collection

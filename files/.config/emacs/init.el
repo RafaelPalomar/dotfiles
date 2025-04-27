@@ -939,40 +939,55 @@ https://ntnu.no
   (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
 
 (use-package denote
+    :ensure nil
+    :config
+    ;; Define silos for Work and Personal notes
+    (setq denote-directory "~/Notes/Work/")
+
+    (setq denote-silo-extras-directories
+          '(("personal" . "~/Notes/Personal/")))
+
+    (defvar my-denote-to-agenda-regexp "_agenda"
+      "Denote file names that are added to the agenda.
+        See `my-add-denote-to-agenda'.")
+
+    (defun my-denote-add-to-agenda ()
+      "Add current file to the `org-agenda-files', if needed.
+        The file's name must match the `my-denote-to-agenda-regexp'.
+
+        Add this to the `after-save-hook' or call it interactively."
+      (interactive)
+      (when-let* ((file (buffer-file-name))
+                  ((denote-file-is-note-p file))
+                  ((string-match-p my-denote-to-agenda-regexp (buffer-file-name))))
+        (add-to-list 'org-agenda-files file)))
+
+    ;; Example to add the file automatically. Comment/Uncomment it:
+    (add-hook 'after-save-hook #'my-denote-add-to-agenda)
+
+    (defun my-denote-remove-from-agenda ()
+      "Remove current file from the `org-agenda-files'.
+        See `my-denote-add-to-agenda' for how to add files to the Org
+        agenda."
+      (interactive)
+      (when-let* ((file (buffer-file-name))
+                  ((string-match-p my-denote-to-agenda-regexp (buffer-file-name))))
+        (setq org-agenda-files (delete file org-agenda-files)))))
+
+(use-package denote-silo
   :ensure nil
+  ;; Bind these commands to key bindings of your choice.
+  :commands ( denote-silo-create-note
+        denote-silo-open-or-create
+        denote-silo-select-silo-then-command
+        denote-silo-dired
+        denote-silo-cd )
   :config
-  ;; Define silos for Work and Personal notes
-  (setq denote-directory "~/Notes/Work/")
-
-  (setq denote-silo-extras-directories
-        '(("personal" . "~/Notes/Personal/")))
-
-  (defvar my-denote-to-agenda-regexp "_agenda"
-    "Denote file names that are added to the agenda.
-      See `my-add-denote-to-agenda'.")
-
-  (defun my-denote-add-to-agenda ()
-    "Add current file to the `org-agenda-files', if needed.
-      The file's name must match the `my-denote-to-agenda-regexp'.
-
-      Add this to the `after-save-hook' or call it interactively."
-    (interactive)
-    (when-let* ((file (buffer-file-name))
-                ((denote-file-is-note-p file))
-                ((string-match-p my-denote-to-agenda-regexp (buffer-file-name))))
-      (add-to-list 'org-agenda-files file)))
-
-  ;; Example to add the file automatically. Comment/Uncomment it:
-  (add-hook 'after-save-hook #'my-denote-add-to-agenda)
-
-  (defun my-denote-remove-from-agenda ()
-    "Remove current file from the `org-agenda-files'.
-      See `my-denote-add-to-agenda' for how to add files to the Org
-      agenda."
-    (interactive)
-    (when-let* ((file (buffer-file-name))
-                ((string-match-p my-denote-to-agenda-regexp (buffer-file-name))))
-      (setq org-agenda-files (delete file org-agenda-files)))))
+  ;; Add your silos to this list.  By default, it only includes the
+  ;; value of the variable `denote-directory'.
+  (setq denote-silo-directories
+  (list denote-directory
+        "~/Notes/Personal/")))
 
 (use-package dashboard
   :ensure nil
