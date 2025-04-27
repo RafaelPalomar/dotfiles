@@ -732,7 +732,6 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
   #+end_src
 ** Org-mime integration
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
-  (require 'mu4e-org)
   (use-package org-mime
     :ensure nil
     :after (mu4e org)
@@ -743,34 +742,7 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
     ;; Optional: Set default export options for HTML emails
     (setq org-mime-export-options '(:section-numbers nil
                                                      :with-author nil
-                                                     :with-toc nil))
-    (setq mu4e-compose-format-flowed t)
-
-    ;; Define custom compose setup function
-    (defun my-mu4e-compose-org-mode-setup ()
-      "Set up Org-mode for composing emails when desired."
-      (unless (derived-mode-p 'org-mode)
-        (when (yes-or-no-p "Compose email in Org-mode with HTML conversion? ")
-          (mu4e-compose-org-mode)
-          (setq-local org-mu4e-convert-to-html t))))
-
-    ;; Add custom compose setup to mu4e compose hook
-    (add-hook 'mu4e-compose-mode-hook 'my-mu4e-compose-org-mode-setup)
-
-    ;; Define a function to toggle HTML conversion
-
-    (defun my-mu4e-toggle-html ()
-      "Toggle HTML conversion for the current email."
-      (interactive)
-      (if (eq mu4e-compose-format-flowed nil)
-          (progn
-            (setq-local mu4e-compose-format-flowed t)
-            (message "HTML conversion enabled for this email."))
-        (setq-local mu4e-compose-format-flowed nil)
-        (message "HTML conversion disabled for this email.")))
-
-    ;; Add keybinding to toggle HTML conversion in mu4e-compose-mode
-    (define-key mu4e-compose-mode-map (kbd "C-c M-h") 'my-mu4e-toggle-html))
+                                                     :with-toc nil)))
   #+end_src
 
 * Completion Framework
@@ -1300,20 +1272,20 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
     ;; Set mu4e signature
     (setq mu4e-compose-signature "Prof. Rafael Palomar, Ph.D.
-          __________________________________
-          Head of Medical Software Research Laboratory (MESH|Lab)
-          The Intervention Centre, Oslo University Hospital (OUH)
-          Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)
-          N-0372 Oslo, Norway
-          rafael.palomar@ous-research.no
-          https://ivs.no
+__________________________________
+Head of Medical Software Research Laboratory (MESH|Lab)
+The Intervention Centre, Oslo University Hospital (OUH)
+Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)
+N-0372 Oslo, Norway
+rafael.palomar@ous-research.no
+https://ivs.no
 
-          Associate Professor
-          Norwegian University of Science and Technology (NTNU)
-          Teknologiveien 22, 2815 GjÃ¸vik, Norway
-          rafael.palomar@ntnu.no
-          https://ntnu.no
-          --")
+Associate Professor
+Norwegian University of Science and Technology (NTNU)
+Teknologiveien 22, 2815 Gjøvik, Norway
+rafael.palomar@ntnu.no
+https://ntnu.no
+--")
 
     ;; Define mu4e contexts
     (setq mu4e-contexts
@@ -1336,19 +1308,19 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
                     (smtpmail-smtp-server   . "smtp.office365.com")
                     (smtpmail-smtp-service  . 587)
                     (smtpmail-stream-type   . starttls)))
-           ;; UIO Account
+           ;; OUS-Research Account
            (make-mu4e-context
-            :name "UIO"
+            :name "OUS-Research"
             :match-func
             (lambda (msg)
               (when msg
-                (string-prefix-p "/rafaelpa@uio.no" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address      . "rafaelpa@uio.no")
+                (string-prefix-p "/rafael.palomar@ous-research.no" (mu4e-message-field msg :maildir))))
+            :vars '((user-mail-address      . "rafael.palomar@ous-research.no")
                     (user-full-name         . "Rafael Palomar")
-                    (mu4e-drafts-folder     . "/rafaelpa@uio.no/Drafts")
-                    (mu4e-sent-folder       . "/rafaelpa@uio.no/Sent")
-                    (mu4e-trash-folder      . "/rafaelpa@uio.no/Trash")
-                    (mu4e-refile-folder     . "/rafaelpa@uio.no/Archive")
+                    (mu4e-drafts-folder     . "/rafaelpa@ous-research.no/Drafts")
+                    (mu4e-sent-folder       . "/rafaelpa@ous-research.no/Sent")
+                    (mu4e-trash-folder      . "/rafaelpa@ous-research.no/Trash")
+                    (mu4e-refile-folder     . "/rafaelpa@ous-research.no/Archive")
                     ;; Configure SMTP
                     (smtpmail-smtp-user     . "rafaelpa@uio.no")
                     (smtpmail-smtp-server   . "smtp.office365.com")
@@ -1475,19 +1447,24 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
                  '("reply" . efs/capture-mail-reply) t)
     (add-to-list 'mu4e-view-actions
                  '("reply" . efs/capture-mail-reply) t))
+
+
+
   (my/leader-keys
     "m"    '(:ignore t :which-key "Mail")
     "mm"   '(mu4e :which-key "Open mu4e")
     "mq"   '(mu4e-quit :which-key "Quit mu4e")
 
-    "mco"  '(lambda ()
-              (interactive)
-              ;; Compose a new email and enable Org-mode with HTML conversion
-              (mu4e-compose-new)
-              (org-mu4e-compose-org-mode)
-              (setq-local org-mu4e-convert-to-html t)
-              :which-key "Compose new email with Org-mode")
-    "mt"   '(my-org-mu4e-toggle-html :which-key "Toggle HTML conversion"))
+    "mc"  '(:ignore t :which-key "Compose")
+    "mcc" '(mu4e-compose-new :which-key "Compose new email (plain text)")
+    "mcC" '(my-mu4e-compose-new-with-org-mode :which-key "Compose new email with Org-mode")
+    "mr"  '(:ignore t :which-key "Reply")
+    "mrr" '(mu4e-compose-reply :which-key "Reply (plain text)")
+    "mrR" '(my-mu4e-compose-reply-with-org-mode :which-key "Reply with Org-mode"))
+
+
+
+
 #+end_src
 
 * tramp

@@ -24,7 +24,7 @@ ExpireUnread no
 # End profile
 
 
-IMAPStore rafaelpa@uio.no-remote
+IMAPStore rafael.palomar@ous-research.no-remote
 Host outlook.office365.com
 Port 993
 User rafaelpa@uio.no
@@ -33,15 +33,15 @@ AuthMechs XOAUTH2
 SSLType IMAPS
 CertificateFile /etc/ssl/certs/ca-certificates.crt
 
-MaildirStore rafaelpa@uio.no-local
+MaildirStore rafael.palomar@ous-research.no-local
 Subfolders Verbatim
 Path /home/rafael/.local/share/mail/rafael.palomar@ous-research.no/
-Inbox /home/rafael/.local/share/mail/rafael.palomar@uio.no/INBOX
+Inbox /home/rafael/.local/share/mail/rafael.palomar@ous-research.no/INBOX
 
-Channel rafaelpa@uio.no
+Channel rafael.palomar@ous-research.no
 Expunge Both
-Master :rafaelpa@uio.no-remote:
-Slave :rafaelpa@uio.no-local:
+Master :rafael.palomar@ous-research.no-remote:
+Slave :rafael.palomar@ous-research.no-local:
 Patterns * !"[Gmail]/All Mail"
 Create Both
 SyncState *
