@@ -1,59 +1,62 @@
 ;; -*- lexical-binding: t; -*-
 
-  ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
+    ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
 
-  ;;; ----- Basic Configuration -----
+    ;;; ----- Basic Configuration -----
 
-;; Increase the garbage collection threshold during startup for faster startup
-(setq gc-cons-threshold most-positive-fixnum)
+  ;; Increase the garbage collection threshold during startup for faster startup
+  (setq gc-cons-threshold most-positive-fixnum)
 
-;; Reset garbage collection thresholds after startup
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            (setq gc-cons-threshold (* 16 1024 1024))  ;; 16MB
-            (setq gc-cons-percentage 0.1)))
+  ;; Reset garbage collection thresholds after startup
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (setq gc-cons-threshold (* 16 1024 1024))  ;; 16MB
+              (setq gc-cons-percentage 0.1)))
 
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            ;; Force Emacs to decrypt ~/.authinfo.gpg and find your GPTel creds
-            (ignore-errors
-              (auth-source-search :max 1 :host "api.openai.com" :user "gptel"))))
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              ;; Force Emacs to decrypt ~/.authinfo.gpg and find your GPTel creds
+              (ignore-errors
+                (auth-source-search :max 1 :host "api.openai.com" :user "gptel"))))
 
 
+(set-language-environment "UTF-8")
+(setq locale-coding-system 'utf-8)
 
-;; Core settings
-(setq visible-bell t                         ;; Flash the screen instead of beeping
-      inhibit-startup-message t              ;; Suppress the startup message
-      inhibit-startup-screen t               ;; Disable the startup screen
-      initial-scratch-message ";; Welcome to Emacs!\n\n"  ;; Set the scratch message
-      make-backup-files nil                  ;; Disable backup files
-      auto-save-default nil                  ;; Disable auto-saving to backup files
-      ad-redefinition-action 'accept         ;; Silence function redefinition warnings
-      ring-bell-function 'ignore             ;; Disable the bell completely
-      vc-follow-symlinks t                   ;; Always follow symlinks
-      large-file-warning-threshold nil       ;; Disable large file warnings
-      custom-file (expand-file-name "custom.el" user-emacs-directory) ;; Set custom file
-      frame-title-format
-      '((:eval (if (buffer-file-name)
-                   (abbreviate-file-name (buffer-file-name))
-                 "%b")))                     ;; Show full path in frame title
-      )
 
-;; Load the custom file if it exists
-(when (file-exists-p custom-file)
-  (load custom-file t))
+  ;; Core settings
+  (setq visible-bell t                         ;; Flash the screen instead of beeping
+        inhibit-startup-message t              ;; Suppress the startup message
+        inhibit-startup-screen t               ;; Disable the startup screen
+        initial-scratch-message ";; Welcome to Emacs!\n\n"  ;; Set the scratch message
+        make-backup-files nil                  ;; Disable backup files
+        auto-save-default nil                  ;; Disable auto-saving to backup files
+        ad-redefinition-action 'accept         ;; Silence function redefinition warnings
+        ring-bell-function 'ignore             ;; Disable the bell completely
+        vc-follow-symlinks t                   ;; Always follow symlinks
+        large-file-warning-threshold nil       ;; Disable large file warnings
+        custom-file (expand-file-name "custom.el" user-emacs-directory) ;; Set custom file
+        frame-title-format
+        '((:eval (if (buffer-file-name)
+                     (abbreviate-file-name (buffer-file-name))
+                   "%b")))                     ;; Show full path in frame title
+        )
 
-;; Set default encoding to UTF-8
-(prefer-coding-system 'utf-8)
+  ;; Load the custom file if it exists
+  (when (file-exists-p custom-file)
+    (load custom-file t))
 
-;; Set tabs to spaces and define tab width
-(setq-default indent-tabs-mode nil           ;; Use spaces instead of tabs
-              tab-width 2)                   ;; Set default tab width to 2
+  ;; Set default encoding to UTF-8
+  (prefer-coding-system 'utf-8)
 
-;; Simplify the interface
-(menu-bar-mode -1)                           ;; Disable the menu bar
-(tool-bar-mode -1)                           ;; Disable the tool bar
-(scroll-bar-mode -1)                         ;; Disable the scroll bar
+  ;; Set tabs to spaces and define tab width
+  (setq-default indent-tabs-mode nil           ;; Use spaces instead of tabs
+                tab-width 2)                   ;; Set default tab width to 2
+
+  ;; Simplify the interface
+  (menu-bar-mode -1)                           ;; Disable the menu bar
+  (tool-bar-mode -1)                           ;; Disable the tool bar
+  (scroll-bar-mode -1)                         ;; Disable the scroll bar
 
 ;; Core modes
 (repeat-mode 1)                              ;; Enable repeat mode
@@ -356,7 +359,7 @@
         ("linenos" "true")))
 
 (setq org-capture-templates
-      '(("t" "Todo" entry (file "~/org/inbox.org")
+      '(("t" "Todo" entry (file "~/org/inbox.org" "Inbox")
          "* TODO %?\nEntered on %U\n  %i\n  %a")
         ("m" "Email Workflow")
         ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
@@ -692,57 +695,60 @@
 (add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))
 
 (use-package mu4e
-    :ensure nil  ;; mu4e is installed externally; not via package.el
-    :load-path "/usr/share/emacs/site-lisp/mu4e"  ;; Adjust this path if necessary
-    :defer t
-    :init
-    ;; General mu4e settings that need to be set before mu4e loads
-    (setq mu4e-maildir "~/.local/share/mail"
-          mu4e-attachment-dir "~/Downloads"
-          mu4e-get-mail-command  "guix shell -L ~/dotfiles cyrus-sasl-xoauth2 -- mbsync -a"
-          mu4e-update-interval 300
-          mu4e-index-cleanup t
-          mu4e-index-update-error-warning t
-          mu4e-hide-index-messages t
-          mu4e-index-update-in-background t
-          mu4e-change-filenames-when-moving t
-          mu4e-index-lazy-check nil
-          mu4e-confirm-quit nil
-          mu4e-split-view 'single-window
-          mu4e-headers-auto-update nil
-          mu4e-headers-date-format "%d-%m"
-          mu4e-headers-time-format "%H:%M"
-          mu4e-headers-from-or-to-prefix '("" . "To ")
-          mu4e-headers-include-related t
-          mu4e-headers-skip-duplicates t
-          sendmail-program "msmtp"
-          send-mail-function 'smtpmail-send-it
-          message-sendmail-f-is-evil t
-          message-sendmail-extra-arguments '("--read-envelope-from")
-          message-send-mail-function 'message-send-mail-with-sendmail)
-    :config
-    ;; Unbind conflicting keys if necessary
-    (define-key mu4e-headers-mode-map (kbd "C--") nil)
-    (define-key mu4e-view-mode-map (kbd "C--") nil)
+  :ensure nil  ;; mu4e is installed externally; not via package.el
+  :load-path "/usr/share/emacs/site-lisp/mu4e"  ;; Adjust this path if necessary
+  :commands (mu4e)  ;; Ensure it's available for 'after' directives
+  :defer t
+  :init
+  ;; General mu4e settings that need to be set before mu4e loads
+  (setq mu4e-maildir "~/.local/share/mail"
+        mu4e-attachment-dir "~/Downloads"
+        mu4e-get-mail-command  "guix shell -L ~/dotfiles cyrus-sasl-xoauth2 -- mbsync -a"
+        mu4e-update-interval 300
+        mu4e-index-cleanup t
+        mu4e-index-update-error-warning t
+        mu4e-hide-index-messages t
+        mu4e-index-update-in-background t
+        mu4e-change-filenames-when-moving t
+        mu4e-index-lazy-check nil
+        mu4e-confirm-quit nil
+        mu4e-split-view 'single-window
+        mu4e-headers-auto-update nil
+        mu4e-headers-date-format "%d-%m"
+        mu4e-headers-time-format "%H:%M"
+        mu4e-headers-from-or-to-prefix '("" . "To ")
+        mu4e-headers-include-related t
+        mu4e-headers-skip-duplicates t
+        sendmail-program "msmtp"
+        send-mail-function 'smtpmail-send-it
+        message-sendmail-f-is-evil t
+        message-sendmail-extra-arguments '("--read-envelope-from")
+        message-send-mail-function 'message-send-mail-with-sendmail)
+  :config
+  ;; Unbind conflicting keys if necessary
+  (define-key mu4e-headers-mode-map (kbd "C--") nil)
+  (define-key mu4e-view-mode-map (kbd "C--") nil)
+  (define-key mu4e-headers-mode-map (kbd "C-c c") 'mu4e-org-store-and-capture)
+  (define-key mu4e-view-mode-map    (kbd "C-c c") 'mu4e-org-store-and-capture)
 
-    ;; Custom keybindings with Evil
-    (with-eval-after-load 'evil
-      ;; Ensure 'a' is available in visual state in mu4e-view-mode
-      (evil-define-key 'visual mu4e-view-mode-map (kbd "a") 'mu4e-view-action)
-      ;; Similarly, for mu4e-headers-mode if needed
-      (evil-define-key 'visual mu4e-headers-mode-map (kbd "a") 'mu4e-headers-mark-for-*))
+  ;; Custom keybindings with Evil
+  (with-eval-after-load 'evil
+    ;; Ensure 'a' is available in visual state in mu4e-view-mode
+    (evil-define-key 'visual mu4e-view-mode-map (kbd "a") 'mu4e-view-action)
+    ;; Similarly, for mu4e-headers-mode if needed
+    (evil-define-key 'visual mu4e-headers-mode-map (kbd "a") 'mu4e-headers-mark-for-*))
 
-    ;; Reset variables, as our configuration is based on contexts
-    (setq mu4e-contexts nil
-          mu4e-drafts-folder nil
-          mu4e-compose-reply-to-address nil
-          mu4e-compose-signature t
-          mu4e-compose-signature-auto-include t
-          mu4e-sent-folder nil
-          mu4e-trash-folder nil)
+  ;; Reset variables, as our configuration is based on contexts
+  (setq mu4e-contexts nil
+        mu4e-drafts-folder nil
+        mu4e-compose-reply-to-address nil
+        mu4e-compose-signature t
+        mu4e-compose-signature-auto-include t
+        mu4e-sent-folder nil
+        mu4e-trash-folder nil)
 
-    ;; Set mu4e signature
-    (setq mu4e-compose-signature "Prof. Rafael Palomar, Ph.D.
+  ;; Set mu4e signature
+  (setq mu4e-compose-signature "Prof. Rafael Palomar, Ph.D.
 __________________________________
 Head of Medical Software Research Laboratory (MESH|Lab)
 The Intervention Centre, Oslo University Hospital (OUH)
@@ -758,180 +764,88 @@ rafael.palomar@ntnu.no
 https://ntnu.no
 --")
 
-    ;; Define mu4e contexts
-    (setq mu4e-contexts
-          (list
-           ;; NTNU Account
-           (make-mu4e-context
-            :name "NTNU"
-            :match-func
-            (lambda (msg)
-              (when msg
-                (string-prefix-p "/rafael.palomar@ntnu.no" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address      . "rafael.palomar@ntnu.no")
-                    (user-full-name         . "Rafael Palomar")
-                    (mu4e-drafts-folder     . "/rafael.palomar@ntnu.no/Drafts")
-                    (mu4e-sent-folder       . "/rafael.palomar@ntnu.no/Sent")
-                    (mu4e-trash-folder      . "/rafael.palomar@ntnu.no/Trash")
-                    (mu4e-refile-folder     . "/rafael.palomar@ntnu.no/Archive")
-                    ;; Configure SMTP
-                    (smtpmail-smtp-user     . "rafael.palomar@ntnu.no")
-                    (smtpmail-smtp-server   . "smtp.office365.com")
-                    (smtpmail-smtp-service  . 587)
-                    (smtpmail-stream-type   . starttls)))
-           ;; OUS-Research Account
-           (make-mu4e-context
-            :name "OUS-Research"
-            :match-func
-            (lambda (msg)
-              (when msg
-                (string-prefix-p "/rafael.palomar@ous-research.no" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address      . "rafael.palomar@ous-research.no")
-                    (user-full-name         . "Rafael Palomar")
-                    (mu4e-drafts-folder     . "/rafaelpa@ous-research.no/Drafts")
-                    (mu4e-sent-folder       . "/rafaelpa@ous-research.no/Sent")
-                    (mu4e-trash-folder      . "/rafaelpa@ous-research.no/Trash")
-                    (mu4e-refile-folder     . "/rafaelpa@ous-research.no/Archive")
-                    ;; Configure SMTP
-                    (smtpmail-smtp-user     . "rafaelpa@uio.no")
-                    (smtpmail-smtp-server   . "smtp.office365.com")
-                    (smtpmail-smtp-service  . 587)
-                    (smtpmail-stream-type   . starttls))))))
+  ;; Define mu4e contexts
+  (setq mu4e-contexts
+        (list
+         ;; NTNU Account
+         (make-mu4e-context
+          :name "NTNU"
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-prefix-p "/rafael.palomar@ntnu.no" (mu4e-message-field msg :maildir))))
+          :vars '((user-mail-address      . "rafael.palomar@ntnu.no")
+                  (user-full-name         . "Rafael Palomar")
+                  (mu4e-drafts-folder     . "/rafael.palomar@ntnu.no/Drafts")
+                  (mu4e-sent-folder       . "/rafael.palomar@ntnu.no/Sent")
+                  (mu4e-trash-folder      . "/rafael.palomar@ntnu.no/Trash")
+                  (mu4e-refile-folder     . "/rafael.palomar@ntnu.no/Archive")
+                  ;; Configure SMTP
+                  (smtpmail-smtp-user     . "rafael.palomar@ntnu.no")
+                  (smtpmail-smtp-server   . "smtp.office365.com")
+                  (smtpmail-smtp-service  . 587)
+                  (smtpmail-stream-type   . starttls)))
+         ;; OUS-Research Account
+         (make-mu4e-context
+          :name "OUS-Research"
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-prefix-p "/rafael.palomar@ous-research.no" (mu4e-message-field msg :maildir))))
+          :vars '((user-mail-address      . "rafael.palomar@ous-research.no")
+                  (user-full-name         . "Rafael Palomar")
+                  (mu4e-drafts-folder     . "/rafaelpa@ous-research.no/Drafts")
+                  (mu4e-sent-folder       . "/rafaelpa@ous-research.no/Sent")
+                  (mu4e-trash-folder      . "/rafaelpa@ous-research.no/Trash")
+                  (mu4e-refile-folder     . "/rafaelpa@ous-research.no/Archive")
+                  ;; Configure SMTP
+                  (smtpmail-smtp-user     . "rafaelpa@uio.no")
+                  (smtpmail-smtp-server   . "smtp.office365.com")
+                  (smtpmail-smtp-service  . 587)
+                  (smtpmail-stream-type   . starttls))))))
 
 
-  (use-package mu4e-dashboard
-    :ensure nil  ;; Adjust accordingly if you install it via package.el
-    :after mu4e
-    :config
-    (require 'svg-lib)  ;; Ensure svg-lib is loaded
-    (setq mu4e-dashboard-propagate-keymap nil)
+(use-package mu4e-dashboard
+  :ensure nil  ;; Adjust accordingly if you install it via package.el
+  :after mu4e
+  :config
+  (require 'svg-lib)  ;; Ensure svg-lib is loaded
+  (setq mu4e-dashboard-propagate-keymap nil)
 
-    (defun mu4e-dashboard ()
-      "Open the mu4e dashboard on the left side."
-      (interactive)
-      (with-selected-window
-          (split-window (selected-window) -34 'left)
-        (find-file (expand-file-name "mu4e-dashboard.org" user-emacs-directory))
-        (mu4e-dashboard-mode)
-        (hl-line-mode)
-        (set-window-dedicated-p nil t)
-        (defvar svg-font-lock-keywords
-          `(("\\!\\([\\ 0-9]+\\)\\!"
-             (0 (list 'face nil 'display (svg-font-lock-tag (match-string 1)))))))
-        (defun svg-font-lock-tag (label)
-          (svg-lib-tag label nil
-                       :stroke 0 :margin 1 :font-weight 'bold
-                       :padding (max 0 (- 3 (length label)))
-                       :foreground (face-foreground 'nano-popout-i)
-                       :background (face-background 'nano-popout-i)))
-        (push 'display font-lock-extra-managed-props)
-        (font-lock-add-keywords nil svg-font-lock-keywords)
-        (font-lock-flush (point-min) (point-max)))))
-
-  (use-package mu4e
-    :defer t
-    :commands (mu4e)  ;; Ensure it's available for 'after' directives
-    :config
-    ;; Helper function to get the current message
-    (defun efs/get-current-message ()
-      "Get the current message in mu4e, whether in view or headers mode."
-      (cond
-       ((eq major-mode 'mu4e-view-mode)
-        mu4e~view-message)
-       ((eq major-mode 'mu4e-headers-mode)
-        (mu4e-message-at-point))
-       (t
-        (mu4e-message-at-point))))
-
-    ;; Function to create a follow-up task
-    (defun efs/capture-mail-follow-up (msg)
-      "Create a follow-up task for the email message MSG."
-      (interactive (list (or msg (mu4e-message-at-point))))
-      (unless msg
-        (error "No message found."))
-      ;; Extract message details
-      (let* ((from (mu4e-message-field msg :from))
-             (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
-             (subject (mu4e-message-field msg :subject))
-             (message-id (mu4e-message-field msg :message-id))
-             (link (concat "mu4e:msgid:" message-id))
-             (region (when (use-region-p)
-                       (buffer-substring-no-properties
-                        (region-beginning) (region-end)))))
-        ;; Set the org-capture variables
-        (setq org-store-link-plist (list
-                                    :type "mu4e"
-                                    :fromname fromname
-                                    :subject subject
-                                    :message-id message-id
-                                    :link link))
-        (setq org-capture-initial region)
-        ;; Mark the message as read
-        (cond
-         ((eq major-mode 'mu4e-view-mode)
-          (mu4e-view-mark-for-read))
-         ((eq major-mode 'mu4e-headers-mode)
-          (mu4e-headers-mark-for-read)
-          (mu4e-mark-execute-all t)))
-        ;; Start the capture
-        (org-capture nil "mf")))
-
-    ;; Function to create a reply task
-    (defun efs/capture-mail-reply (msg)
-      "Create a reply task for the email message MSG."
-      (interactive (list (or msg (mu4e-message-at-point))))
-      (unless msg
-        (error "No message found."))
-      ;; Extract message details
-      (let* ((from (mu4e-message-field msg :from))
-             (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
-             (subject (mu4e-message-field msg :subject))
-             (message-id (mu4e-message-field msg :message-id))
-             (link (concat "mu4e:msgid:" message-id))
-             (region (when (use-region-p)
-                       (buffer-substring-no-properties
-                        (region-beginning) (region-end)))))
-        ;; Set the org-capture variables
-        (setq org-store-link-plist (list
-                                    :type "mu4e"
-                                    :fromname fromname
-                                    :subject subject
-                                    :message-id message-id
-                                    :link link))
-        (setq org-capture-initial region)
-        ;; Mark the message as read
-        (cond
-         ((eq major-mode 'mu4e-view-mode)
-          (mu4e-view-mark-for-read))
-         ((eq major-mode 'mu4e-headers-mode)
-          (mu4e-headers-mark-for-read)
-          (mu4e-mark-execute-all t)))
-        ;; Start the capture
-        (org-capture nil "mr")))
-
-    ;; Add custom actions for our capture templates
-    (add-to-list 'mu4e-headers-actions
-                 '("follow up" . efs/capture-mail-follow-up) t)
-    (add-to-list 'mu4e-view-actions
-                 '("follow up" . efs/capture-mail-follow-up) t)
-    (add-to-list 'mu4e-headers-actions
-                 '("reply" . efs/capture-mail-reply) t)
-    (add-to-list 'mu4e-view-actions
-                 '("reply" . efs/capture-mail-reply) t))
+  (defun mu4e-dashboard ()
+    "Open the mu4e dashboard on the left side."
+    (interactive)
+    (with-selected-window
+        (split-window (selected-window) -34 'left)
+      (find-file (expand-file-name "mu4e-dashboard.org" user-emacs-directory))
+      (mu4e-dashboard-mode)
+      (hl-line-mode)
+      (set-window-dedicated-p nil t)
+      (defvar svg-font-lock-keywords
+        `(("\\!\\([\\ 0-9]+\\)\\!"
+           (0 (list 'face nil 'display (svg-font-lock-tag (match-string 1)))))))
+      (defun svg-font-lock-tag (label)
+        (svg-lib-tag label nil
+                     :stroke 0 :margin 1 :font-weight 'bold
+                     :padding (max 0 (- 3 (length label)))
+                     :foreground (face-foreground 'nano-popout-i)
+                     :background (face-background 'nano-popout-i)))
+      (push 'display font-lock-extra-managed-props)
+      (font-lock-add-keywords nil svg-font-lock-keywords)
+      (font-lock-flush (point-min) (point-max)))))
 
 
+(my/leader-keys
+  "m"    '(:ignore t :which-key "Mail")
+  "mm"   '(mu4e :which-key "Open mu4e")
+  "mq"   '(mu4e-quit :which-key "Quit mu4e")
 
-  (my/leader-keys
-    "m"    '(:ignore t :which-key "Mail")
-    "mm"   '(mu4e :which-key "Open mu4e")
-    "mq"   '(mu4e-quit :which-key "Quit mu4e")
-
-    "mc"  '(:ignore t :which-key "Compose")
-    "mcc" '(mu4e-compose-new :which-key "Compose new email (plain text)")
-    "mcC" '(my-mu4e-compose-new-with-org-mode :which-key "Compose new email with Org-mode")
-    "mr"  '(:ignore t :which-key "Reply")
-    "mrr" '(mu4e-compose-reply :which-key "Reply (plain text)")
-    "mrR" '(my-mu4e-compose-reply-with-org-mode :which-key "Reply with Org-mode"))
+  "mc"  '(:ignore t :which-key "Compose")
+  "mcc" '(mu4e-compose-new :which-key "Compose new email (plain text)")
+  "mcC" '(my-mu4e-compose-new-with-org-mode :which-key "Compose new email with Org-mode")
+  "mr"  '(:ignore t :which-key "Reply")
+  "mrr" '(mu4e-compose-reply :which-key "Reply (plain text)")
+  "mrR" '(my-mu4e-compose-reply-with-org-mode :which-key "Reply with Org-mode"))
 
 ;;; --------- tramp -------
 

@@ -46,6 +46,9 @@ We start by customizing various built-in variables to fine-tune Emacs's behavior
                 (auth-source-search :max 1 :host "api.openai.com" :user "gptel"))))
 
 
+(set-language-environment "UTF-8")
+(setq locale-coding-system 'utf-8)
+
 
   ;; Core settings
   (setq visible-bell t                         ;; Flash the screen instead of beeping
@@ -704,7 +707,7 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
 
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
   (setq org-capture-templates
-        '(("t" "Todo" entry (file "~/org/inbox.org")
+        '(("t" "Todo" entry (file "~/org/inbox.org" "Inbox")
            "* TODO %?\nEntered on %U\n  %i\n  %a")
           ("m" "Email Workflow")
           ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
@@ -1223,6 +1226,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
   (use-package mu4e
     :ensure nil  ;; mu4e is installed externally; not via package.el
     :load-path "/usr/share/emacs/site-lisp/mu4e"  ;; Adjust this path if necessary
+    :commands (mu4e)  ;; Ensure it's available for 'after' directives
     :defer t
     :init
     ;; General mu4e settings that need to be set before mu4e loads
@@ -1253,6 +1257,8 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
     ;; Unbind conflicting keys if necessary
     (define-key mu4e-headers-mode-map (kbd "C--") nil)
     (define-key mu4e-view-mode-map (kbd "C--") nil)
+    (define-key mu4e-headers-mode-map (kbd "C-c c") 'mu4e-org-store-and-capture)
+    (define-key mu4e-view-mode-map    (kbd "C-c c") 'mu4e-org-store-and-capture)
 
     ;; Custom keybindings with Evil
     (with-eval-after-load 'evil
@@ -1272,20 +1278,20 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
     ;; Set mu4e signature
     (setq mu4e-compose-signature "Prof. Rafael Palomar, Ph.D.
-__________________________________
-Head of Medical Software Research Laboratory (MESH|Lab)
-The Intervention Centre, Oslo University Hospital (OUH)
-Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)
-N-0372 Oslo, Norway
-rafael.palomar@ous-research.no
-https://ivs.no
+  __________________________________
+  Head of Medical Software Research Laboratory (MESH|Lab)
+  The Intervention Centre, Oslo University Hospital (OUH)
+  Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)
+  N-0372 Oslo, Norway
+  rafael.palomar@ous-research.no
+  https://ivs.no
 
-Associate Professor
-Norwegian University of Science and Technology (NTNU)
-Teknologiveien 22, 2815 Gjøvik, Norway
-rafael.palomar@ntnu.no
-https://ntnu.no
---")
+  Associate Professor
+  Norwegian University of Science and Technology (NTNU)
+  Teknologiveien 22, 2815 Gjøvik, Norway
+  rafael.palomar@ntnu.no
+  https://ntnu.no
+  --")
 
     ;; Define mu4e contexts
     (setq mu4e-contexts
@@ -1357,98 +1363,6 @@ https://ntnu.no
         (font-lock-add-keywords nil svg-font-lock-keywords)
         (font-lock-flush (point-min) (point-max)))))
 
-  (use-package mu4e
-    :defer t
-    :commands (mu4e)  ;; Ensure it's available for 'after' directives
-    :config
-    ;; Helper function to get the current message
-    (defun efs/get-current-message ()
-      "Get the current message in mu4e, whether in view or headers mode."
-      (cond
-       ((eq major-mode 'mu4e-view-mode)
-        mu4e~view-message)
-       ((eq major-mode 'mu4e-headers-mode)
-        (mu4e-message-at-point))
-       (t
-        (mu4e-message-at-point))))
-
-    ;; Function to create a follow-up task
-    (defun efs/capture-mail-follow-up (msg)
-      "Create a follow-up task for the email message MSG."
-      (interactive (list (or msg (mu4e-message-at-point))))
-      (unless msg
-        (error "No message found."))
-      ;; Extract message details
-      (let* ((from (mu4e-message-field msg :from))
-             (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
-             (subject (mu4e-message-field msg :subject))
-             (message-id (mu4e-message-field msg :message-id))
-             (link (concat "mu4e:msgid:" message-id))
-             (region (when (use-region-p)
-                       (buffer-substring-no-properties
-                        (region-beginning) (region-end)))))
-        ;; Set the org-capture variables
-        (setq org-store-link-plist (list
-                                    :type "mu4e"
-                                    :fromname fromname
-                                    :subject subject
-                                    :message-id message-id
-                                    :link link))
-        (setq org-capture-initial region)
-        ;; Mark the message as read
-        (cond
-         ((eq major-mode 'mu4e-view-mode)
-          (mu4e-view-mark-for-read))
-         ((eq major-mode 'mu4e-headers-mode)
-          (mu4e-headers-mark-for-read)
-          (mu4e-mark-execute-all t)))
-        ;; Start the capture
-        (org-capture nil "mf")))
-
-    ;; Function to create a reply task
-    (defun efs/capture-mail-reply (msg)
-      "Create a reply task for the email message MSG."
-      (interactive (list (or msg (mu4e-message-at-point))))
-      (unless msg
-        (error "No message found."))
-      ;; Extract message details
-      (let* ((from (mu4e-message-field msg :from))
-             (fromname (or (cdr (car from)) (car (car from)) "[No Name]"))
-             (subject (mu4e-message-field msg :subject))
-             (message-id (mu4e-message-field msg :message-id))
-             (link (concat "mu4e:msgid:" message-id))
-             (region (when (use-region-p)
-                       (buffer-substring-no-properties
-                        (region-beginning) (region-end)))))
-        ;; Set the org-capture variables
-        (setq org-store-link-plist (list
-                                    :type "mu4e"
-                                    :fromname fromname
-                                    :subject subject
-                                    :message-id message-id
-                                    :link link))
-        (setq org-capture-initial region)
-        ;; Mark the message as read
-        (cond
-         ((eq major-mode 'mu4e-view-mode)
-          (mu4e-view-mark-for-read))
-         ((eq major-mode 'mu4e-headers-mode)
-          (mu4e-headers-mark-for-read)
-          (mu4e-mark-execute-all t)))
-        ;; Start the capture
-        (org-capture nil "mr")))
-
-    ;; Add custom actions for our capture templates
-    (add-to-list 'mu4e-headers-actions
-                 '("follow up" . efs/capture-mail-follow-up) t)
-    (add-to-list 'mu4e-view-actions
-                 '("follow up" . efs/capture-mail-follow-up) t)
-    (add-to-list 'mu4e-headers-actions
-                 '("reply" . efs/capture-mail-reply) t)
-    (add-to-list 'mu4e-view-actions
-                 '("reply" . efs/capture-mail-reply) t))
-
-
 
   (my/leader-keys
     "m"    '(:ignore t :which-key "Mail")
@@ -1462,10 +1376,7 @@ https://ntnu.no
     "mrr" '(mu4e-compose-reply :which-key "Reply (plain text)")
     "mrR" '(my-mu4e-compose-reply-with-org-mode :which-key "Reply with Org-mode"))
 
-
-
-
-#+end_src
+          #+end_src
 
 * tramp
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
