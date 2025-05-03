@@ -359,24 +359,29 @@
         ("linenos" "true")))
 
 (setq org-capture-templates
-      '(("t" "Todo" entry (file "~/org/inbox.org" "Inbox")
+      '(("t" "TODO workflow")
+        ("tt" "Work Todo" entry (file+olp "~/org/inbox.org" "Inbox")
          "* TODO %?\nEntered on %U\n  %i\n  %a")
+        ("tp" "Personal Todo" entry (file+olp "~/org/inbox-personal.org" "Inbox")
+         "* TODO %? :personal:\nEntered on %U\n  %i\n %a")
         ("m" "Email Workflow")
         ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
          "* TODO Follow up with %:fromname on [[%:link][%:subject]]
-  SCHEDULED: %t
-  DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
+    SCHEDULED: %t
+    DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 
-  %i" :immediate-finish nil)
+    %i" :immediate-finish nil)
         ("mr" "Reply" entry (file+olp "~/org/inbox.org" "E-Mail")
          "* TODO [#A] Reply to %:fromname on [[%:link][%:subject]]
-  SCHEDULED: %t
-  DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
+    SCHEDULED: %t
+    DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 
-  %i" :immediate-finish nil)))
+    %i" :immediate-finish nil)))
 
 (setq org-agenda-files '("~/org/inbox.org"
-                         "~/org/archive.org"))
+                         "~/org/archive.org"
+                         "~/org/inbox-personal.org"
+                         "~/org/archive-personal.org"))
 
 (setq-default org-refile-targets '((nil :maxlevel . 9)
                                    (org-agenda-files :maxlevel . 9)))
