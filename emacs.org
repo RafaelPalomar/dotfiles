@@ -634,11 +634,10 @@ Adjust various Org settings for a cleaner and more modern look.
           (set-face-attribute face nil
                               :family "Iosevka Aile"
                               :weight 'regular
-                              :height (truncate (* base-height scale)))))))
-
+                              :height (truncate (* base-height scale)))))
+      (require 'org-reveal))
 
   (add-hook 'org-mode-hook 'my/org-mode-setup)
-
 #+end_src
 
 ** Enabling Org Indent Mode

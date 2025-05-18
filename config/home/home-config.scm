@@ -74,6 +74,7 @@
         emacs-org-appear
         emacs-org-mime
         emacs-org-modern
+        emacs-org-reveal
         emacs-paredit
         emacs-perspective
         emacs-persp-projectile
