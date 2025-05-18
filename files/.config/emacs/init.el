@@ -361,9 +361,9 @@
 (setq org-capture-templates
       '(("t" "TODO workflow")
         ("tt" "Work Todo" entry (file+olp "~/org/inbox.org" "Inbox")
-         "* TODO %?\nEntered on %U\n  %i\n  %a")
+         "* TODO %?\nEntered on %U\n  %i")
         ("tp" "Personal Todo" entry (file+olp "~/org/inbox-personal.org" "Inbox")
-         "* TODO %? :personal:\nEntered on %U\n  %i\n %a")
+         "* TODO %? :personal:\nEntered on %U\n  %i")
         ("m" "Email Workflow")
         ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
          "* TODO Follow up with %:fromname on [[%:link][%:subject]]
