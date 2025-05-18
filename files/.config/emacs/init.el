@@ -241,7 +241,7 @@
   :ensure nil
   :config
   ;; Initialize Evil Collection for all supported modes
-  (evil-collection-init '(magit dired mu4e dashboard)))
+  (evil-collection-init))
 
 ;; Add Evil Surround
 (use-package evil-surround

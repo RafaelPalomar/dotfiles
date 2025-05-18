@@ -407,7 +407,7 @@ Evil Collection provides comprehensive Evil keybindings for various built-in and
   :ensure nil
   :config
   ;; Initialize Evil Collection for all supported modes
-  (evil-collection-init '(magit dired mu4e dashboard)))
+  (evil-collection-init))
 
 #+end_src
 
