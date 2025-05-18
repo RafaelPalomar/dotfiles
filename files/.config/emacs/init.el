@@ -504,6 +504,13 @@
   "sr"   '(ivy-resume :which-key "Resume last search")
   )
 
+(general-define-key
+ :states '(normal visual)
+ :keymaps 'override
+ "SPC s s" '(avy-goto-char :which-key "Avy Goto Char")
+ "SPC s w" '(avy-goto-word-1 :which-key "Avy Goto Word")
+ "SPC s l" '(avy-goto-line :which-key "Avy Goto Line"))
+
 ;; Ensure counsel-projectile is loaded
 (use-package counsel-projectile
   :ensure nil
@@ -914,7 +921,12 @@ https://ntnu.no
   (dashboard-setup-startup-hook))
 
 (use-package avy
-  :ensure nil)
+  :ensure nil
+  :config
+  ;; Set the style for how avy displays candidates
+  (setq avy-style 'at-full
+        avy-all-windows t
+        avy-background t))
 
 (use-package beacon
   :ensure nil

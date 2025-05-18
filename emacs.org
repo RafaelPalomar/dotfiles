@@ -917,6 +917,13 @@ Set up keybindings for =swiper=, =counsel=, and other search-related functionali
     "sg"   '(counsel-git-grep :which-key "Search in Git repo")
     "sr"   '(ivy-resume :which-key "Resume last search")
     )
+
+  (general-define-key
+   :states '(normal visual)
+   :keymaps 'override
+   "SPC s s" '(avy-goto-char :which-key "Avy Goto Char")
+   "SPC s w" '(avy-goto-word-1 :which-key "Avy Goto Word")
+   "SPC s l" '(avy-goto-line :which-key "Avy Goto Line"))
 #+end_src
 
 *** Project Management
@@ -1476,8 +1483,13 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 #+end_src
 * avy
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
-(use-package avy
-  :ensure nil)
+  (use-package avy
+    :ensure nil
+    :config
+    ;; Set the style for how avy displays candidates
+    (setq avy-style 'at-full
+          avy-all-windows t
+          avy-background t))
 #+end_src
 
 ** beacon
