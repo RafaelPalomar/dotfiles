@@ -870,7 +870,7 @@ Our goals are:
 #+end_src
 ** Defining Keybindings
 
-Now we'll define keybindings that correspond to the functionalities we've enabled. We'll emulate Doom Emacsâs keybinding conventions where possible.
+Now we'll define keybindings that correspond to the functionalities we've enabled. We'll emulate Doom Emacs' keybinding conventions where possible.
 
 *** Basic Keybindings
 
@@ -887,7 +887,7 @@ Define common keybindings for frequently used commands.
     "fS"  '(write-file :which-key "Save file as...")
     "b"   '(:ignore t :which-key "Buffers")
     "bb"  '(ivy-switch-buffer :which-key "Switch buffer")
-    "bk"  '(kill-this-buffer :which-key "Kill buffer")
+    "bk"  '(kill-current-buffer :which-key "Kill buffer")
     "br"  '(revert-buffer :which-key "Revert buffer")
     "w"   '(:ignore t :which-key "Windows")
     "wd"  '(delete-window :which-key "Delete window")

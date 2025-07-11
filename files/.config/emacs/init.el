@@ -479,7 +479,7 @@
   "fS"  '(write-file :which-key "Save file as...")
   "b"   '(:ignore t :which-key "Buffers")
   "bb"  '(ivy-switch-buffer :which-key "Switch buffer")
-  "bk"  '(kill-this-buffer :which-key "Kill buffer")
+  "bk"  '(kill-current-buffer :which-key "Kill buffer")
   "br"  '(revert-buffer :which-key "Revert buffer")
   "w"   '(:ignore t :which-key "Windows")
   "wd"  '(delete-window :which-key "Delete window")
