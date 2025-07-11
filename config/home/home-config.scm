@@ -3,7 +3,6 @@
   #:use-module (config packages mutt-oauth2)
   #:use-module (config packages cyrus-sasl-xoauth2)
   #:use-module (config packages emacs-denote-silo)
-  #:use-module (config packages emacs-evil-snipe)
   #:use-module (config packages emacs-persp-projectile)
   #:use-module (config packages emacs-tabspaces)
   #:use-module (gnu home)
@@ -51,7 +50,6 @@
         emacs-evil-commentary
         emacs-evil-goggles
         emacs-evil-paredit
-        emacs-evil-snipe
         emacs-evil-surround
         emacs-evil-matchit
         emacs-evil-org
@@ -78,7 +76,6 @@
         emacs-paredit
         emacs-perspective
         emacs-persp-projectile
-        ;;emacs-persp-mode
         emacs-pgtk
         emacs-projectile
         emacs-restart-emacs
