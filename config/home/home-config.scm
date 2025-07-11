@@ -44,6 +44,7 @@
         emacs-dashboard
         emacs-denote
         emacs-denote-silo
+        emacs-dockerfile-mode
         emacs-embark
         emacs-evil
         emacs-evil-collection
