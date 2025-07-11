@@ -1006,6 +1006,7 @@ Keybindings for =magit= and version control.
     "gg"  '(magit-status :which-key "Magit Status")
     "gb"  '(magit-branch-checkout :which-key "Checkout branch")
     "gc"  '(magit-commit :which-key "Commit changes")
+    "gC"  '(magit-clone :which-key "Clone repository")
     "gp"  '(magit-push-current :which-key "Push changes")
     "gl"  '(magit-log :which-key "Show log")
     )
