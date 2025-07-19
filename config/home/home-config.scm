@@ -65,6 +65,7 @@
         emacs-helpful
         emacs-ivy
         emacs-ivy-rich
+        emacs-lua-mode
         emacs-magit
         emacs-markdown-mode
         emacs-mixed-pitch
