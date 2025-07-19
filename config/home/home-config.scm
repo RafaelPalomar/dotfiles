@@ -57,6 +57,7 @@
         emacs-evil-surround
         emacs-evil-matchit
         emacs-evil-org
+        emacs-forge
         emacs-geiser
         emacs-geiser-guile
         emacs-general

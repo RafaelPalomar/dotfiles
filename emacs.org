@@ -1532,3 +1532,23 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
     (add-to-list 'geiser-guile-load-path "~/src/guix-systole"))
 #+end_src
 
+* Magit Forge
+
+#+begin_src
+  (use-package forge
+  :after magit
+  :ensure nil                       ;; package provided by Guix
+  :config
+  ;; Where the credentials live (same as you do for GPTel etc.)
+  (setq auth-sources '("~/.authinfo.gpg"))
+
+  ;; Register the forges you use (GitHub + GitLab examples)
+  (setq forge-alist
+        '(("github.com" "api.github.com" "github.com" forge-github-repository)
+          ("gitlab.com" "gitlab.com/api/v4" "gitlab.com" forge-gitlab-repository)))
+
+  ;; Optional: fetch issues automatically when you `M-x magit-status`
+  (setq forge-add-default-bindings t         ; C-c C-f prefix
+        forge-database-file (expand-file-name "forge-db.sqlite" user-emacs-directory))
+  )
+#+end_src
