@@ -13,6 +13,7 @@
   #:use-module (gnu packages disk)
   #:use-module (gnu packages gl)
   #:use-module (gnu packages irc)
+  #:use-module (gnu packages game-development)
   #:use-module (gnu packages guile)
   #:use-module (gnu packages gnome)
   #:use-module (gnu packages emacs)
@@ -20,7 +21,9 @@
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages fontutils)
   #:use-module (gnu packages fonts)
+  #:use-module (gnu packages guile-xyz)
   #:use-module (gnu packages mail)
+  #:use-module (gnu packages mes)
   #:use-module (gnu packages password-utils)
   #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages rust-apps)
@@ -106,9 +109,12 @@
                          git
                          guile-3.0
                          guile-git
+                         guile-libyaml
+                         guile-chickadee
                          libgit2-glib
                          mu
                          mutt-oauth2
+                         nyacc
                          password-store
                          python-pygments
                          ripgrep

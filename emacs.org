@@ -1523,3 +1523,12 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
         (tabspaces-switch-or-create-workspace (car (last (split-string project "/" t))))
         (project-switch-project project))))
 #+end_src
+
+* guile-guix
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+  (with-eval-after-load 'geiser-guile
+    (add-to-list 'geiser-guile-load-path "~/src/guix")
+    (add-to-list 'geiser-guile-load-path "~/src/guix-systole"))
+#+end_src
+

@@ -952,3 +952,7 @@ https://ntnu.no
     (let ((project (project-prompt-project-dir)))
       (tabspaces-switch-or-create-workspace (car (last (split-string project "/" t))))
       (project-switch-project project))))
+
+(with-eval-after-load 'geiser-guile
+  (add-to-list 'geiser-guile-load-path "~/src/guix")
+  (add-to-list 'geiser-guile-load-path "~/src/guix-systole"))
