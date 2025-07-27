@@ -28,6 +28,7 @@
   #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages tex)
+  #:use-module (gnu packages tls)
   #:use-module (gnu packages version-control))
 
 (define %email-packages
@@ -68,6 +69,7 @@
         emacs-lua-mode
         emacs-magit
         emacs-markdown-mode
+        emacs-markdown-preview-mode
         emacs-mixed-pitch
         emacs-modus-themes
         emacs-mu4e-dashboard
@@ -109,6 +111,7 @@
                          font-jetbrains-mono
                          fontconfig
                          git
+                         gnutls
                          guile-3.0
                          guile-git
                          guile-libyaml

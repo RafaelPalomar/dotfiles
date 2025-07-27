@@ -4,59 +4,62 @@
 
     ;;; ----- Basic Configuration -----
 
-  ;; Increase the garbage collection threshold during startup for faster startup
-  (setq gc-cons-threshold most-positive-fixnum)
+;; Increase the garbage collection threshold during startup for faster startup
+(setq gc-cons-threshold most-positive-fixnum)
 
-  ;; Reset garbage collection thresholds after startup
-  (add-hook 'emacs-startup-hook
-            (lambda ()
-              (setq gc-cons-threshold (* 16 1024 1024))  ;; 16MB
-              (setq gc-cons-percentage 0.1)))
+;; Reset garbage collection thresholds after startup
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (setq gc-cons-threshold (* 16 1024 1024))  ;; 16MB
+            (setq gc-cons-percentage 0.1)))
 
-  (add-hook 'emacs-startup-hook
-            (lambda ()
-              ;; Force Emacs to decrypt ~/.authinfo.gpg and find your GPTel creds
-              (ignore-errors
-                (auth-source-search :max 1 :host "api.openai.com" :user "gptel"))))
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            ;; Force Emacs to decrypt ~/.authinfo.gpg and find your GPTel creds
+            (ignore-errors
+              (auth-source-search :max 1 :host "api.openai.com" :user "gptel"))))
 
 
 (set-language-environment "UTF-8")
 (setq locale-coding-system 'utf-8)
 
+(setq network-enable-ipv6 nil)
+(setq starttls-use-gnutls t
+      starttls-gnutls-program "gnutls-cli")
 
-  ;; Core settings
-  (setq visible-bell t                         ;; Flash the screen instead of beeping
-        inhibit-startup-message t              ;; Suppress the startup message
-        inhibit-startup-screen t               ;; Disable the startup screen
-        initial-scratch-message ";; Welcome to Emacs!\n\n"  ;; Set the scratch message
-        make-backup-files nil                  ;; Disable backup files
-        auto-save-default nil                  ;; Disable auto-saving to backup files
-        ad-redefinition-action 'accept         ;; Silence function redefinition warnings
-        ring-bell-function 'ignore             ;; Disable the bell completely
-        vc-follow-symlinks t                   ;; Always follow symlinks
-        large-file-warning-threshold nil       ;; Disable large file warnings
-        custom-file (expand-file-name "custom.el" user-emacs-directory) ;; Set custom file
-        frame-title-format
-        '((:eval (if (buffer-file-name)
-                     (abbreviate-file-name (buffer-file-name))
-                   "%b")))                     ;; Show full path in frame title
-        )
+;; Core settings
+(setq visible-bell t                         ;; Flash the screen instead of beeping
+      inhibit-startup-message t              ;; Suppress the startup message
+      inhibit-startup-screen t               ;; Disable the startup screen
+      initial-scratch-message ";; Welcome to Emacs!\n\n"  ;; Set the scratch message
+      make-backup-files nil                  ;; Disable backup files
+      auto-save-default nil                  ;; Disable auto-saving to backup files
+      ad-redefinition-action 'accept         ;; Silence function redefinition warnings
+      ring-bell-function 'ignore             ;; Disable the bell completely
+      vc-follow-symlinks t                   ;; Always follow symlinks
+      large-file-warning-threshold nil       ;; Disable large file warnings
+      custom-file (expand-file-name "custom.el" user-emacs-directory) ;; Set custom file
+      frame-title-format
+      '((:eval (if (buffer-file-name)
+                   (abbreviate-file-name (buffer-file-name))
+                 "%b")))                     ;; Show full path in frame title
+      )
 
-  ;; Load the custom file if it exists
-  (when (file-exists-p custom-file)
-    (load custom-file t))
+;; Load the custom file if it exists
+(when (file-exists-p custom-file)
+  (load custom-file t))
 
-  ;; Set default encoding to UTF-8
-  (prefer-coding-system 'utf-8)
+;; Set default encoding to UTF-8
+(prefer-coding-system 'utf-8)
 
-  ;; Set tabs to spaces and define tab width
-  (setq-default indent-tabs-mode nil           ;; Use spaces instead of tabs
-                tab-width 2)                   ;; Set default tab width to 2
+;; Set tabs to spaces and define tab width
+(setq-default indent-tabs-mode nil           ;; Use spaces instead of tabs
+              tab-width 2)                   ;; Set default tab width to 2
 
-  ;; Simplify the interface
-  (menu-bar-mode -1)                           ;; Disable the menu bar
-  (tool-bar-mode -1)                           ;; Disable the tool bar
-  (scroll-bar-mode -1)                         ;; Disable the scroll bar
+;; Simplify the interface
+(menu-bar-mode -1)                           ;; Disable the menu bar
+(tool-bar-mode -1)                           ;; Disable the tool bar
+(scroll-bar-mode -1)                         ;; Disable the scroll bar
 
 ;; Core modes
 (repeat-mode 1)                              ;; Enable repeat mode
@@ -956,3 +959,103 @@ https://ntnu.no
 (with-eval-after-load 'geiser-guile
   (add-to-list 'geiser-guile-load-path "~/src/guix")
   (add-to-list 'geiser-guile-load-path "~/src/guix-systole"))
+
+(use-package forge
+:after magit
+:ensure nil                       ;; package provided by Guix
+:config
+;; Where the credentials live (same as you do for GPTel etc.)
+(setq auth-sources '("~/.authinfo.gpg"))
+
+;; Register the forges you use (GitHub + GitLab examples)
+(setq forge-alist
+      '(("github.com" "api.github.com" "github.com" forge-github-repository)
+        ("gitlab.com" "gitlab.com/api/v4" "gitlab.com" forge-gitlab-repository)))
+
+;; Optional: fetch issues automatically when you `M-x magit-status`
+(setq forge-add-default-bindings t         ; C-c C-f prefix
+      forge-database-file (expand-file-name "forge-db.sqlite" user-emacs-directory))
+)
+
+(use-package gnus                         ; built-in, no :ensure
+  :defer t                                ; load only when you call M-x gnus
+  :config
+  ;; Where to talk to Eweka --------------------------------------------------
+
+  (setq gnus-select-method
+        '(nntp "eweka"
+               (nntp-address  "news.eweka.nl")
+               (nntp-port-number 563)
+               (nntp-open-connection-function nntp-open-ssl-stream)
+               (nntp-authinfo-file "~/.authinfo.gpg")))
+
+  ;; Optional quality-of-life tweaks ----------------------------------------
+  (setq gnus-use-dribble-file t           ; autosave session data
+        gnus-read-newsrc-file t
+        gnus-save-newsrc-file t
+        gnus-ignored-newsgroups ""        ; show ALL groups Eweka offers
+        message-kill-buffer-on-exit t)
+
+  ;; A helper to launch quickly ---------------------------------------------
+  (defun my/gnus ()
+    "Start (or switch to) Gnus."
+    (interactive)
+    (gnus))
+
+  ;; Leader-key integration --------------------------------------------------
+  (my/leader-keys
+    "N"  '(:ignore t :which-key "News/Usenet")
+    "Ng" '(my/gnus :which-key "Open Gnus")))
+
+
+;; Date in a fixed column and readable sender/subject line
+(setq gnus-summary-line-format
+      ;; U = unread mark, R = replied mark, O = score mark
+      "%U%R%O %4L │ %10&user-date │ %-20,20f │ %s\n")
+
+;; Define what “%user-date” prints.  This mimics mutt/notmuch:
+(setq gnus-user-date-format-alist
+      '(((gnus-seconds-today) . "%H:%M")          ; today → only time
+        ((+ 86400 (gnus-seconds-today)) . "y'day") ; yesterday
+        (t . "%Y-%m-%d")))                         ; older  → full date
+
+;; Nicer *Group* buffer: unread/total counts on the right
+(setq gnus-group-line-format
+      "%M%S%p  %-40g  %6y/%-6t  %D\n"
+      gnus-visual t)  ; draw separators
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 2.  Limiting & searching inside a group            (single key presses)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(with-eval-after-load 'gnus-sum
+  ;; `l'  → limit by regexp in subject/from/body
+  (define-key gnus-summary-mode-map (kbd "l") #'gnus-summary-limit-to-string)
+  ;; `L'  → clear all limits
+  (define-key gnus-summary-mode-map (kbd "L") #'gnus-summary-clear-contents)
+  ;; `d'  → limit to a given date interval (today / this week / etc.)
+  (define-key gnus-summary-mode-map (kbd "d") #'gnus-summary-limit-to-date))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 3.  Powerful global search  (Gnus 28+ has built-in `gnus-search')
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(require 'gnus-search)               ; autoloads in 29+, explicit in 28
+(setq gnus-search-use-parsed-queries t)     ; Gmail-like “from:bob after:2023/05”
+(setq gnus-search-default-engine 'gnus-search-engine-nnir)
+
+;; NNIR backend:  server-side search when possible, otherwise use
+;; an on-disk indexer (notmuch, mairix, swish-e…)
+(setq nnir-search-engine 'notmuch)   ; or 'mairix if you prefer
+
+;; Key bindings (available in *Group* buffer once you `M-x gnus-search-group'):
+;;   G G        create a search group interactively
+;;   /          repeat last search
+;;   S s        search only the current subscribed groups
+;;   S S        prompt for engine and query
+;;
+;; Example query strings:
+;;   from:torvalds subject:linux after:2023-01-01
+;;   gnutella OR bittorrent AND NOT spam
+;;
+;; Inside a search group you can treat articles normally (reply, save, etc.).

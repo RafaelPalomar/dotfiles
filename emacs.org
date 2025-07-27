@@ -26,9 +26,9 @@ We start by customizing various built-in variables to fine-tune Emacs's behavior
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
   ;; -*- lexical-binding: t; -*-
 
-    ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
+      ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
 
-    ;;; ----- Basic Configuration -----
+      ;;; ----- Basic Configuration -----
 
   ;; Increase the garbage collection threshold during startup for faster startup
   (setq gc-cons-threshold most-positive-fixnum)
@@ -46,9 +46,12 @@ We start by customizing various built-in variables to fine-tune Emacs's behavior
                 (auth-source-search :max 1 :host "api.openai.com" :user "gptel"))))
 
 
-(set-language-environment "UTF-8")
-(setq locale-coding-system 'utf-8)
+  (set-language-environment "UTF-8")
+  (setq locale-coding-system 'utf-8)
 
+  (setq network-enable-ipv6 nil)
+  (setq starttls-use-gnutls t
+        starttls-gnutls-program "gnutls-cli")
 
   ;; Core settings
   (setq visible-bell t                         ;; Flash the screen instead of beeping
@@ -1534,7 +1537,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
 * Magit Forge
 
-#+begin_src
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
   (use-package forge
   :after magit
   :ensure nil                       ;; package provided by Guix
@@ -1551,4 +1554,93 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
   (setq forge-add-default-bindings t         ; C-c C-f prefix
         forge-database-file (expand-file-name "forge-db.sqlite" user-emacs-directory))
   )
+#+end_src
+
+* GNUS
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+  (use-package gnus                         ; built-in, no :ensure
+    :defer t                                ; load only when you call M-x gnus
+    :config
+    ;; Where to talk to Eweka --------------------------------------------------
+
+    (setq gnus-select-method
+          '(nntp "eweka"
+                 (nntp-address  "news.eweka.nl")
+                 (nntp-port-number 563)
+                 (nntp-open-connection-function nntp-open-ssl-stream)
+                 (nntp-authinfo-file "~/.authinfo.gpg")))
+
+    ;; Optional quality-of-life tweaks ----------------------------------------
+    (setq gnus-use-dribble-file t           ; autosave session data
+          gnus-read-newsrc-file t
+          gnus-save-newsrc-file t
+          gnus-ignored-newsgroups ""        ; show ALL groups Eweka offers
+          message-kill-buffer-on-exit t)
+
+    ;; A helper to launch quickly ---------------------------------------------
+    (defun my/gnus ()
+      "Start (or switch to) Gnus."
+      (interactive)
+      (gnus))
+
+    ;; Leader-key integration --------------------------------------------------
+    (my/leader-keys
+      "N"  '(:ignore t :which-key "News/Usenet")
+      "Ng" '(my/gnus :which-key "Open Gnus")))
+
+
+  ;; Date in a fixed column and readable sender/subject line
+  (setq gnus-summary-line-format
+        ;; U = unread mark, R = replied mark, O = score mark
+        "%U%R%O %4L │ %10&user-date │ %-20,20f │ %s\n")
+
+  ;; Define what “%user-date” prints.  This mimics mutt/notmuch:
+  (setq gnus-user-date-format-alist
+        '(((gnus-seconds-today) . "%H:%M")          ; today → only time
+          ((+ 86400 (gnus-seconds-today)) . "y'day") ; yesterday
+          (t . "%Y-%m-%d")))                         ; older  → full date
+
+  ;; Nicer *Group* buffer: unread/total counts on the right
+  (setq gnus-group-line-format
+        "%M%S%p  %-40g  %6y/%-6t  %D\n"
+        gnus-visual t)  ; draw separators
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; 2.  Limiting & searching inside a group            (single key presses)
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  (with-eval-after-load 'gnus-sum
+    ;; `l'  → limit by regexp in subject/from/body
+    (define-key gnus-summary-mode-map (kbd "l") #'gnus-summary-limit-to-string)
+    ;; `L'  → clear all limits
+    (define-key gnus-summary-mode-map (kbd "L") #'gnus-summary-clear-contents)
+    ;; `d'  → limit to a given date interval (today / this week / etc.)
+    (define-key gnus-summary-mode-map (kbd "d") #'gnus-summary-limit-to-date))
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; 3.  Powerful global search  (Gnus 28+ has built-in `gnus-search')
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  (require 'gnus-search)               ; autoloads in 29+, explicit in 28
+  (setq gnus-search-use-parsed-queries t)     ; Gmail-like “from:bob after:2023/05”
+  (setq gnus-search-default-engine 'gnus-search-engine-nnir)
+
+  ;; NNIR backend:  server-side search when possible, otherwise use
+  ;; an on-disk indexer (notmuch, mairix, swish-e…)
+  (setq nnir-search-engine 'notmuch)   ; or 'mairix if you prefer
+
+  ;; Key bindings (available in *Group* buffer once you `M-x gnus-search-group'):
+  ;;   G G        create a search group interactively
+  ;;   /          repeat last search
+  ;;   S s        search only the current subscribed groups
+  ;;   S S        prompt for engine and query
+  ;;
+  ;; Example query strings:
+  ;;   from:torvalds subject:linux after:2023-01-01
+  ;;   gnutella OR bittorrent AND NOT spam
+  ;;
+  ;; Inside a search group you can treat articles normally (reply, save, etc.).
+
+
 #+end_src
