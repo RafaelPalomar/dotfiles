@@ -711,9 +711,9 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
   (setq org-capture-templates
         '(("t" "TODO workflow")
           ("tt" "Work Todo" entry (file+olp "~/org/inbox.org" "Inbox")
-           "* TODO %?\nEntered on %U\n  %i")
+           "* TODO %?\nEntered on %U\n  %i\n\n")
           ("tp" "Personal Todo" entry (file+olp "~/org/inbox-personal.org" "Inbox")
-           "* TODO %? :personal:\nEntered on %U\n  %i")
+           "* TODO %? :personal:\nEntered on %U\n  %i\n\n")
           ("m" "Email Workflow")
           ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
            "* TODO Follow up with %:fromname on [[%:link][%:subject]]
