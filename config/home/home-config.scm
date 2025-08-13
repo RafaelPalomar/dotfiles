@@ -22,6 +22,7 @@
   #:use-module (gnu packages fontutils)
   #:use-module (gnu packages fonts)
   #:use-module (gnu packages guile-xyz)
+  #:use-module (gnu packages librewolf)
   #:use-module (gnu packages mail)
   #:use-module (gnu packages mes)
   #:use-module (gnu packages password-utils)
@@ -117,6 +118,7 @@
                          guile-libyaml
                          guile-chickadee
                          libgit2-glib
+                         librewolf
                          mu
                          mutt-oauth2
                          nyacc
