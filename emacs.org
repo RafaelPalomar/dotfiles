@@ -1399,8 +1399,21 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
   ;;; --------- tramp -------
 
   (with-eval-after-load 'tramp
-    (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
-
+    (add-to-list 'tramp-remote-path 'tramp-own-remote-path)
+    ;; Use /bin/bash (or /bin/sh) on every remote host
+    (add-to-list 'tramp-connection-properties
+                 '(".*" "remote-shell" "/bin/sh"))
+    ;; every docker hop  → /bin/sh
+    (add-to-list 'tramp-connection-properties
+                 '("\\`/docker:" "remote-shell" "/bin/sh"))
+    ;; If you also want to force a login shell:
+    (add-to-list 'tramp-connection-properties
+                 '(".*" "remote-shell-login" ("-l")))
+    ;; (optional) keep TRAMP’s default remote path plus the usual ones
+    (add-to-list 'tramp-connection-properties
+                 '(".*" "remote-path"
+                   ("/usr/local/sbin" "/usr/local/bin" "/usr/bin" "/bin"
+                    tramp-own-remote-path))))
 #+end_src
 * COMMENT dired
 
