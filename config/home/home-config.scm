@@ -26,6 +26,7 @@
   #:use-module (gnu packages mail)
   #:use-module (gnu packages mes)
   #:use-module (gnu packages password-utils)
+  #:use-module (gnu packages sync)
   #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages tex)
@@ -121,6 +122,7 @@
                          librewolf
                          mu
                          mutt-oauth2
+                         nextcloud-client
                          nyacc
                          password-store
                          python-pygments
