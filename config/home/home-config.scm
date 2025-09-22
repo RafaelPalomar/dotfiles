@@ -5,6 +5,7 @@
   #:use-module (config packages emacs-denote-silo)
   #:use-module (config packages emacs-persp-projectile)
   #:use-module (config packages emacs-tabspaces)
+  #:use-module (config packages emacs-ob-mermaid)
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)
@@ -78,6 +79,7 @@
         emacs-nano-theme
         emacs-nano-modeline
         emacs-nerd-icons
+        emacs-ob-mermaid
         emacs-orderless
         emacs-org-appear
         emacs-org-mime

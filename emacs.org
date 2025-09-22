@@ -683,6 +683,7 @@ Enable the execution of code blocks in various languages and ensure safe executi
      (python . t)
      (latex . t)
      (C . t)
+     (mermaid . t)
      (dot . t)))
 
   ;; Don't ask for confirmation before executing code blocks
@@ -754,6 +755,11 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
                                                      :with-author nil
                                                      :with-toc nil)))
   #+end_src
+** Org-babel mermaid integration
+
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+(setq ob-mermaid-cli-path "/home/rafael/node_modules/.bin/mmdc")
+#+end_src
 
 * Completion Framework
 

@@ -348,6 +348,7 @@
    (python . t)
    (latex . t)
    (C . t)
+   (mermaid . t)
    (dot . t)))
 
 ;; Don't ask for confirmation before executing code blocks
@@ -402,6 +403,8 @@
   (setq org-mime-export-options '(:section-numbers nil
                                                    :with-author nil
                                                    :with-toc nil)))
+
+(setq ob-mermaid-cli-path "/home/rafael/node_modules/.bin/mmdc")
 
 ;; Enable Ivy for enhanced completion
 (use-package ivy
