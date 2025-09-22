@@ -130,6 +130,7 @@
                          python-pygments
                          ripgrep
                          texlive-minted
+                         texlive-xetex
                          weechat
                          )))
 
