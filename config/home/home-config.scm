@@ -31,6 +31,7 @@
   #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages tex)
+  #:use-module (gnu packages texlive)
   #:use-module (gnu packages tls)
   #:use-module (gnu packages version-control))
 
@@ -129,6 +130,7 @@
                          password-store
                          python-pygments
                          ripgrep
+                         texlive
                          texlive-minted
                          texlive-xetex
                          weechat
