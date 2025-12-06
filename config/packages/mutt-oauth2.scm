@@ -9,14 +9,14 @@
 (define-public mutt-oauth2
   (package
     (name "mutt-oauth2")
-    (version "0.1")
+    (version "0.2")
     (source
       (origin
         (method url-fetch)
         (uri "https://raw.githubusercontent.com/neomutt/neomutt/main/contrib/oauth2/mutt_oauth2.py")
         (file-name "mutt_oauth2.py")
         (sha256
-          (base32 "0aj25bb1jjvycmkaly28jdv2nsqq7v238sbc8c08zc3dgyjkf8bw"))))
+          (base32 "1990c4xqaacbhsq82a3rpzd6r3gzkls4wxk5ww958xcl44m3mh9i"))))
     (build-system trivial-build-system)
     (arguments
       (list

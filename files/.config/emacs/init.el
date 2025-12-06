@@ -1076,3 +1076,79 @@ https://ntnu.no
 ;;   gnutella OR bittorrent AND NOT spam
 ;;
 ;; Inside a search group you can treat articles normally (reply, save, etc.).
+
+(require 'pyvenv)
+(pyvenv-mode 1)  ;; Enable pyvenv mode
+
+;;; c-style-vtk.el --- Visualization ToolKit (VTK) Emacs C Style.
+;;; Extracted from https://raw.githubusercontent.com/MartinNowak/elisp/6466ef96d228b496c2db8ca898ffe316caf5e765/mine/c-style-vtk.el
+
+;; --- Register the VTK indentation style -----------------------------
+(with-eval-after-load 'cc-mode
+  (c-add-style
+   "vtk"
+   '("stroustrup"                       ; inherit, then override
+     (c-basic-offset          . 2)
+     (indent-tabs-mode        . nil)
+     (c-comment-only-line-offset . 0)
+     (c-electric-pound-behavior . (alignleft))
+
+     (c-offsets-alist
+      ;; the list below is copied from `c-set-indent-vtk`
+      (case-label             . 0)
+      (label                  . 0)
+      (topmost-intro-cont     . 0)
+
+      (block-open             . +)
+      (block-close            . 0)
+
+      (substatement           . +)
+      (substatement-open      . +)
+
+      (statement-block-intro  . 0)
+      (access-label           . -)
+
+      (string                 . c-lineup-dont-change)
+      (c                     . c-lineup-C-comments)
+
+      (defun-block-intro      . +)
+      (member-init-intro      . +)
+      (member-init-cont       . 0)
+
+      (func-decl-cont         . +)
+
+      (brace-list-intro       . +)
+      (brace-list-entry       . 0)
+
+      (statement-cont         . +)
+      (statement-case-intro   . +)
+      (statement-case-open    . +)
+
+      (arglist-intro          . c-lineup-arglist-intro-after-paren)
+      (arglist-cont          . c-lineup-arglist)
+      (arglist-cont-nonempty . c-lineup-arglist)
+      (arglist-close          . c-lineup-arglist)
+
+      (stream-op              . c-lineup-streamop)
+      (inclass                . +)
+
+      (cpp-macro              . -1000)
+      (cpp-macro-cont         . c-lineup-dont-change)
+
+      (objc-method-intro      . -1000)
+      (objc-method-args-cont  . c-lineup-ObjC-method-args)
+      (objc-method-call-cont  . c-lineup-ObjC-method-call)
+
+      (extern-lang-open       . 0)
+      (extern-lang-close      . 0)
+      (inextern-lang          . +)
+
+      (namespace-open         . 0)
+      (namespace-close        . 0)
+      (innamespace            . +)
+
+      (template-args-cont     . +)
+      (inlambda               . c-lineup-inexpr-block)
+      (lambda-intro-cont      . +)
+      (inexpr-statement       . 0)
+      (inexpr-class           . +)))))

@@ -91,6 +91,7 @@
         emacs-persp-projectile
         emacs-pgtk
         emacs-projectile
+        emacs-pyvenv
         emacs-restart-emacs
         emacs-rg
         emacs-svg-lib
@@ -119,7 +120,7 @@
                          gnutls
                          guile-3.0
                          guile-git
-                         guile-libyaml
+                         ;;guile-libyaml
                          guile-chickadee
                          libgit2-glib
                          librewolf
