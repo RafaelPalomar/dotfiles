@@ -8,6 +8,7 @@
   #:use-module (config packages emacs-ob-mermaid)
   #:use-module (gnu home)
   #:use-module (gnu home services)
+  #:use-module (gnu home services gnupg)
   #:use-module (gnu home services dotfiles)
   #:use-module (gnu home services shells)
   #:use-module (gnu services)
@@ -17,6 +18,7 @@
   #:use-module (gnu packages game-development)
   #:use-module (gnu packages guile)
   #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gnupg)
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages cmake)
   #:use-module (gnu packages emacs-xyz)
@@ -33,7 +35,8 @@
   #:use-module (gnu packages tex)
   #:use-module (gnu packages texlive)
   #:use-module (gnu packages tls)
-  #:use-module (gnu packages version-control))
+  #:use-module (gnu packages version-control)
+  #:use-module (guix gexp))
 
 (define %email-packages
   (list cyrus-sasl-xoauth2
@@ -92,6 +95,7 @@
         emacs-pgtk
         emacs-projectile
         emacs-pyvenv
+        emacs-rainbow-delimiters
         emacs-restart-emacs
         emacs-rg
         emacs-svg-lib
@@ -119,13 +123,18 @@
                          git
                          gnutls
                          guile-3.0
+                         guile-gcrypt
                          guile-git
                          ;;guile-libyaml
                          guile-chickadee
+                         guile-webutils
+                         guile-parted
+                         guile-newt
                          libgit2-glib
                          librewolf
                          mu
                          mutt-oauth2
+                         pinentry-gnome3
                          nextcloud-client
                          nyacc
                          password-store
@@ -142,6 +151,28 @@
                  (service home-dotfiles-service-type
                           (home-dotfiles-configuration
                            (directories '("../../files"))))
+
+                 (service home-gpg-agent-service-type
+                          (home-gpg-agent-configuration
+                           (ssh-support? #t)
+                           (pinentry-program (file-append pinentry-gnome3 "/bin/pinentry-gnome3"))
+                           (default-cache-ttl 3600)
+                           (max-cache-ttl 86400)))
+
+                 ;; (simple-service 'gpg-agent-env
+                 ;;                 home-environment-variables-service-type
+                 ;;                 `(("GPG_TTY" . "$TTY")
+                 ;;                   ("SSH_AUTH_SOCK" . "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh")))
+
+
+                 (simple-service 'some-useful-env-vars-service
+                                 home-environment-variables-service-type
+                                 `(("LESSHISTFILE" . "$XDG_CACHE_HOME/.lesshst")
+                                   ("USELESS_VAR" . #f)
+                                   ("_JAVA_AWT_WM_NONREPARENTING" . #t)
+                                   ("LITERAL_VALUE" . ,(literal-string "${abc}"))))
+
+
                  ;; Bashrc
                  (service home-bash-service-type
                           (home-bash-configuration

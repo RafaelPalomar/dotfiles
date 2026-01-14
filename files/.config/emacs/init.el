@@ -1,7 +1,6 @@
 ;; -*- lexical-binding: t; -*-
 
     ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
-
     ;;; ----- Basic Configuration -----
 
 ;; Increase the garbage collection threshold during startup for faster startup
@@ -60,6 +59,22 @@
 (menu-bar-mode -1)                           ;; Disable the menu bar
 (tool-bar-mode -1)                           ;; Disable the tool bar
 (scroll-bar-mode -1)                         ;; Disable the scroll bar
+
+;; (fset 'geiser-xref-backend (lambda (&rest _) nil))
+
+;; (with-eval-after-load 'xref
+;;   (remove-hook 'xref-backend-functions #'geiser-xref-backend))
+
+;; (with-eval-after-load 'geiser
+;;   (add-hook 'geiser-mode-hook
+;;             (lambda ()
+;;               (setq-local xref-backend-functions
+;;                           (remq 'geiser-xref-backend xref-backend-functions)))))
+
+;; (with-eval-after-load 'geiser
+;;   (add-hook 'geiser-mode-hook
+;;             (lambda ()
+;;               (add-hook 'xref-backend-functions #'geiser-xref-backend nil t))))
 
 ;; Core modes
 (repeat-mode 1)                              ;; Enable repeat mode
@@ -664,6 +679,13 @@
   ;; Set the Projectile cache file directory
   (setq projectile-cache-file (expand-file-name "projectile.cache" user-emacs-directory))
 
+  (setq projectile-enable-caching t)
+
+  (setq projectile-allow-remote-projects t          ;; allow TRAMP projects
+        projectile-track-known-projects-automatically t
+        projectile-indexing-method 'alien           ;; faster over TRAMP
+        projectile-enable-caching t)
+
   ;; Allow remembering of remote projects
   (with-eval-after-load 'tramp
     (add-to-list 'tramp-remote-path 'tramp-own-remote-path)))
@@ -869,6 +891,7 @@ https://ntnu.no
 ;;; --------- tramp -------
 
 (with-eval-after-load 'tramp
+  (require 'tramp-container)
   (add-to-list 'tramp-remote-path 'tramp-own-remote-path)
   ;; Use /bin/bash (or /bin/sh) on every remote host
   (add-to-list 'tramp-connection-properties
@@ -973,9 +996,41 @@ https://ntnu.no
       (tabspaces-switch-or-create-workspace (car (last (split-string project "/" t))))
       (project-switch-project project))))
 
-(with-eval-after-load 'geiser-guile
+;; Geiser + Guile
+(use-package geiser
+  :ensure nil
+  :init
+  (setq geiser-active-implementations '(guile))
+  :hook
+  ((scheme-mode . geiser-mode))
+  :config
+  (setq geiser-mode-auto-p t))
+
+(use-package geiser-guile
+  :ensure nil
+  :config
+  ;; You already have these, just keep them consolidated here:
   (add-to-list 'geiser-guile-load-path "~/src/guix")
-  (add-to-list 'geiser-guile-load-path "~/src/guix-systole"))
+  (add-to-list 'geiser-guile-load-path "~/src/nonguix")
+  (add-to-list 'geiser-guile-load-path "~/src/guix-systole/systole")
+  (add-to-list 'geiser-guile-load-path "~/src/guix-systole/system")
+  ;; Optional: pass extra -L paths to REPL on start (redundant with load-path above)
+  ;; (setq geiser-guile-extra-load-path geiser-guile-load-path)
+  )
+
+;; Evil-friendly navigation in Scheme
+;; (with-eval-after-load 'evil
+;;   (evil-define-key 'normal scheme-mode-map (kbd "gd") #'xref-find-definitions)
+;;   (evil-define-key 'normal scheme-mode-map (kbd "gD") #'xref-find-references))
+
+;; Structural editing and readability
+(use-package paredit
+  :ensure nil
+  :hook (scheme-mode . paredit-mode))
+
+(use-package rainbow-delimiters
+  :ensure nil
+  :hook (scheme-mode . rainbow-delimiters-mode))
 
 (use-package forge
 :after magit
