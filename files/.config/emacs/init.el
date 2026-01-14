@@ -1,7 +1,7 @@
 ;; -*- lexical-binding: t; -*-
 
-    ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
-    ;;; ----- Basic Configuration -----
+      ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
+      ;;; ----- Basic Configuration -----
 
 ;; Increase the garbage collection threshold during startup for faster startup
 (setq gc-cons-threshold most-positive-fixnum)
@@ -156,6 +156,12 @@
   :config
   ;; Use the dark variant of the theme
   (nano-dark))
+
+(require 'ansi-color)
+(defun my/compilation-ansi-colorize ()
+  (let ((inhibit-read-only t))
+    (ansi-color-apply-on-region compilation-filter-start (point))))
+(add-hook 'compilation-filter-hook #'my/compilation-ansi-colorize)
 
 ;; Enable nano-modeline for a minimalist mode line
 (use-package nano-modeline

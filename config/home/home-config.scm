@@ -12,6 +12,8 @@
   #:use-module (gnu home services dotfiles)
   #:use-module (gnu home services shells)
   #:use-module (gnu services)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
   #:use-module (gnu packages disk)
   #:use-module (gnu packages gl)
   #:use-module (gnu packages irc)
@@ -112,7 +114,8 @@
 (home-environment
  (packages (append %emacs-packages
                    %email-packages
-                   (list font-cica
+                   (list bash-completion
+                         font-cica
                          font-abattis-cantarell
                          font-fira-code
                          font-google-roboto
@@ -121,6 +124,8 @@
                          font-jetbrains-mono
                          fontconfig
                          git
+                         glibc
+                         glibc-locales
                          gnutls
                          guile-3.0
                          guile-gcrypt

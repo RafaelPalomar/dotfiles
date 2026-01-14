@@ -26,8 +26,8 @@ We start by customizing various built-in variables to fine-tune Emacs's behavior
 #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
   ;; -*- lexical-binding: t; -*-
 
-      ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
-      ;;; ----- Basic Configuration -----
+        ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
+        ;;; ----- Basic Configuration -----
 
   ;; Increase the garbage collection threshold during startup for faster startup
   (setq gc-cons-threshold most-positive-fixnum)
@@ -101,6 +101,8 @@ We start by customizing various built-in variables to fine-tune Emacs's behavior
   ;;   (add-hook 'geiser-mode-hook
   ;;             (lambda ()
   ;;               (add-hook 'xref-backend-functions #'geiser-xref-backend nil t))))
+
+
 
     #+end_src
 
@@ -239,6 +241,16 @@ We'll use the =nano-theme= to achieve a minimalist look similar to the Nano edit
     ;; Use the dark variant of the theme
     (nano-dark))
 #+end_src
+
+*** ANSI Colors
+#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+  (require 'ansi-color)
+  (defun my/compilation-ansi-colorize ()
+    (let ((inhibit-read-only t))
+      (ansi-color-apply-on-region compilation-filter-start (point))))
+  (add-hook 'compilation-filter-hook #'my/compilation-ansi-colorize)
+#+end_src
+
 
 *** Enable Nano Mode
 
