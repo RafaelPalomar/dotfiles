@@ -23,6 +23,7 @@
   #:use-module (gnu packages gnupg)
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages cmake)
+  #:use-module (gnu packages chromium)
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages fontutils)
   #:use-module (gnu packages fonts)
@@ -148,6 +149,7 @@
                          texlive
                          texlive-minted
                          texlive-xetex
+                         ungoogled-chromium
                          weechat
                          )))
 
