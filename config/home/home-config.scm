@@ -73,6 +73,7 @@
         emacs-geiser-guile
         emacs-general
         emacs-gptel
+        emacs-guix
         emacs-helpful
         emacs-ivy
         emacs-ivy-rich
