@@ -1,9 +1,10 @@
-(define-module (systems base)
-  #:use-module (gnu)
+(define-module (entelequia systems base)
+  :use-module (gnu)
   #:use-module (gnu services)
   #:use-module (gnu home services)
   #:use-module (gnu system privilege)
   #:use-module (nongnu packages linux)
+  #:use-module (btv tailscale)
   #:use-module (nongnu system linux-initrd)
   #:export (base-operating-system
             guix-home-config)
@@ -55,7 +56,7 @@
                  (name "rafael")
                  (comment "Rafael Palomar")
                  (group "users")
-                 (home-directory "/home/daviwil")
+                 (home-directory "/home/rafael")
                  (supplementary-groups '("wheel"  ;; sudo
                                          "netdev" ;; network devices
                                          "kvm"
@@ -79,6 +80,7 @@
                     libva-utils
                     ntfs-3g
                     vim
+                    tailscale
                     %base-packages))
 
    ;; Configure only the services necessary to run the system
@@ -90,6 +92,9 @@
               (list
                ;; Seat management (can't use seatd because Wireplumber depends on elogind)
                (service elogind-service-type)
+
+               ;; Tailscale
+               (service tailscale-service-type)
 
                ;; Configure TTYs and graphical greeter
                (service console-font-service-type

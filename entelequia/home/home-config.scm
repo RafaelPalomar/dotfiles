@@ -11,6 +11,8 @@
   #:use-module (gnu home services gnupg)
   #:use-module (gnu home services dotfiles)
   #:use-module (gnu home services shells)
+  #:use-module (gnu home services sound)
+  #:use-module (gnu home services desktop)
   #:use-module (gnu services)
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
@@ -182,6 +184,10 @@
                                    ("_JAVA_AWT_WM_NONREPARENTING" . #t)
                                    ("LITERAL_VALUE" . ,(literal-string "${abc}"))))
 
+                 (service home-dbus-service-type)
+
+                 (service home-pipewire-service-type
+                          (home-pipewire-configuration (enable-pulseaudio? #t)))
 
                  ;; Bashrc
                  (service home-bash-service-type
