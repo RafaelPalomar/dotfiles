@@ -31,19 +31,12 @@ Section \"Device\"
     Option \"VariableRefresh\" \"true\"
     Option \"EnablePageFlip\" \"true\"
     Option \"ShadowPrimary\" \"false\"
-    Option \"ColorTiling\" \"true\"
-    Option \"ColorTiling2D\" \"true\"
-    Option \"EnableDepthMoves\" \"true\"
-    Option \"SwapbuffersWait\" \"true\"
-    Option \"TripleBuffer\" \"true\"
 EndSection
 
 Section \"Monitor\"
     Identifier \"eDP-1\"
     Option \"PreferredMode\" \"1920x1200\"
-    DisplaySize 300 190
     HorizSync 30.0-83.0
-    VertRefresh 56.0-76.0
 EndSection
 
 Section \"Screen\"
@@ -63,6 +56,9 @@ EndSection
   (operating-system
    (inherit base-operating-system)
    (host-name "curie")
+   (kernel-arguments
+    '("amd_pstate=active"
+      "amd_pstate=guided"))
 
    ;; Packages
    (packages (append  (map specification->package '( ;; Hardware/Drivers

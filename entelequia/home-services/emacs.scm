@@ -21,7 +21,7 @@
         emacs-denote
         emacs-denote-silo
         emacs-dockerfile-mode
-	      emacs-doom-themes
+	emacs-doom-themes
         emacs-embark
         emacs-evil
         emacs-evil-collection
@@ -59,7 +59,6 @@
         emacs-paredit
         emacs-perspective
         emacs-persp-projectile
-        emacs-pgtk
         emacs-projectile
         emacs-pyvenv
         emacs-rainbow-delimiters

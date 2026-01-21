@@ -2,6 +2,8 @@
   #:use-module (entelequia home-services emacs)
   #:use-module (entelequia home-services desktop)
   ;;  #:use-module (daviwil home-services udiskie)
+  #:use-module (entelequia packages polybar-themes)
+  #:use-module (entelequia packages fonts)
   #:use-module (gnu)
   #:use-module (gnu services)
   #:use-module (gnu packages gnupg)
@@ -10,6 +12,7 @@
   #:use-module (gnu home services desktop)
   #:use-module (gnu home services gnupg)
   #:use-module (gnu home services pm)
+  #:use-module (gnu home services sound)
   #:use-module (gnu home services dotfiles)
   #:use-module (guix gexp)
   #:export (desktop-home-services))
@@ -23,10 +26,15 @@
                                ;;                 home-files-service-type (list `(".inputrc" ,(local-file "../files/inputrc"))))
 
                                ;; GnuPG configuration
-                               (service home-gpg-agent-service-type (home-gpg-agent-configuration
-                                                                     (pinentry-program
-                                                                      (file-append pinentry-emacs "/bin/pinentry-emacs")) (ssh-support? #t) (default-cache-ttl 28800) (max-cache-ttl
-                                                                                                                                                                       28800) (default-cache-ttl-ssh 28800) (max-cache-ttl-ssh 28800)))
+                               (service home-gpg-agent-service-type 
+					(home-gpg-agent-configuration
+					  (pinentry-program
+					    (file-append pinentry-rofi "/bin/pinentry-rofi")) 
+					  (ssh-support? #t) 
+					  (default-cache-ttl 28800) 
+					  (max-cache-ttl 28800) 
+					  (default-cache-ttl-ssh 28800) 
+					  (max-cache-ttl-ssh 28800)))
 
                                ;; Emacs configuration
                                (service home-emacs-config-service-type)
@@ -37,9 +45,18 @@
                                ;; Set up desktop environment
                                (service home-desktop-service-type)
 
+                               (service home-pipewire-service-type
+                                        (home-pipewire-configuration (enable-pulseaudio? #t)))
+
                                (service home-dotfiles-service-type
 	                                      (home-dotfiles-configuration
 	                                       (directories '("../../.files"))))
+
+                               (simple-service 'polybar-themes
+                                               home-files-service-type
+                                               `((".config/polybar"
+                                                  ,(directory-union "polybar-themes"
+                                                                    (list polybar-themes)))))
 
                                ;; Start background jobs (service home-mcron-service-type
                                ;;          (home-mcron-configuration

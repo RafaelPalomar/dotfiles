@@ -46,7 +46,7 @@ windowy=$( echo "${screenheight}/2.0 - ${windowheight}/2.0" | bc)
 R TermApp state=floating rectangle=${windowwidth%%.*}x${windowheight%%.*}+$windowx+$windowy
 
 # # Launch Polybar
-# ${HOME}/.config/polybar/launch.sh --docky
+${HOME}/.config/polybar/launch.sh --docky
 
 # # Launch bluetooth widget
 # blueberry-tray

@@ -5,9 +5,9 @@
   #:export (home-desktop-service-type))
 
 (use-package-modules admin chromium compression curl dns fonts freedesktop gimp glib gnome
-                     gnome-xyz gstreamer package-management kde-frameworks librewolf linux
-                     lsof music password-utils pdf pulseaudio ssh syncthing terminals tmux
-                     video wget wm xdisorg)
+                     gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf 
+		     linux lsof music password-utils pdf pulseaudio ssh syncthing terminals 
+		     tmux video wget wm xdisorg)
 
 (define (home-desktop-profile-service config)
   (list bspwm
@@ -15,7 +15,10 @@
         alacritty
         gammastep
         network-manager-applet
-	dunst
+        dunst
+        polybar
+        rofi
+	pinentry-rofi
 
         ;; Flatpak and XDG utilities
         flatpak
