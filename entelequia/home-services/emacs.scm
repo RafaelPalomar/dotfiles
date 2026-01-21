@@ -1,0 +1,88 @@
+(define-module (entelequia home-services emacs)
+  #:use-module (entelequia packages emacs)
+  #:use-module (gnu)
+  #:use-module (gnu home services)
+  #:use-module (gnu services)
+  #:export (%emacs-pacakges
+            home-emacs-config-service-type))
+
+(use-package-modules emacs emacs-xyz cmake)
+
+(define %emacs-packages
+  (list emacs-ace-window
+        emacs-all-the-icons
+        emacs-all-the-icons-dired
+        emacs-avy
+        emacs-beacon
+        emacs-cmake-mode
+        emacs-counsel
+        emacs-counsel-projectile
+        emacs-dashboard
+        emacs-denote
+        emacs-denote-silo
+        emacs-dockerfile-mode
+        emacs-embark
+        emacs-evil
+        emacs-evil-collection
+        emacs-evil-commentary
+        emacs-evil-goggles
+        emacs-evil-paredit
+        emacs-evil-surround
+        emacs-evil-matchit
+        emacs-evil-org
+        emacs-forge
+        emacs-geiser
+        emacs-geiser-guile
+        emacs-general
+        emacs-gptel
+        emacs-guix
+        emacs-helpful
+        emacs-ivy
+        emacs-ivy-rich
+        emacs-lua-mode
+        emacs-magit
+        emacs-markdown-mode
+        emacs-markdown-preview-mode
+        emacs-mixed-pitch
+        emacs-modus-themes
+        emacs-mu4e-dashboard
+        emacs-nano-theme
+        emacs-nano-modeline
+        emacs-nerd-icons
+        emacs-ob-mermaid
+        emacs-orderless
+        emacs-org-appear
+        emacs-org-mime
+        emacs-org-modern
+        emacs-org-reveal
+        emacs-paredit
+        emacs-perspective
+        emacs-persp-projectile
+        emacs-pgtk
+        emacs-projectile
+        emacs-pyvenv
+        emacs-rainbow-delimiters
+        emacs-restart-emacs
+        emacs-rg
+        emacs-svg-lib
+        emacs-swiper
+        emacs-tabspaces
+        emacs-undo-fu
+        emacs-use-package
+        emacs-visual-fill-column
+        emacs-which-key
+        emacs-yaml
+        emacs-yaml-mode))
+
+(define (home-emacs-config-profile-service config)
+  (list emacs
+	emacs-doom-themes))
+
+(define home-emacs-config-service-type
+  (service-type (name 'home-emacs-config)
+		(description "A service for configurig emacs")
+		(extensions
+		 (list (service-extension
+			home-profile-service-type
+			home-emacs-config-profile-service)))
+		 (default-value #f)))

@@ -1,8 +1,12 @@
 (define-module (entelequia systems curie)
   #:use-module (entelequia systems base)
+  #:use-module (entelequia systems desktop)
+  #:use-module (entelequia home-services desktop)
+  #:use-module (entelequia home-services emacs)
   #:use-module (gnu)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages networking)
+  #:use-module (gnu home)
   #:use-module (gnu home services sound)
   #:use-module (nongnu packages linux)
   #:use-module (nongnu system linux-initrd)
@@ -104,8 +108,6 @@ EndSection
                                                     "setxkbmap"
                                                     "xdg-utils"
                                                     "xrandr"
-                                                    "sxhkd"
-                                                    "bspwm"
 
                                                     ;; File management
                                                     "lf"
@@ -166,6 +168,11 @@ EndSection
                                   '("/bin/sh" "-c" "/usr/bin/aide --config=/etc/aide.conf --check")))
                         (stop #~(make-kill-destructor))
                         (auto-start? #f))))
+      (guix-home-config
+       (home-environment
+        (services (cons* (service home-emacs-config-service-type)
+                         desktop-home-services))))
+
 
       ;; mlocate db
       ;; (simple-service 'mlocate

@@ -1,4 +1,4 @@
-(define-module (config packages cyrus-sasl-xoauth2)
+(define-module (entelequia packages cyrus-sasl-xoauth2)
   #:use-module (gnu packages cyrus-sasl)
   #:use-module (gnu packages autotools)
   #:use-module (guix build-system gnu)

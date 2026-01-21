@@ -1,4 +1,4 @@
-(define-module (config packages mutt-oauth2)
+(define-module (entelequia packages mutt-oauth2)
   #:use-module (guix packages)
   #:use-module (guix download)
   #:use-module (guix gexp)

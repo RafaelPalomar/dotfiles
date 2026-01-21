@@ -1,4 +1,4 @@
-(define-module (config home services emacs)
+(define-module (entelequia home services emacs)
   #:use-module (gnu home services)
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages emacs-xyz)

@@ -1,11 +1,9 @@
-(define-module (config home home-config)
-  #:use-module (config home services emacs)
-  #:use-module (config packages mutt-oauth2)
-  #:use-module (config packages cyrus-sasl-xoauth2)
-  #:use-module (config packages emacs-denote-silo)
-  #:use-module (config packages emacs-persp-projectile)
-  #:use-module (config packages emacs-tabspaces)
-  #:use-module (config packages emacs-ob-mermaid)
+(define-module (entelequia home home-config)
+  #:use-module (entelequia home services emacs)
+  #:use-module (entelequia home-services emacs)
+  #:use-module (entelequia packages mutt-oauth2)
+  #:use-module (entelequia packages cyrus-sasl-xoauth2)
+  #:use-module (entelequia packages emacs)
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services gnupg)
@@ -49,75 +47,8 @@
         isync
         msmtp))
 
-(define %emacs-packages
-  (list emacs-ace-window
-        emacs-all-the-icons
-        emacs-all-the-icons-dired
-        emacs-avy
-        emacs-beacon
-        emacs-cmake-mode
-        emacs-counsel
-        emacs-counsel-projectile
-        emacs-dashboard
-        emacs-denote
-        emacs-denote-silo
-        emacs-dockerfile-mode
-        emacs-embark
-        emacs-evil
-        emacs-evil-collection
-        emacs-evil-commentary
-        emacs-evil-goggles
-        emacs-evil-paredit
-        emacs-evil-surround
-        emacs-evil-matchit
-        emacs-evil-org
-        emacs-forge
-        emacs-geiser
-        emacs-geiser-guile
-        emacs-general
-        emacs-gptel
-        emacs-guix
-        emacs-helpful
-        emacs-ivy
-        emacs-ivy-rich
-        emacs-lua-mode
-        emacs-magit
-        emacs-markdown-mode
-        emacs-markdown-preview-mode
-        emacs-mixed-pitch
-        emacs-modus-themes
-        emacs-mu4e-dashboard
-        emacs-nano-theme
-        emacs-nano-modeline
-        emacs-nerd-icons
-        emacs-ob-mermaid
-        emacs-orderless
-        emacs-org-appear
-        emacs-org-mime
-        emacs-org-modern
-        emacs-org-reveal
-        emacs-paredit
-        emacs-perspective
-        emacs-persp-projectile
-        emacs-pgtk
-        emacs-projectile
-        emacs-pyvenv
-        emacs-rainbow-delimiters
-        emacs-restart-emacs
-        emacs-rg
-        emacs-svg-lib
-        emacs-swiper
-        emacs-tabspaces
-        emacs-undo-fu
-        emacs-use-package
-        emacs-visual-fill-column
-        emacs-which-key
-        emacs-yaml
-        emacs-yaml-mode
-        ))
-
 (home-environment
- (packages (append %emacs-packages
+ (packages (append
                    %email-packages
                    (list bash-completion
                          deskflow
@@ -158,41 +89,42 @@
                          weechat
                          )))
 
- (services (list (service home-emacs-config-service-type)
-                 ;; Drop files (gnu stow replacement)
-                 (service home-dotfiles-service-type
-                          (home-dotfiles-configuration
-                           (directories '("../../files"))))
+ (services
+  (list (service home-emacs-config-service-type)
+        ;; Drop files (gnu stow replacement)
+        (service home-dotfiles-service-type
+                 (home-dotfiles-configuration
+                  (directories '("../../files"))))
 
-                 (service home-gpg-agent-service-type
-                          (home-gpg-agent-configuration
-                           (ssh-support? #t)
-                           (pinentry-program (file-append pinentry-gnome3 "/bin/pinentry-gnome3"))
-                           (default-cache-ttl 3600)
-                           (max-cache-ttl 86400)))
+        (service home-gpg-agent-service-type
+                 (home-gpg-agent-configuration
+                  (ssh-support? #t)
+                  (pinentry-program (file-append pinentry-gnome3 "/bin/pinentry-gnome3"))
+                  (default-cache-ttl 3600)
+                  (max-cache-ttl 86400)))
 
-                 ;; (simple-service 'gpg-agent-env
-                 ;;                 home-environment-variables-service-type
-                 ;;                 `(("GPG_TTY" . "$TTY")
-                 ;;                   ("SSH_AUTH_SOCK" . "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh")))
+        ;; (simple-service 'gpg-agent-env
+        ;;                 home-environment-variables-service-type
+        ;;                 `(("GPG_TTY" . "$TTY")
+        ;;                   ("SSH_AUTH_SOCK" . "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh")))
 
 
-                 (simple-service 'some-useful-env-vars-service
-                                 home-environment-variables-service-type
-                                 `(("LESSHISTFILE" . "$XDG_CACHE_HOME/.lesshst")
-                                   ("USELESS_VAR" . #f)
-                                   ("_JAVA_AWT_WM_NONREPARENTING" . #t)
-                                   ("LITERAL_VALUE" . ,(literal-string "${abc}"))))
+        (simple-service 'some-useful-env-vars-service
+                        home-environment-variables-service-type
+                        `(("LESSHISTFILE" . "$XDG_CACHE_HOME/.lesshst")
+                          ("USELESS_VAR" . #f)
+                          ("_JAVA_AWT_WM_NONREPARENTING" . #t)
+                          ("LITERAL_VALUE" . ,(literal-string "${abc}"))))
 
-                 (service home-dbus-service-type)
+        (service home-dbus-service-type)
 
-                 (service home-pipewire-service-type
-                          (home-pipewire-configuration (enable-pulseaudio? #t)))
+        (service home-pipewire-service-type
+                 (home-pipewire-configuration (enable-pulseaudio? #t)))
 
-                 ;; Bashrc
-                 (service home-bash-service-type
-                          (home-bash-configuration
-                           (aliases '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/ntnu.no --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
-                                      ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/uio.no --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no")
-                                      ("mbsync-all" . "guix shell cyrus-sasl-xoauth2 -L ~/dotfiles -- mbsync -a")
-                                      )))))))
+        ;; Bashrc
+        (service home-bash-service-type
+                 (home-bash-configuration
+                  (aliases '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/ntnu.no --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
+                             ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/uio.no --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no")
+                             ("mbsync-all" . "guix shell cyrus-sasl-xoauth2 -L ~/dotfiles -- mbsync -a")
+                             )))))))
