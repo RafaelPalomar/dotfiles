@@ -15,6 +15,7 @@
         alacritty
         gammastep
         network-manager-applet
+	dunst
 
         ;; Flatpak and XDG utilities
         flatpak

@@ -6,7 +6,7 @@
   #:export (%emacs-pacakges
             home-emacs-config-service-type))
 
-(use-package-modules emacs emacs-xyz cmake)
+(use-package-modules emacs emacs-xyz fonts tex cmake)
 
 (define %emacs-packages
   (list emacs-ace-window
@@ -21,6 +21,7 @@
         emacs-denote
         emacs-denote-silo
         emacs-dockerfile-mode
+	      emacs-doom-themes
         emacs-embark
         emacs-evil
         emacs-evil-collection
@@ -75,8 +76,10 @@
         emacs-yaml-mode))
 
 (define (home-emacs-config-profile-service config)
-  (list emacs
-	emacs-doom-themes))
+  (append (list emacs
+		            font-fira-code
+                font-abattis-cantarell)
+          %emacs-packages))
 
 (define home-emacs-config-service-type
   (service-type (name 'home-emacs-config)

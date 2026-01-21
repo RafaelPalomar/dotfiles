@@ -98,16 +98,17 @@ EndSection
                                                     "wireplumber"
 
                                                     ;; X Utilities
-                                                    "xterm"
-                                                    "xdpyinfo"
-                                                    "xset"
-                                                    "xwininfo"
-                                                    "xprop"
-                                                    "xpra"
-                                                    "xkill"
                                                     "setxkbmap"
                                                     "xdg-utils"
+                                                    "xdpyinfo"
+                                                    "xkill"
+                                                    "xpra"
+                                                    "xprop"
                                                     "xrandr"
+                                                    "xset"
+                                                    "xsetroot"
+                                                    "xterm"
+                                                    "xwininfo"
 
                                                     ;; File management
                                                     "lf"
@@ -138,10 +139,13 @@ EndSection
 
                                                     ;; Monitoring and utilities
                                                     "htop"
+                                                    "git"
+                                                    "vim"
                                                     "btop"
                                                     "radeontop"
                                                     "coreutils"
                                                     "grep"
+                                                    "picom"
                                                     "sed"))
                       %base-packages))
 
@@ -249,7 +253,7 @@ EndSection
 
    (swap-devices (list (swap-space
                         (target (uuid
-                                 "7cc1c7c8-7979-4feb-8964-44a3164cee30")))))
+                                 "a5b672b4-16c3-4f92-836c-01061e66e3fe")))))
 
    ;; The list of file systems that get "mounted".  The unique
    ;; file system identifiers there ("UUIDs") can be obtained
@@ -262,7 +266,7 @@ EndSection
                         (file-system
                          (mount-point "/")
                          (device (uuid
-                                  "7b9930b3-d217-4932-83d3-d5f555d50332"
+                                  "8d5376cc-89ea-4b11-95e8-9908916894f6"
                                   'ext4))
                          (type "ext4")) %base-file-systems))))
 

@@ -193,12 +193,12 @@
   (set-face-attribute 'fixed-pitch nil
                       :inherit 'default
                       :font "Fira Code Retina"
-                      :weight 'normal)
+                      :weight 'normal))
 
   ;; Set the variable-pitch face
-  (set-face-attribute 'variable-pitch nil
-                      :font "Cantarell"
-                      :weight 'normal))
+  ;;(set-face-attribute 'variable-pitch nil
+  ;;                    :font "Cantarell"
+  ;;                    :weight 'normal))
 
 ;; Frame transparency and maximization
 (when (display-graphic-p)
