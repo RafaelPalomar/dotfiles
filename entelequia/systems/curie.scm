@@ -6,6 +6,7 @@
   #:use-module (gnu)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages networking)
+  #:use-module (gnu packages synergy)
   #:use-module (gnu home)
   #:use-module (gnu home services sound)
   #:use-module (nongnu packages linux)
@@ -100,6 +101,7 @@
 
                                                     ;; X Utilities
                                                     "setxkbmap"
+                                                    "synergy"
                                                     "xdg-utils"
                                                     "xdpyinfo"
                                                     "xkill"
