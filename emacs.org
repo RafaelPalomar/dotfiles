@@ -303,7 +303,7 @@ Set up fonts to match Doom Emacs's style, using =JetBrains Mono= for fixed-pitch
 
 #+end_src
 
-*** Frame Transparency and Maximization
+*** COMMENT Frame Transparency and Maximization
 
 Adjust frame transparency and maximize the frame on startup for a polished look.
 

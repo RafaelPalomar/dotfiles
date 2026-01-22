@@ -9,6 +9,7 @@
   #:use-module (gnu home)
   #:use-module (gnu home services sound)
   #:use-module (nongnu packages linux)
+  #:use-module (btv tailscale)
   #:use-module (nongnu system linux-initrd)
   #:use-module (xlibre))
 
@@ -19,46 +20,46 @@
    (modules (list xlibre-video-amdgpu xlibre-input-libinput))
    (drivers '("amdgpu"))
    (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
-   (extra-config
-    (list
-     "
-Section \"Device\"
-    Identifier \"AMD-GPU\"
-    Driver \"amdgpu\"
-    Option \"TearFree\" \"on\"
-    Option \"AccelMethod\" \"glamor\"
-    Option \"DRI\" \"3\"
-    Option \"VariableRefresh\" \"true\"
-    Option \"EnablePageFlip\" \"true\"
-    Option \"ShadowPrimary\" \"false\"
-EndSection
+   ;; (extra-config
+;;     (list
+;;      "
+;; Section \"Device\"
+;;     Identifier \"AMD-GPU\"
+;;     Driver \"amdgpu\"
+;;     Option \"TearFree\" \"off\"
+;;     #Option \"AccelMethod\" \"glamor\"
+;;     #Option \"DRI\" \"3\"
+;;     #Option \"VariableRefresh\" \"true\"
+;;     #Option \"EnablePageFlip\" \"true\"
+;;     #Option \"ShadowPrimary\" \"false\"
+;; EndSection
 
-Section \"Monitor\"
-    Identifier \"eDP-1\"
-    Option \"PreferredMode\" \"1920x1200\"
-    HorizSync 30.0-83.0
-EndSection
+;; Section \"Monitor\"
+;;     Identifier \"eDP-1\"
+;;     Option \"PreferredMode\" \"1920x1200\"
+;;     HorizSync 30.0-83.0
+;; EndSection
 
-Section \"Screen\"
-    Identifier \"Screen0\"
-    Device \"AMD-GPU\"
-    Monitor \"eDP-1\"
-    DefaultDepth 24
-    SubSection \"Display\"
-        Depth 24
-        Modes \"1920x1200\" \"1920x1080\" \"1600x1200\" \"1368x768\"
-    EndSubSection
-EndSection
-"
-     ))))
+;; Section \"Screen\"
+;;     Identifier \"Screen0\"
+;;     Device \"AMD-GPU\"
+;;     Monitor \"eDP-1\"
+;;     DefaultDepth 24
+;;     SubSection \"Display\"
+;;         Depth 24
+;;         Modes \"1920x1200\" \"1920x1080\" \"1600x1200\" \"1368x768\"
+;;     EndSubSection
+;; EndSection
+;; "
+;;      ))
+   ))
 
 (define curie-system
   (operating-system
    (inherit base-operating-system)
    (host-name "curie")
    (kernel-arguments
-    '("amd_pstate=active"
-      "amd_pstate=guided"))
+    '("amd_pstate=guided" "net.ifnames=0" "biosdevname=0"))
 
    ;; Packages
    (packages (append  (map specification->package '( ;; Hardware/Drivers
@@ -87,7 +88,7 @@ EndSection
 
                                                     ;;Audio
                                                     "pipewire"
-                                                    "pulseaudio"
+                                                    ;;"pulseaudio"
                                                     "pulsemixer"
                                                     "alsa-lib"
                                                     "alsa-utils"
@@ -125,6 +126,7 @@ EndSection
                                                     ;; Security/Cryptography/VPN
                                                     "nftables"
                                                     "gnupg"
+                                                    "tailscale"
                                                     "openvpn"
                                                     "openssl"
 
@@ -142,6 +144,7 @@ EndSection
                                                     "coreutils"
                                                     "grep"
                                                     "picom"
+                                                    "nextcloud-client"
                                                     "sed"))
                       %base-packages))
 
@@ -155,8 +158,14 @@ EndSection
       ;; record as a second argument to 'service' below.
       (service openssh-service-type)
 
+      (service network-manager-service-type)
+      (service wpa-supplicant-service-type)    ;needed by NetworkManager
+      (service tailscale-service-type)
+
       ;; Fail2Ban
       (service fail2ban-service-type)
+
+      (service elogind-service-type)
 
       ;; AIDE file integrity
       (simple-service 'aide
@@ -204,6 +213,8 @@ EndSection
                (bluetooth-configuration
                 (auto-enable? #t)))
 
+      polkit-wheel-service
+
       ;; Add udev rules for a few package
       (udev-rules-service 'pipewire-add-udev-rules pipewire)
       (udev-rules-service 'brightnessctl-udev-rules brightnessctl)
@@ -233,12 +244,14 @@ EndSection
       (service slim-service-type
                (slim-configuration
                 (auto-login? #f)
-                (default-user "berkeley")
+                (default-user "rafael")
                 (xorg-configuration my-xlibre-config))))
 
-     (modify-services
-      %desktop-services
-      (delete gdm-service-type))))
+     %base-services
+     ;; (modify-services
+     ;;  %desktop-services
+     ;;  (delete gdm-service-type))
+     ))
 
    (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
 

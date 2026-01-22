@@ -114,31 +114,31 @@
                          (using-pam? #t)
                          (using-setuid? #f)))
 
-(service greetd-service-type
-                        (greetd-configuration
-                         (greeter-supplementary-groups (list "video" "input"))
-                         (terminals
-                          (list
-                           ;; TTY1 is the graphical login screen for Sway
-                           (greetd-terminal-configuration
-                            (terminal-vt "1")
-                            (terminal-switch #t)
-                            ;; (default-session-command (greetd-wlgreet-sway-session
-                            ;;                           (sway-configuration
-                            ;;                            (plain-file "sway-greet.conf"
-                            ;;                                        "output * bg /home/daviwil/.dotfiles/backgrounds/samuel-ferrara-uOi3lg8fGl4-unsplash.jpg fill\n"))))
-                            )
+;; (service greetd-service-type
+;;                         (greetd-configuration
+;;                          (greeter-supplementary-groups (list "video" "input"))
+;;                          (terminals
+;;                           (list
+;;                            ;; TTY1 is the graphical login screen for Sway
+;;                            (greetd-terminal-configuration
+;;                             (terminal-vt "1")
+;;                             (terminal-switch #t)
+;;                             ;; (default-session-command (greetd-wlgreet-sway-session
+;;                             ;;                           (sway-configuration
+;;                             ;;                            (plain-file "sway-greet.conf"
+;;                             ;;                                        "output * bg /home/daviwil/.dotfiles/backgrounds/samuel-ferrara-uOi3lg8fGl4-unsplash.jpg fill\n"))))
+;;                             )
 
-                           ;; Set up remaining TTYs for terminal use
-                           (greetd-terminal-configuration (terminal-vt "2"))
-                           (greetd-terminal-configuration (terminal-vt "3"))))))
+;;                            ;; Set up remaining TTYs for terminal use
+;;                            (greetd-terminal-configuration (terminal-vt "2"))
+;;                            (greetd-terminal-configuration (terminal-vt "3"))))))
 
                ;; Configure the Guix service and ensure we use Nonguix substitutes
                (simple-service 'add-nonguix-substitutes
                                guix-service-type
                                (guix-extension
                                 (substitute-urls
-                                 (cons* "https://nonguix-proxy.ditigal.xyz"
+                                 (cons* "https://nonguix-proxy.digital.xyz"
                                         %default-substitute-urls))
                                 (authorized-keys
                                  (append (list (plain-file "nonguix.pub"
