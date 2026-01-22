@@ -58,8 +58,12 @@
   (operating-system
    (inherit base-operating-system)
    (host-name "curie")
-   (kernel-arguments
-    '("amd_pstate=guided" "net.ifnames=0" "biosdevname=0"))
+   (kernel-arguments '("amd_pstate=guided"
+                       "net.ifnames=0"
+                       "biosdevname=0"
+                       "quiet"
+                       "splash"
+                       ))
 
    ;; Packages
    (packages (append  (map specification->package '( ;; Hardware/Drivers
