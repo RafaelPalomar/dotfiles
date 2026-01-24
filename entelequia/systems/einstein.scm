@@ -7,6 +7,7 @@
   #:use-module (gnu packages linux)
   #:use-module (gnu packages networking)
   #:use-module (gnu home)
+  #:use-module (btv tailscale)
   #:use-module (gnu home services sound)
   #:use-module (nongnu packages linux)
   #:use-module (nongnu system linux-initrd)
@@ -135,6 +136,7 @@
                                                     "gnupg"
                                                     "openvpn"
                                                     "openssl"
+                                                    "tailscale"
 
                                                     ;; Virtualization / Containerization
                                                     "qemu"
@@ -163,6 +165,9 @@
 
       ;; Fail2Ban
       (service fail2ban-service-type)
+
+      ;; Tailscale
+      (service tailscale-service-type)
 
       (service nvidia-service-type)
       ;; AIDE file integrity
