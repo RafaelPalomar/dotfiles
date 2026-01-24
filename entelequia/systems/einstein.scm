@@ -6,6 +6,7 @@
   #:use-module (gnu)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages networking)
+  #:use-module (gnu packages synergy)
   #:use-module (gnu home)
   #:use-module (btv tailscale)
   #:use-module (gnu home services sound)
@@ -107,6 +108,7 @@
 
                                                     ;; X Utilities
                                                     "setxkbmap"
+                                                    "synergy"
                                                     "xdg-utils"
                                                     "xdpyinfo"
                                                     "xkill"
