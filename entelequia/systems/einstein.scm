@@ -63,6 +63,9 @@
    (timezone "Europe/Oslo")
    (keyboard-layout (keyboard-layout "us" "altgr-intl"))
    (host-name "einstein")
+   (kernel-arguments '("quiet"
+                       "splash"
+                       "pcspkr.disable=1"))
 
    ;; The list of user accounts ('root' is implicit).
    (users (cons* (user-account
