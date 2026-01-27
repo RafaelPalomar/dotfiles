@@ -8,8 +8,10 @@
   #:use-module (gnu packages networking)
   #:use-module (gnu packages synergy)
   #:use-module (gnu home)
+  #:use-module (gnu services containers)
   #:use-module (btv tailscale)
   #:use-module (gnu home services sound)
+  #:use-module (gnu system accounts)
   #:use-module (nongnu packages linux)
   #:use-module (nongnu system linux-initrd)
   #:use-module (nongnu services nvidia)
@@ -147,6 +149,7 @@
                                                     "qemu"
                                                     "virt-manager"
                                                     "podman"
+                                                    "distrobox"
 
                                                     ;; Monitoring and utilities
                                                     "htop"
@@ -173,6 +176,14 @@
 
       ;; Tailscale
       (service tailscale-service-type)
+
+      (service iptables-service-type)
+      (service rootless-podman-service-type
+               (rootless-podman-configuration
+                (subgids
+                 (list (subid-range (name "rafael"))))
+                (subuids
+                 (list (subid-range (name "rafael"))))))
 
       (service nvidia-service-type)
       ;; AIDE file integrity
@@ -235,15 +246,18 @@
       ;; Blueman D-Bus Service
       ;; Provides D-Bus integration for Blueman Bluetooth manager
       (simple-service 'blueman dbus-root-service-type (list blueman))
+      ;; (simple-service 'etc etc-service-type
+      ;;                (list `("containers/registries.conf"
+      ;;                        ,(plain-file "registries.conf"
+      ;;                                     "unqualified-search-registries=[\"docker.io\"]"))))
 
       ;; Libvirt Virtualization Service
       ;; Configures libvirt for virtual machine management with Unix socket group
       ;; and TLS port for secure connections
-      (service
-       libvirt-service-type
-       (libvirt-configuration
-        (unix-sock-group "libvirt")
-        (tls-port "16555")))
+      (service libvirt-service-type
+               (libvirt-configuration
+                (unix-sock-group "libvirt")
+                (tls-port "16555")))
 
 
       ;; Custom SLiM service with Xlibre
