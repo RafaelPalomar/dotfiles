@@ -19,7 +19,7 @@
 (define my-xlibre-config
   (xlibre-configuration
    (modules (list xlibre-video-amdgpu xlibre-input-libinput))
-   (drivers '("amdgpu"))
+   (drivers '("modesetting"))
    (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
    ;; (extra-config
 ;;     (list
@@ -140,6 +140,12 @@
                                                     "qemu"
                                                     "virt-manager"
                                                     "podman"
+
+                                                    ;; Development
+                                                    "gcc-toolchain"
+                                                    "glibc"
+                                                    "make"
+                                                    "cmake"
 
                                                     ;; Monitoring and utilities
                                                     "htop"
