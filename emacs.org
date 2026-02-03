@@ -23,7 +23,7 @@ We start by customizing various built-in variables to fine-tune Emacs's behavior
   - Set the frame title format (=frame-title-format=) to display the full path of the current file or buffer name.
   - Set the initial scratch message (=initial-scratch-message=) to provide a friendly welcome.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; -*- lexical-binding: t; -*-
 
         ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
@@ -37,13 +37,6 @@ We start by customizing various built-in variables to fine-tune Emacs's behavior
             (lambda ()
               (setq gc-cons-threshold (* 16 1024 1024))  ;; 16MB
               (setq gc-cons-percentage 0.1)))
-
-  (add-hook 'emacs-startup-hook
-            (lambda ()
-              ;; Force Emacs to decrypt ~/.authinfo.gpg and find your GPTel creds
-              (ignore-errors
-                (auth-source-search :max 1 :host "api.openai.com" :user "gptel"))))
-
 
   (set-language-environment "UTF-8")
   (setq locale-coding-system 'utf-8)
@@ -106,6 +99,8 @@ We start by customizing various built-in variables to fine-tune Emacs's behavior
 
     #+end_src
 
+#+RESULTS:
+
 * Core Modes
 
 We enable and disable several modes to enhance the user interface:
@@ -130,7 +125,7 @@ We enable and disable several modes to enhance the user interface:
 - *History and Reversion*:
   - Enable =tab-bar-history-mode= to navigate through previous tab window configurations.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Core modes
   (repeat-mode 1)                              ;; Enable repeat mode
   (savehist-mode 1)                            ;; Save minibuffer history
@@ -161,7 +156,7 @@ We enable and disable several modes to enhance the user interface:
     (setenv "LANG" "en_US.UTF-8"))
 #+end_src
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; -*- lexical-binding: t; -*-
 
   ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
@@ -177,21 +172,6 @@ We enable and disable several modes to enhance the user interface:
         ad-redefinition-action 'accept        ;; Don't warn on advice
         global-auto-revert-non-file-buffers t ;; Revert Dired and other buffers
         )
-
-  ;; Core modes
-  (repeat-mode 1)                ;; Enable repeating key maps
-  (menu-bar-mode 0)              ;; Hide the menu bar
-  (tool-bar-mode 0)              ;; Hide the tool bar
-  (savehist-mode 1)              ;; Save minibuffer history
-  (scroll-bar-mode 0)            ;; Hide the scroll bar
-  (xterm-mouse-mode 1)           ;; Enable mouse events in terminal Emacs
-  (display-time-mode 1)          ;; Display time in mode line / tab bar
-  (column-number-mode 1)         ;; Show column number on mode line
-  (tab-bar-history-mode 1)       ;; Remember previous tab window configurations
-  (auto-save-visited-mode 1)     ;; Auto-save files at an interval
-  (global-visual-line-mode 1)    ;; Visually wrap long lines in all buffers
-  (global-auto-revert-mode 1)    ;; Refresh buffers with changed local files
-
 #+end_src
 
 * Additional Settings
@@ -202,7 +182,7 @@ We enable and disable several modes to enhance the user interface:
   - Ensure Emacs correctly handles UTF-8 encoding.
   - Set up the environment's locale to prevent issues with subprocesses.
 
-  #+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+  #+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
     ;; Tabs to spaces
     (setq-default indent-tabs-mode nil
                   tab-width 2)
@@ -233,7 +213,7 @@ To achieve a consistent and minimalist Emacs appearance that combines the simpli
 *** Base theme
 We'll use the =nano-theme= to achieve a minimalist look similar to the Nano editor. Since you're managing packages with Guix, we'll set =:ensure nil= in =use-package= declarations to avoid installing packages via =package.el=.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Load nano-theme without installing it via package.el
   (use-package nano-theme
     :ensure nil
@@ -243,7 +223,7 @@ We'll use the =nano-theme= to achieve a minimalist look similar to the Nano edit
 #+end_src
 
 *** ANSI Colors
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (require 'ansi-color)
   (defun my/compilation-ansi-colorize ()
     (let ((inhibit-read-only t))
@@ -256,7 +236,7 @@ We'll use the =nano-theme= to achieve a minimalist look similar to the Nano edit
 
 =nano-theme= works best with =nano-modeline= and =nano-layout=. We'll enable =nano-modeline= to adjust the mode line for a Nano-like appearance.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Enable nano-modeline for a minimalist mode line
   (use-package nano-modeline
     :ensure nil
@@ -281,7 +261,7 @@ We'll use the =nano-theme= to achieve a minimalist look similar to the Nano edit
 
 Set up fonts to match Doom Emacs's style, using =JetBrains Mono= for fixed-pitch (monospace) text and =Iosevka Aile= for variable-pitch text.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
   ;; Font configurations
   (when (display-graphic-p)
@@ -307,7 +287,7 @@ Set up fonts to match Doom Emacs's style, using =JetBrains Mono= for fixed-pitch
 
 Adjust frame transparency and maximize the frame on startup for a polished look.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
   ;; Frame transparency and maximization
   (when (display-graphic-p)
@@ -325,7 +305,7 @@ Adjust frame transparency and maximize the frame on startup for a polished look.
 
 Ensure that Emacs behaves correctly when running in a terminal by clearing the background color.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Adjust settings for terminal Emacs
   (unless (display-graphic-p)
     ;; Clear background color for transparent terminals
@@ -336,7 +316,7 @@ Ensure that Emacs behaves correctly when running in a terminal by clearing the b
 
 To achieve a minimalist look, we'll simplify the mode line.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Simplify the mode line
   (setq-default mode-line-format
                 '("%e"
@@ -354,7 +334,7 @@ To achieve a minimalist look, we'll simplify the mode line.
 
 While =nano-theme= and =nano-modeline= handle most of the appearance, you might want to include additional packages like =all-the-icons= for better visuals in modes like Dired.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Load all-the-icons without installing via package.el
   (use-package all-the-icons
     :ensure nil)
@@ -362,7 +342,7 @@ While =nano-theme= and =nano-modeline= handle most of the appearance, you might 
 
 We adjust the tab-bar for display with a minimalist theme
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Tweak the tab bar to match the minimalist theme
   (setq tab-bar-close-button-show nil
         tab-bar-new-button-show nil
@@ -378,7 +358,7 @@ We adjust the tab-bar for display with a minimalist theme
 
 Set the frame title to display the current buffer or file name, which is helpful when working with multiple files.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Set the frame title to show the buffer or file name
   (setq frame-title-format
         '((:eval (if (buffer-file-name)
@@ -406,7 +386,7 @@ First, we'll enable Evil Mode, ensuring that it's loaded correctly and set up wi
 - =evil-undo-system=: We set this to ='undo-fu= to use the =undo-fu= package for more intuitive undo/redo behavior.
 - =(evil-mode 1)=: Activates Evil Mode globally.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
 
 ;; Enable Evil Mode
@@ -430,7 +410,7 @@ Evil Collection provides comprehensive Evil keybindings for various built-in and
 - =:after evil=: Ensures that Evil is loaded before Evil Collection.
 - =(evil-collection-init)=: Initializes Evil Collection, applying Evil keybindings to supported modes.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
 (use-package evil-collection
   :after evil
@@ -447,7 +427,7 @@ Evil Surround allows you to easily modify surrounding characters like brackets, 
 
 - =(global-evil-surround-mode 1)=: Enables Evil Surround globally.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Add Evil Surround
   (use-package evil-surround
     :ensure nil
@@ -461,7 +441,7 @@ Evil Commentary provides Vim-like commenting functionality using =gc= as the pre
 
 - =(evil-commentary-mode)=: Activates Evil Commentary.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Enable Evil Commentary
   (use-package evil-commentary
     :ensure nil
@@ -476,7 +456,7 @@ Evil Goggles adds visual hints to Evil operations, making it easier to see what 
 - =(evil-goggles-mode)=: Enables Evil Goggles.
 - =(evil-goggles-use-diff-faces)=: Uses faces from =diff-mode= for a consistent look.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Add Visual Feedback with Evil Goggles
   (use-package evil-goggles
     :ensure nil
@@ -492,7 +472,7 @@ Evil Matchit allows you to jump between matching tags, parentheses, braces, etc.
 
 - =(global-evil-matchit-mode 1)=: Activates Evil Matchit globally.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Enable Evil Matchit
   (use-package evil-matchit
     :ensure nil
@@ -504,7 +484,7 @@ Evil Matchit allows you to jump between matching tags, parentheses, braces, etc.
 
 Undo-Fu provides an intuitive and reliable undo/redo system, improving upon Emacs's default behavior. We don't need additional configuration here because we set =evil-undo-system= to ='undo-fu= earlier.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Use Undo-Fu for Enhanced Undo/Redo
   (use-package undo-fu
     :ensure nil)
@@ -516,7 +496,7 @@ Evil Snipe provides Vim's =s= and =S= motions for quick navigation:
 
 - =(evil-snipe-mode 1)= and =(evil-snipe-override-mode 1)=: Activates Evil Snipe and overrides default keybindings.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package evil-snipe
     :ensure nil
     :config
@@ -531,7 +511,7 @@ When working with Lisp languages, integrating Evil with Paredit enhances structu
 - =:after (evil paredit)=: Ensures that Evil and Paredit are loaded before Evil Paredit.
 - =:hook=: Automatically enables =evil-paredit-mode= in specified modes.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Integrate Evil with Paredit for Lisp Editing
   (use-package evil-paredit
     :ensure nil
@@ -549,7 +529,7 @@ Customize additional Evil settings to fine-tune the behavior:
 - =evil-want-fine-undo=: Makes undo operations more granular.
 - =evil-kill-on-visual-paste=: Prevents overwriting the clipboard when pasting in visual mode.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Adjust Evil Keybindings and Settings
   (setq evil-want-C-u-scroll t             ;; Enable Vim-style C-u scrolling
         evil-want-C-d-scroll t             ;; Enable Vim-style C-d scrolling
@@ -562,7 +542,7 @@ Customize additional Evil settings to fine-tune the behavior:
 
 Adjust the cursor appearance to reflect the current Evil state.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Customize Cursor Appearance
   (setq evil-normal-state-cursor 'box      ;; Normal mode cursor is a box
         evil-insert-state-cursor 'bar      ;; Insert mode cursor is a bar
@@ -576,7 +556,7 @@ Integrating Evil with Org Mode provides better keybindings:
 - =evil-org-mode=: Enhances Evil integration in Org Mode.
 - =evil-org-agenda-set-keys=: Sets up Evil keybindings in Org Agenda.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Evil Org Mode Integration
   (use-package evil-org
     :ensure nil
@@ -609,7 +589,7 @@ Our goals are:
 - *Installation*: Since we are managing packages with Guix, we'll use =:ensure nil= in =use-package= declarations.
 - *Configuration*: We'll enable =org-modern-mode= to apply =org-modern= styling to Org buffers.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Enhance Org Mode appearance with org-modern
   (use-package org-modern
     :after (org)
@@ -625,7 +605,7 @@ Our goals are:
 
 =visual-fill-column-mode= centers the text and sets a maximum text width, providing a pleasant reading experience similar to modern word processors.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Enhance text layout with visual-fill-column
   (use-package visual-fill-column
     :after (org)
@@ -644,7 +624,7 @@ Adjust various Org settings for a cleaner and more modern look.
 - *Use Pretty Entities*: Replace entities like =-->= with actual arrows.
 - *Adjust Ellipsis*: Change the folding ellipsis to a more subtle character.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Customize Org Mode appearance
   (setq org-hide-emphasis-markers t       ;; Hide *, /, etc.
         org-pretty-entities t             ;; Replace entities with symbols
@@ -674,7 +654,7 @@ Adjust various Org settings for a cleaner and more modern look.
 
 =org-indent-mode= visually indents text according to the outline structure, improving readability.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Enable Org Indent Mode for better alignment
   (add-hook 'org-mode-hook 'org-indent-mode)
 #+end_src
@@ -683,7 +663,7 @@ Adjust various Org settings for a cleaner and more modern look.
 
 =org-appear= makes hidden emphasis markers visible when the cursor is over them, providing context without cluttering the view.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Use org-appear to show hidden emphasis markers on cursor
   (use-package org-appear
     :after (org)
@@ -701,7 +681,7 @@ Adjust various Org settings for a cleaner and more modern look.
 
 Enable the execution of code blocks in various languages and ensure safe execution.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Configure Org Babel languages
   (org-babel-do-load-languages
    'org-babel-load-languages
@@ -723,7 +703,7 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
 
 - *Prerequisites*: Ensure that LaTeX is configured to use =minted=, which requires the =-shell-escape= option and the =pygments= package installed.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; LaTeX export settings using minted
   (setq org-latex-listings 'minted
         org-latex-packages-alist '(("" "minted"))
@@ -735,7 +715,7 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
 
 ** Setting Up org-capture templates
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (setq org-capture-templates
         '(("t" "TODO workflow")
           ("tt" "Work Todo" entry (file+olp "~/org/inbox.org" "Inbox")
@@ -757,7 +737,7 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
       %i" :immediate-finish nil)))
   #+end_src
 ** Org-agenda files
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (setq org-agenda-files '("~/org/inbox.org"
                            "~/org/archive.org"
                            "~/org/inbox-personal.org"
@@ -769,7 +749,7 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
   (setq org-refile-use-outline-path t)
   #+end_src
 ** Org-mime integration
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package org-mime
     :ensure nil
     :after (mu4e org)
@@ -784,7 +764,7 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
   #+end_src
 ** Org-babel mermaid integration
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 (setq ob-mermaid-cli-path "/home/rafael/node_modules/.bin/mmdc")
 #+end_src
 
@@ -803,7 +783,7 @@ Our goals are:
 
 *=ivy=* is a generic completion mechanism for Emacs. It replaces built-in completion methods with a more flexible and efficient system. We'll enable =ivy= globally and fine-tune its settings for better usability.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Enable Ivy for enhanced completion
   (use-package ivy
     :ensure nil
@@ -828,7 +808,7 @@ Our goals are:
 
 *=counsel=* provides =ivy=-enhanced versions of common Emacs commands, integrating =ivy= into many aspects of Emacs.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Use Counsel to enhance built-in Emacs commands
   (use-package counsel
     :ensure nil
@@ -851,7 +831,7 @@ Our goals are:
 
 *=swiper=* offers an =ivy=-powered alternative to =isearch= for in-buffer searching, providing an interactive search experience.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Enable Swiper for improved in-buffer searching
   (use-package swiper
     :ensure nil
@@ -864,7 +844,7 @@ Our goals are:
 
 *=ivy-rich=* provides additional information in =ivy= completion lists, making it easier to distinguish between candidates.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Enhance Ivy with ivy-rich
   (use-package ivy-rich
     :ensure nil
@@ -883,7 +863,7 @@ Our goals are:
 - Define =SPC= as the leader key.
 
 ** Installing and Configuring =general.el=
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Load general.el for keybinding management
   (use-package general
   :ensure nil
@@ -912,7 +892,7 @@ Now we'll define keybindings that correspond to the functionalities we've enable
 
 Define common keybindings for frequently used commands.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Basic keybindings
   (my/leader-keys
     "SPC" '(counsel-M-x :which-key "M-x")
@@ -941,7 +921,7 @@ Define common keybindings for frequently used commands.
 
 Set up keybindings for =swiper=, =counsel=, and other search-related functionalities.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Search and completion
   (my/leader-keys
     "/"    '(swiper :which-key "Swiper search")
@@ -966,7 +946,7 @@ Set up keybindings for =swiper=, =counsel=, and other search-related functionali
 
 Set up keybindings for =projectile= and integrate =counsel-projectile=.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Ensure counsel-projectile is loaded
   (use-package counsel-projectile
     :ensure nil
@@ -993,7 +973,7 @@ Set up keybindings for =projectile= and integrate =counsel-projectile=.
 
 Keybindings for navigating between windows and buffers.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Window and buffer navigation
   (my/leader-keys
     "w"   '(:ignore t :which-key "Windows")
@@ -1019,7 +999,7 @@ Keybindings for navigating between windows and buffers.
 
 Set up keybindings specific to Org Mode.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Org Mode keybindings
   (my/leader-keys
     "n"   '(:ignore t :which-key "Notes")
@@ -1034,7 +1014,7 @@ Set up keybindings specific to Org Mode.
 
 Keybindings for =magit= and version control.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Git keybindings
   (my/leader-keys
     "g"   '(:ignore t :which-key "Git")
@@ -1052,7 +1032,7 @@ Keybindings for =magit= and version control.
 
 Additional utility keybindings for convenience.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Utility keybindings
   (my/leader-keys
     "t"   '(:ignore t :which-key "Toggle")
@@ -1067,7 +1047,7 @@ Additional utility keybindings for convenience.
 
 Keybindings to access help and documentation.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Help and documentation
   (my/leader-keys
     "h"   '(:ignore t :which-key "Help")
@@ -1084,7 +1064,7 @@ Keybindings to access help and documentation.
 
 Keybindings for code navigation and development tools.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Code and development tools
   (my/leader-keys
     "c"   '(:ignore t :which-key "Code")
@@ -1098,7 +1078,7 @@ Keybindings for code navigation and development tools.
 #+end_src
 
 *** Navigating Between Tabs
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (my/leader-keys
     "TAB" '(:ignore t :which-key "Tabs")
     ;; Reassign 'switch-to-prev-buffer' if desired
@@ -1116,7 +1096,7 @@ Keybindings for code navigation and development tools.
 
 For convenience, add a keybinding to restart Emacs.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Restart Emacs
   (use-package restart-emacs
     :ensure nil)
@@ -1133,7 +1113,7 @@ By adding these configurations to your Emacs setup, you will have a keybinding s
 
 We'll bind Projectile commands under =SPC p=, replicating Doom Emacs's keybindings.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (my/leader-keys
     ;; Project bindings
     "p" '(:ignore t :which-key "project")
@@ -1150,7 +1130,7 @@ We'll bind Projectile commands under =SPC p=, replicating Doom Emacs's keybindin
 
 We'll also assign Perspective commands under =SPC l=, following Doom's convention for layout/workspace management.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (my/leader-keys
     ;; Layout/Workspace bindings
     "l" '(:ignore t :which-key "layout")
@@ -1169,7 +1149,7 @@ We'll also assign Perspective commands under =SPC l=, following Doom's conventio
 
 We'll configure Projectile to recognize our projects and set the cache directory.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package projectile
     :ensure nil
     :init
@@ -1199,7 +1179,7 @@ We'll configure Projectile to recognize our projects and set the cache directory
 
 If you're using Ivy/Counsel for completion, integrating it with Projectile enhances file and buffer selection within projects.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package counsel-projectile
     :after (counsel projectile)
     :ensure nil
@@ -1215,7 +1195,7 @@ If you're using Ivy/Counsel for completion, integrating it with Projectile enhan
 
 We'll install *Perspective* and integrate it with *Projectile*.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package perspective
     :ensure nil
     :bind
@@ -1233,7 +1213,7 @@ We'll install *Perspective* and integrate it with *Projectile*.
 
 We'll configure Perspective to work smoothly with Projectile.
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package perspective
     :config
     ;; Integrate Perspective with Projectile
@@ -1243,29 +1223,114 @@ We'll configure Perspective to work smoothly with Projectile.
 #+end_src
 
 * gptel
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
-  ;; This is a workaround https://github.com/karthink/gptel/issues/342
-  (setq gptel-use-curl nil)
-  (setq gptel-default-mode 'org-mode)
+  ;; Force early credential loading
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (ignore-errors
+                (auth-source-search :max 1 :host "api.openai.com" :user "gptel")
+                (auth-source-search :max 1 :host "api.anthropic.com" :user "gptel"))))
+
+  ;; Configure gptel with multiple backends
+  (use-package gptel
+    :ensure nil
+    :config
+    ;; Try with curl first (remove workaround)
+    ;; (setq gptel-use-curl nil)  ; Comment this out to test
+
+    (setq gptel-default-mode 'org-mode)
+
+    ;; Define available backends with explicit models
+    (setq gptel-backends
+          (list
+           ;; Claude (Anthropic) - set as default
+           (gptel-make-anthropic "Claude"
+             :stream t
+             :key (lambda ()
+                    (auth-source-pick-first-password :host "api.anthropic.com")))
+
+           ;; OpenAI GPT with models
+           (gptel-make-openai "ChatGPT"
+             :stream t
+             :models '(gpt-5
+                       gpt-5-mini
+                       gpt-5-nano)
+             :key (lambda ()
+                    (auth-source-pick-first-password :host "api.openai.com")))))
+
+    ;; Set default backend
+    (setq gptel-backend (car gptel-backends)))
+
+  ;; Helper function to switch between backends
+  (defun my/gptel-switch-backend ()
+    "Interactively switch between configured gptel backends."
+    (interactive)
+    (let* ((backend-names (mapcar (lambda (b) (gptel-backend-name b)) gptel-backends))
+           (choice (completing-read "Select backend: " backend-names nil t)))
+      (setq gptel-backend (seq-find (lambda (b)
+                                      (string= (gptel-backend-name b) choice))
+                                    gptel-backends))
+      (message "Switched to %s" choice)))
 
 
-  (my/leader-keys
-    "o"    '(:ignore t :which-key "AI models")
-    "og"   '(gptel :which-key "Invoke gptel")
-    "oa"   '(gptel-abort :which-key "Abort gptel invocation")
-    "om"   '(gptel-menu :which-key "gptel-menu")
-    "oc"   '(:ignore t :which-key "AI models context manipulation")
-    "ocb"  '(gptel-add :which-key "Add/Remove buffer to AI context")
-    "ocf"  '(gptel-context-add-file :which-key "Add file to AI context")
-    "ocr"  '(gptel-context-remove-all :which-key "Remove all AI context")
-    "or"   '(gptel-rewrite :which-key "AI model rewrite")
-    )
+    ;; ;; This is a workaround https://github.com/karthink/gptel/issues/342
+    ;;   (setq gptel-use-curl nil)
+    ;;   (setq gptel-default-mode 'org-mode)
+
+    ;;   ;; Configure gptel with multiple backends
+    ;;   (use-package gptel
+    ;;     :ensure nil
+    ;;     :config
+    ;;     ;; Define available backends
+    ;;     (setq gptel-backends
+    ;;           (list
+    ;;            ;; Claude (Anthropic) - set as default
+    ;;            (gptel-make-anthropic "Claude"
+    ;;              :stream t
+    ;;              :key (lambda ()
+    ;;                     (auth-source-pick-first-password :host "api.anthropic.com")))
+
+    ;;            ;; OpenAI GPT
+    ;;            (gptel-make-openai "ChatGPT"
+    ;;              :stream t
+    ;;              :key (lambda ()
+    ;;                     (auth-source-pick-first-password :host "api.openai.com")))))
+
+    ;;     ;; Set Claude as the default backend
+    ;;     (setq gptel-backend (car gptel-backends))
+
+    ;;     ;; Set default Claude model
+    ;;     (setq gptel-model 'claude-sonnet-4-5-20250929))
+
+    ;;   ;; Helper function to switch between backends
+    ;;   (defun my/gptel-switch-backend ()
+    ;;     "Interactively switch between configured gptel backends."
+    ;;     (interactive)
+    ;;     (let* ((backend-names (mapcar (lambda (b) (gptel-backend-name b)) gptel-backends))
+    ;;            (choice (completing-read "Select backend: " backend-names nil t)))
+    ;;       (setq gptel-backend (seq-find (lambda (b)
+    ;;                                       (string= (gptel-backend-name b) choice))
+    ;;                                     gptel-backends))
+    ;;       (message "Switched to %s" choice)))
+
+      ;; Keybindings
+      (my/leader-keys
+        "o"    '(:ignore t :which-key "AI models")
+        "og"   '(gptel :which-key "Invoke gptel")
+        "oa"   '(gptel-abort :which-key "Abort gptel invocation")
+        "om"   '(gptel-menu :which-key "gptel-menu")
+        "ob"   '(my/gptel-switch-backend :which-key "Switch AI backend")
+        "oc"   '(:ignore t :which-key "AI models context manipulation")
+        "ocb"  '(gptel-add :which-key "Add/Remove buffer to AI context")
+        "ocf"  '(gptel-context-add-file :which-key "Add file to AI context")
+        "ocr"  '(gptel-context-remove-all :which-key "Remove all AI context")
+        "or"   '(gptel-rewrite :which-key "AI model rewrite"))
 #+end_src
 
 * CMake-mode
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
   (add-to-list 'auto-mode-alist '("CMakeLists\\.txt\\'" . cmake-mode))
   (add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))
@@ -1277,7 +1342,7 @@ We'll configure Perspective to work smoothly with Projectile.
 
 This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff8d6aa5c8e424bd4850bbc9b79470b/dotemacs.org#setup][rougier/dotemacs]]:
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package mu4e
     :ensure nil  ;; mu4e is installed externally; not via package.el
     :load-path "/usr/share/emacs/site-lisp/mu4e"  ;; Adjust this path if necessary
@@ -1434,7 +1499,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
           #+end_src
 
 * tramp
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
   ;;; --------- tramp -------
 
@@ -1458,7 +1523,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 #+end_src
 * COMMENT dired
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
   ;;; --------- dired -------
   (add-hook 'dired-mode-hook 'all-the-icons-dired-mode)
@@ -1466,7 +1531,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
 #+end_src
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
   ;;; ----Enable dired-find-alternate-file------
   (put 'dired-find-alternate-file 'disabled nil)
@@ -1475,7 +1540,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
 * denote
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
     (use-package denote
       :ensure nil
@@ -1532,7 +1597,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
 ** Dashboard
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
   (use-package dashboard
     :ensure nil
@@ -1540,7 +1605,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
     (dashboard-setup-startup-hook))
 #+end_src
 * avy
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package avy
     :ensure nil
     :config
@@ -1551,7 +1616,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 #+end_src
 
 ** beacon
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 (use-package beacon
   :ensure nil
   :config
@@ -1560,7 +1625,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
 ** tabspaces
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package tabspaces
     :ensure nil
     :after (persp-mode)
@@ -1582,7 +1647,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 #+end_src
 
 * guile-guix
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; Geiser + Guile
   (use-package geiser
     :ensure nil
@@ -1622,7 +1687,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
 * Magit Forge
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   (use-package forge
   :after magit
   :ensure nil                       ;; package provided by Guix
@@ -1642,7 +1707,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 #+end_src
 
 * Python
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
   (require 'pyvenv)
   (pyvenv-mode 1)  ;; Enable pyvenv mode
@@ -1651,7 +1716,7 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
 * VTK-C
 
-#+begin_src emacs-lisp :tangle files/.config/emacs/init.el
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;;; c-style-vtk.el --- Visualization ToolKit (VTK) Emacs C Style.
   ;;; Extracted from https://raw.githubusercontent.com/MartinNowak/elisp/6466ef96d228b496c2db8ca898ffe316caf5e765/mine/c-style-vtk.el
 

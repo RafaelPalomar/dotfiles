@@ -12,13 +12,6 @@
             (setq gc-cons-threshold (* 16 1024 1024))  ;; 16MB
             (setq gc-cons-percentage 0.1)))
 
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            ;; Force Emacs to decrypt ~/.authinfo.gpg and find your GPTel creds
-            (ignore-errors
-              (auth-source-search :max 1 :host "api.openai.com" :user "gptel"))))
-
-
 (set-language-environment "UTF-8")
 (setq locale-coding-system 'utf-8)
 
@@ -121,20 +114,6 @@
       global-auto-revert-non-file-buffers t ;; Revert Dired and other buffers
       )
 
-;; Core modes
-(repeat-mode 1)                ;; Enable repeating key maps
-(menu-bar-mode 0)              ;; Hide the menu bar
-(tool-bar-mode 0)              ;; Hide the tool bar
-(savehist-mode 1)              ;; Save minibuffer history
-(scroll-bar-mode 0)            ;; Hide the scroll bar
-(xterm-mouse-mode 1)           ;; Enable mouse events in terminal Emacs
-(display-time-mode 1)          ;; Display time in mode line / tab bar
-(column-number-mode 1)         ;; Show column number on mode line
-(tab-bar-history-mode 1)       ;; Remember previous tab window configurations
-(auto-save-visited-mode 1)     ;; Auto-save files at an interval
-(global-visual-line-mode 1)    ;; Visually wrap long lines in all buffers
-(global-auto-revert-mode 1)    ;; Refresh buffers with changed local files
-
 ;; Tabs to spaces
 (setq-default indent-tabs-mode nil
               tab-width 2)
@@ -196,19 +175,9 @@
                       :weight 'normal))
 
   ;; Set the variable-pitch face
-  ;;(set-face-attribute 'variable-pitch nil
-  ;;                    :font "Cantarell"
-  ;;                    :weight 'normal))
-
-;; Frame transparency and maximization
-(when (display-graphic-p)
-  ;; Set frame transparency
-  (set-frame-parameter (selected-frame) 'alpha 95)
-  (add-to-list 'default-frame-alist '(alpha . 95))
-
-  ;; Maximize the frame on startup
-  (add-to-list 'initial-frame-alist '(fullscreen . maximized))
-  (add-to-list 'default-frame-alist '(fullscreen . maximized)))
+  ;; (set-face-attribute 'variable-pitch nil
+  ;;                     :font "Cantarell"
+  ;;                     :weight 'normal))
 
 ;; Adjust settings for terminal Emacs
 (unless (display-graphic-p)
@@ -721,22 +690,107 @@
     :ensure nil
     :bind (("C-c p p" . projectile-persp-switch-project))))
 
-;; This is a workaround https://github.com/karthink/gptel/issues/342
-(setq gptel-use-curl nil)
-(setq gptel-default-mode 'org-mode)
+;; Force early credential loading
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (ignore-errors
+              (auth-source-search :max 1 :host "api.openai.com" :user "gptel")
+              (auth-source-search :max 1 :host "api.anthropic.com" :user "gptel"))))
+
+;; Configure gptel with multiple backends
+(use-package gptel
+  :ensure nil
+  :config
+  ;; Try with curl first (remove workaround)
+  ;; (setq gptel-use-curl nil)  ; Comment this out to test
+
+  (setq gptel-default-mode 'org-mode)
+
+  ;; Define available backends with explicit models
+  (setq gptel-backends
+        (list
+         ;; Claude (Anthropic) - set as default
+         (gptel-make-anthropic "Claude"
+           :stream t
+           :key (lambda ()
+                  (auth-source-pick-first-password :host "api.anthropic.com")))
+
+         ;; OpenAI GPT with models
+         (gptel-make-openai "ChatGPT"
+           :stream t
+           :models '(gpt-5
+                     gpt-5-mini
+                     gpt-5-nano)
+           :key (lambda ()
+                  (auth-source-pick-first-password :host "api.openai.com")))))
+
+  ;; Set default backend
+  (setq gptel-backend (car gptel-backends)))
+
+;; Helper function to switch between backends
+(defun my/gptel-switch-backend ()
+  "Interactively switch between configured gptel backends."
+  (interactive)
+  (let* ((backend-names (mapcar (lambda (b) (gptel-backend-name b)) gptel-backends))
+         (choice (completing-read "Select backend: " backend-names nil t)))
+    (setq gptel-backend (seq-find (lambda (b)
+                                    (string= (gptel-backend-name b) choice))
+                                  gptel-backends))
+    (message "Switched to %s" choice)))
 
 
-(my/leader-keys
-  "o"    '(:ignore t :which-key "AI models")
-  "og"   '(gptel :which-key "Invoke gptel")
-  "oa"   '(gptel-abort :which-key "Abort gptel invocation")
-  "om"   '(gptel-menu :which-key "gptel-menu")
-  "oc"   '(:ignore t :which-key "AI models context manipulation")
-  "ocb"  '(gptel-add :which-key "Add/Remove buffer to AI context")
-  "ocf"  '(gptel-context-add-file :which-key "Add file to AI context")
-  "ocr"  '(gptel-context-remove-all :which-key "Remove all AI context")
-  "or"   '(gptel-rewrite :which-key "AI model rewrite")
-  )
+  ;; ;; This is a workaround https://github.com/karthink/gptel/issues/342
+  ;;   (setq gptel-use-curl nil)
+  ;;   (setq gptel-default-mode 'org-mode)
+
+  ;;   ;; Configure gptel with multiple backends
+  ;;   (use-package gptel
+  ;;     :ensure nil
+  ;;     :config
+  ;;     ;; Define available backends
+  ;;     (setq gptel-backends
+  ;;           (list
+  ;;            ;; Claude (Anthropic) - set as default
+  ;;            (gptel-make-anthropic "Claude"
+  ;;              :stream t
+  ;;              :key (lambda ()
+  ;;                     (auth-source-pick-first-password :host "api.anthropic.com")))
+
+  ;;            ;; OpenAI GPT
+  ;;            (gptel-make-openai "ChatGPT"
+  ;;              :stream t
+  ;;              :key (lambda ()
+  ;;                     (auth-source-pick-first-password :host "api.openai.com")))))
+
+  ;;     ;; Set Claude as the default backend
+  ;;     (setq gptel-backend (car gptel-backends))
+
+  ;;     ;; Set default Claude model
+  ;;     (setq gptel-model 'claude-sonnet-4-5-20250929))
+
+  ;;   ;; Helper function to switch between backends
+  ;;   (defun my/gptel-switch-backend ()
+  ;;     "Interactively switch between configured gptel backends."
+  ;;     (interactive)
+  ;;     (let* ((backend-names (mapcar (lambda (b) (gptel-backend-name b)) gptel-backends))
+  ;;            (choice (completing-read "Select backend: " backend-names nil t)))
+  ;;       (setq gptel-backend (seq-find (lambda (b)
+  ;;                                       (string= (gptel-backend-name b) choice))
+  ;;                                     gptel-backends))
+  ;;       (message "Switched to %s" choice)))
+
+    ;; Keybindings
+    (my/leader-keys
+      "o"    '(:ignore t :which-key "AI models")
+      "og"   '(gptel :which-key "Invoke gptel")
+      "oa"   '(gptel-abort :which-key "Abort gptel invocation")
+      "om"   '(gptel-menu :which-key "gptel-menu")
+      "ob"   '(my/gptel-switch-backend :which-key "Switch AI backend")
+      "oc"   '(:ignore t :which-key "AI models context manipulation")
+      "ocb"  '(gptel-add :which-key "Add/Remove buffer to AI context")
+      "ocf"  '(gptel-context-add-file :which-key "Add file to AI context")
+      "ocr"  '(gptel-context-remove-all :which-key "Remove all AI context")
+      "or"   '(gptel-rewrite :which-key "AI model rewrite"))
 
 (add-to-list 'auto-mode-alist '("CMakeLists\\.txt\\'" . cmake-mode))
 (add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))
@@ -1054,89 +1108,6 @@ https://ntnu.no
 (setq forge-add-default-bindings t         ; C-c C-f prefix
       forge-database-file (expand-file-name "forge-db.sqlite" user-emacs-directory))
 )
-
-(use-package gnus                         ; built-in, no :ensure
-  :defer t                                ; load only when you call M-x gnus
-  :config
-  ;; Where to talk to Eweka --------------------------------------------------
-
-  (setq gnus-select-method
-        '(nntp "eweka"
-               (nntp-address  "news.eweka.nl")
-               (nntp-port-number 563)
-               (nntp-open-connection-function nntp-open-ssl-stream)
-               (nntp-authinfo-file "~/.authinfo.gpg")))
-
-  ;; Optional quality-of-life tweaks ----------------------------------------
-  (setq gnus-use-dribble-file t           ; autosave session data
-        gnus-read-newsrc-file t
-        gnus-save-newsrc-file t
-        gnus-ignored-newsgroups ""        ; show ALL groups Eweka offers
-        message-kill-buffer-on-exit t)
-
-  ;; A helper to launch quickly ---------------------------------------------
-  (defun my/gnus ()
-    "Start (or switch to) Gnus."
-    (interactive)
-    (gnus))
-
-  ;; Leader-key integration --------------------------------------------------
-  (my/leader-keys
-    "N"  '(:ignore t :which-key "News/Usenet")
-    "Ng" '(my/gnus :which-key "Open Gnus")))
-
-
-;; Date in a fixed column and readable sender/subject line
-(setq gnus-summary-line-format
-      ;; U = unread mark, R = replied mark, O = score mark
-      "%U%R%O %4L │ %10&user-date │ %-20,20f │ %s\n")
-
-;; Define what “%user-date” prints.  This mimics mutt/notmuch:
-(setq gnus-user-date-format-alist
-      '(((gnus-seconds-today) . "%H:%M")          ; today → only time
-        ((+ 86400 (gnus-seconds-today)) . "y'day") ; yesterday
-        (t . "%Y-%m-%d")))                         ; older  → full date
-
-;; Nicer *Group* buffer: unread/total counts on the right
-(setq gnus-group-line-format
-      "%M%S%p  %-40g  %6y/%-6t  %D\n"
-      gnus-visual t)  ; draw separators
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; 2.  Limiting & searching inside a group            (single key presses)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(with-eval-after-load 'gnus-sum
-  ;; `l'  → limit by regexp in subject/from/body
-  (define-key gnus-summary-mode-map (kbd "l") #'gnus-summary-limit-to-string)
-  ;; `L'  → clear all limits
-  (define-key gnus-summary-mode-map (kbd "L") #'gnus-summary-clear-contents)
-  ;; `d'  → limit to a given date interval (today / this week / etc.)
-  (define-key gnus-summary-mode-map (kbd "d") #'gnus-summary-limit-to-date))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; 3.  Powerful global search  (Gnus 28+ has built-in `gnus-search')
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(require 'gnus-search)               ; autoloads in 29+, explicit in 28
-(setq gnus-search-use-parsed-queries t)     ; Gmail-like “from:bob after:2023/05”
-(setq gnus-search-default-engine 'gnus-search-engine-nnir)
-
-;; NNIR backend:  server-side search when possible, otherwise use
-;; an on-disk indexer (notmuch, mairix, swish-e…)
-(setq nnir-search-engine 'notmuch)   ; or 'mairix if you prefer
-
-;; Key bindings (available in *Group* buffer once you `M-x gnus-search-group'):
-;;   G G        create a search group interactively
-;;   /          repeat last search
-;;   S s        search only the current subscribed groups
-;;   S S        prompt for engine and query
-;;
-;; Example query strings:
-;;   from:torvalds subject:linux after:2023-01-01
-;;   gnutella OR bittorrent AND NOT spam
-;;
-;; Inside a search group you can treat articles normally (reply, save, etc.).
 
 (require 'pyvenv)
 (pyvenv-mode 1)  ;; Enable pyvenv mode
