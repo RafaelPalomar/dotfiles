@@ -2,11 +2,12 @@
   #:use-module (gnu)
   #:use-module (gnu system)
   #:use-module (gnu home services)
+  #:use-module (entelequia packages fonts)
   #:export (home-desktop-service-type))
 
 (use-package-modules admin chromium compression curl dns fonts freedesktop gimp glib gnome
-                     gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf 
-		     linux lsof music password-utils pdf pulseaudio ssh syncthing terminals 
+                     gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf
+		     linux lsof music password-utils pdf pulseaudio ssh syncthing terminals
 		     tmux video wget wm xdisorg)
 
 (define (home-desktop-profile-service config)
@@ -43,10 +44,14 @@
         font-iosevka-aile
         font-microsoft-cascadia
         font-jetbrains-mono
+        font-google-material-design-icons
         font-google-noto
         font-google-noto-emoji
         font-liberation
         font-awesome
+        polybar-themes-fonts
+        nerd-font-iosevka
+        nerd-font-jetbrains
 
         ;; Remote terminal access
         tmux
