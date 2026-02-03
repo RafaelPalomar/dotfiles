@@ -150,6 +150,9 @@
                                                     "virt-manager"
                                                     "podman"
                                                     "distrobox"
+                                                    "fuse-overlayfs"
+                                                    "uid-wrapper"
+                                                    "slirp4netns"
 
                                                     ;; Monitoring and utilities
                                                     "htop"
