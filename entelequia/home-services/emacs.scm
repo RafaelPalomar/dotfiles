@@ -25,9 +25,11 @@
         emacs-dockerfile-mode
         emacs-doom-themes
         emacs-embark
+        emacs-envrc
         emacs-evil
         emacs-evil-collection
         emacs-evil-commentary
+        emacs-evil-escape
         emacs-evil-goggles
         emacs-evil-paredit
         emacs-evil-surround

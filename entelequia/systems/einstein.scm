@@ -133,6 +133,7 @@
                                                     "htop"
                                                     "git"
                                                     "vim"
+                                                    "direnv"
                                                     "btop"
                                                     "radeontop"
                                                     "coreutils"

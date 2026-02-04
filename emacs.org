@@ -1884,33 +1884,43 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 * Utilities
 
 #+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
-  (use-package hl-todo
-    :ensure nil
-    :hook (prog-mode . hl-todo-mode)
-    :config
-    (setq hl-todo-keyword-faces
-          '(("TODO"   . "#FF0000")
-            ("FIXME"  . "#FF0000")
-            ("HACK"   . "#FFA500")
-            ("NOTE"   . "#00FF00")
-            ("DEPRECATED" . "#808080"))))
+(use-package hl-todo
+  :ensure nil
+  :hook (prog-mode . hl-todo-mode)
+  :config
+  (setq hl-todo-keyword-faces
+        '(("TODO"   . "#FF0000")
+          ("FIXME"  . "#FF0000")
+          ("HACK"   . "#FFA500")
+          ("NOTE"   . "#00FF00")
+          ("DEPRECATED" . "#808080"))))
 
-  ;; Smart whitespace cleanup
-  (use-package ws-butler
-    :ensure nil
-    :hook (prog-mode . ws-butler-mode))
+;; Smart whitespace cleanup
+(use-package ws-butler
+  :ensure nil
+  :hook (prog-mode . ws-butler-mode))
 
 
-  (use-package flycheck
-    :ensure nil
-    :hook (prog-mode . flycheck-mode)
-    :config
-    (setq flycheck-check-syntax-automatically '(save mode-enabled)
-          flycheck-display-errors-delay 0.3))
+;; (use-package flycheck
+;;   :ensure nil
+;;   :hook (prog-mode . flycheck-mode)
+;;   :config
+;;   (setq flycheck-check-syntax-automatically '(save mode-enabled)
+;;         flycheck-display-errors-delay 0.3))
 
-  (use-package yasnippet
-    :ensure nil
-    :hook (prog-mode . yas-minor-mode)
-    :config
-    (yas-reload-all))
+;; (use-package yasnippet
+;;   :ensure nil
+;;   :hook (prog-mode . yas-minor-mode)
+;;   :config
+;;   (setq yas-snippet-dirs
+;;         '("~/.config/emacs/snippets"))
+;;   (yas-reload-all))
+         #+end_src
+
+* envrc configuration
+
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
+(use-package envrc
+ :config
+ (envrc-global-mode))
           #+end_src

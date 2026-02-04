@@ -12,7 +12,7 @@
 
 (use-package-modules audio video nfs certs shells ssh linux bash emacs gnome
                      networking wm fonts libusb cups freedesktop file-systems
-                     version-control package-management vim)
+                     version-control package-management vim shellutils)
 
 (use-service-modules dns guix admin sysctl pm nix avahi dbus cups desktop linux
                      mcron networking xorg ssh docker audio virtualization)
@@ -80,6 +80,7 @@
                     libva-utils
                     ntfs-3g
                     vim
+                    direnv
                     tailscale
                     %base-packages))
 

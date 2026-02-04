@@ -14,6 +14,7 @@
   #:use-module (gnu home services pm)
   #:use-module (gnu home services sound)
   #:use-module (gnu home services dotfiles)
+  #:use-module (gnu home services shells)
   #:use-module (guix gexp)
   #:export (desktop-home-services))
 
@@ -26,14 +27,14 @@
                                ;;                 home-files-service-type (list `(".inputrc" ,(local-file "../files/inputrc"))))
 
                                ;; GnuPG configuration
-                               (service home-gpg-agent-service-type 
+                               (service home-gpg-agent-service-type
 					(home-gpg-agent-configuration
 					  (pinentry-program
-					    (file-append pinentry-rofi "/bin/pinentry-rofi")) 
-					  (ssh-support? #t) 
-					  (default-cache-ttl 28800) 
-					  (max-cache-ttl 28800) 
-					  (default-cache-ttl-ssh 28800) 
+					    (file-append pinentry-rofi "/bin/pinentry-rofi"))
+					  (ssh-support? #t)
+					  (default-cache-ttl 28800)
+					  (max-cache-ttl 28800)
+					  (default-cache-ttl-ssh 28800)
 					  (max-cache-ttl-ssh 28800)))
 
                                ;; Emacs configuration
@@ -57,6 +58,14 @@
                                                `((".config/polybar"
                                                   ,(directory-union "polybar-themes"
                                                                     (list polybar-themes)))))
+                               (service home-bash-service-type
+                                        (home-bash-configuration
+                                         (aliases '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/ntnu.no --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
+                                                    ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/uio.no --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no")
+                                                    ("mbsync-all" . "guix shell cyrus-sasl-xoauth2 -L ~/dotfiles -- mbsync -a")))
+                                         (bashrc (list (plain-file "bashrc-direnv"
+                                                                   "eval \"$(direnv hook bash)\"")))))
+
 
                                ;; Start background jobs (service home-mcron-service-type
                                ;;          (home-mcron-configuration
