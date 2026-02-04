@@ -26,8 +26,11 @@ We start by customizing various built-in variables to fine-tune Emacs's behavior
 #+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
   ;; -*- lexical-binding: t; -*-
 
-        ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
-        ;;; ----- Basic Configuration -----
+          ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
+          ;;; ----- Basic Configuration -----
+
+  (setq read-process-output-max (* 1024 1024))  ;; 1MB
+  (setq process-adaptive-read-buffering nil)
 
   ;; Increase the garbage collection threshold during startup for faster startup
   (setq gc-cons-threshold most-positive-fixnum)
@@ -142,9 +145,6 @@ We enable and disable several modes to enhance the user interface:
 
   ;; Display line numbers in programming modes
   (add-hook 'prog-mode-hook #'display-line-numbers-mode)
-
-  ;; Delete trailing whitespace before saving files
-  (add-hook 'before-save-hook 'delete-trailing-whitespace)
 
   ;; Set default directory to home
   (setq default-directory "~/")
@@ -389,17 +389,25 @@ First, we'll enable Evil Mode, ensuring that it's loaded correctly and set up wi
 #+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 
 
-;; Enable Evil Mode
-(use-package evil
-  :ensure nil
-  :init
-  ;; Required for Evil Collection
-  (setq evil-want-keybinding nil)
-  ;; Use `undo-fu` for undo system
-  (setq evil-undo-system 'undo-fu)
-  :config
   ;; Enable Evil Mode
-  (evil-mode 1))
+  (use-package evil
+    :ensure nil
+    :init
+    (setq evil-want-integration t
+        evil-want-keybinding nil
+        evil-want-C-u-scroll t
+        evil-want-C-d-scroll t
+        evil-want-C-i-jump nil
+        evil-vsplit-window-right t
+        evil-split-window-below t
+        evil-respect-visual-line-mode t
+        evil-undo-system 'undo-fu
+        evil-search-module 'evil-search    ;; ADD here
+        evil-want-fine-undo t              ;; ADD here
+        evil-kill-on-visual-paste nil)
+    :config
+    ;; Enable Evil Mode
+    (evil-mode 1))
 
 #+end_src
 
@@ -419,6 +427,18 @@ Evil Collection provides comprehensive Evil keybindings for various built-in and
   ;; Initialize Evil Collection for all supported modes
   (evil-collection-init))
 
+#+end_src
+
+** Add Evil Escape
+
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
+(use-package evil-escape
+  :ensure nil
+  :after evil
+  :config
+  (evil-escape-mode 1)
+  (setq-default evil-escape-key-sequence "jk"
+                evil-escape-delay 0.15))
 #+end_src
 
 ** Add Evil Surround
@@ -520,24 +540,6 @@ When working with Lisp languages, integrating Evil with Paredit enhances structu
     ((emacs-lisp-mode lisp-mode scheme-mode) . evil-paredit-mode))
 #+end_src
 
-** Adjust Evil Keybindings and Settings
-
-Customize additional Evil settings to fine-tune the behavior:
-
-- =evil-want-C-u-scroll= and =evil-want-C-d-scroll=: Enable Vim-style scrolling with =C-u= and =C-d=.
-- =evil-search-module=: Use Evil's search instead of Emacs's default.
-- =evil-want-fine-undo=: Makes undo operations more granular.
-- =evil-kill-on-visual-paste=: Prevents overwriting the clipboard when pasting in visual mode.
-
-#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
-  ;; Adjust Evil Keybindings and Settings
-  (setq evil-want-C-u-scroll t             ;; Enable Vim-style C-u scrolling
-        evil-want-C-d-scroll t             ;; Enable Vim-style C-d scrolling
-        evil-search-module 'evil-search    ;; Use Evil's search module
-        evil-want-fine-undo t              ;; More granular undo steps
-        evil-kill-on-visual-paste nil)     ;; Don't replace clipboard on paste
-#+end_src
-
 ** Customize Cursor Appearance in Different Modes
 
 Adjust the cursor appearance to reflect the current Evil state.
@@ -590,6 +592,21 @@ Our goals are:
 - *Configuration*: We'll enable =org-modern-mode= to apply =org-modern= styling to Org buffers.
 
 #+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
+
+  ;; Org Mode base configuration (Doom defaults)
+  (use-package org
+    :ensure nil
+    :config
+    (setq org-startup-indented t
+          org-startup-folded 'content
+          org-src-fontify-natively t
+          org-src-tab-acts-natively t
+          org-src-preserve-indentation t
+          org-log-done 'time
+          org-fontify-whole-heading-line t
+          org-fontify-done-headline t
+          org-fontify-quote-and-verse-blocks t))
+
   ;; Enhance Org Mode appearance with org-modern
   (use-package org-modern
     :after (org)
@@ -915,6 +932,32 @@ Define common keybindings for frequently used commands.
     "u"   '(universal-argument :which-key "Universal argument")
     "q"   '(:ignore t :which-key "Quit/Restart")
     "qq"  '(save-buffers-kill-terminal :which-key "Quit Emacs"))
+
+  ;; Text manipulation (Doom-style)
+  (my/leader-keys
+    "x"   '(:ignore t :which-key "text")
+    "xl"  '(downcase-region :which-key "Downcase")
+    "xu"  '(upcase-region :which-key "Upcase")
+    "xc"  '(capitalize-region :which-key "Capitalize")
+    "xw"  '(delete-trailing-whitespace :which-key "Delete trailing whitespace")
+    "xs"  '(sort-lines :which-key "Sort lines"))
+
+  ;; Toggle bindings (more complete)
+  (my/leader-keys
+    "t"   '(:ignore t :which-key "toggle")
+    "tl"  '(display-line-numbers-mode :which-key "Line numbers")
+    "tf"  '(toggle-frame-fullscreen :which-key "Fullscreen")
+    "tw"  '(whitespace-mode :which-key "Whitespace")
+    "tt"  '(toggle-truncate-lines :which-key "Truncate lines")
+    "tv"  '(visual-line-mode :which-key "Visual line mode")
+    "ts"  '(flyspell-mode :which-key "Spell check"))
+
+  ;; Insert bindings
+  (my/leader-keys
+    "i"   '(:ignore t :which-key "insert")
+    "iy"  '(counsel-yank-pop :which-key "From kill ring")
+    "is"  '(yas-insert-snippet :which-key "Snippet")
+    "iu"  '(insert-char :which-key "Unicode character"))
 #+end_src
 
 *** Searching and Completion
@@ -1170,6 +1213,13 @@ We'll configure Projectile to recognize our projects and set the cache directory
           projectile-indexing-method 'alien           ;; faster over TRAMP
           projectile-enable-caching t)
 
+    ;; Doom-style projectile settings
+    (setq projectile-project-search-path '("~/src/" "~/projects/")
+          projectile-globally-ignored-directories '(".git" "node_modules" "__pycache__" ".venv" "venv")
+          projectile-globally-ignored-files '(".DS_Store" "TAGS" "*.elc")
+          projectile-sort-order 'recentf
+          projectile-completion-system 'ivy)
+
     ;; Allow remembering of remote projects
     (with-eval-after-load 'tramp
       (add-to-list 'tramp-remote-path 'tramp-own-remote-path)))
@@ -1260,7 +1310,9 @@ We'll configure Perspective to work smoothly with Projectile.
                     (auth-source-pick-first-password :host "api.openai.com")))))
 
     ;; Set default backend
-    (setq gptel-backend (car gptel-backends)))
+    (setq gptel-backend (car gptel-backends))
+
+    (setq gptel-model "claude-sonnet-4-5-20250929"))
 
   ;; Helper function to switch between backends
   (defun my/gptel-switch-backend ()
@@ -1790,3 +1842,75 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
         (inexpr-statement       . 0)
         (inexpr-class           . +)))))
 #+end_src
+
+* Completion enhancementso
+
+
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
+  (use-package prescient
+    :ensure nil
+    :config
+    (prescient-persist-mode 1))
+
+  (use-package ivy-prescient
+    :ensure nil
+    :after (ivy prescient)
+    :config
+    (ivy-prescient-mode 1)
+    (setq ivy-prescient-retain-classic-highlighting t))
+
+  ;; Company Mode for in-buffer completion (Doom default)
+  (use-package company
+    :ensure nil
+    :hook (prog-mode . company-mode)
+    :config
+    (setq company-idle-delay 0.2
+          company-minimum-prefix-length 2
+          company-show-numbers t
+          company-tooltip-align-annotations t
+          company-tooltip-limit 12
+          company-backends '((company-capf company-files company-keywords))
+          company-global-modes '(not erc-mode message-mode help-mode)))
+
+  ;; Company prescient integration
+  (use-package company-prescient
+    :ensure nil
+    :after (company prescient)
+    :config
+    (company-prescient-mode 1))
+
+#+end_src
+
+* Utilities
+
+#+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
+  (use-package hl-todo
+    :ensure nil
+    :hook (prog-mode . hl-todo-mode)
+    :config
+    (setq hl-todo-keyword-faces
+          '(("TODO"   . "#FF0000")
+            ("FIXME"  . "#FF0000")
+            ("HACK"   . "#FFA500")
+            ("NOTE"   . "#00FF00")
+            ("DEPRECATED" . "#808080"))))
+
+  ;; Smart whitespace cleanup
+  (use-package ws-butler
+    :ensure nil
+    :hook (prog-mode . ws-butler-mode))
+
+
+  (use-package flycheck
+    :ensure nil
+    :hook (prog-mode . flycheck-mode)
+    :config
+    (setq flycheck-check-syntax-automatically '(save mode-enabled)
+          flycheck-display-errors-delay 0.3))
+
+  (use-package yasnippet
+    :ensure nil
+    :hook (prog-mode . yas-minor-mode)
+    :config
+    (yas-reload-all))
+          #+end_src

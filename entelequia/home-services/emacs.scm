@@ -3,6 +3,7 @@
   #:use-module (gnu)
   #:use-module (gnu home services)
   #:use-module (gnu services)
+  #:use-module (gnu packages emacs-xyz)
   #:export (%emacs-pacakges
             home-emacs-config-service-type))
 
@@ -17,11 +18,12 @@
         emacs-cmake-mode
         emacs-counsel
         emacs-counsel-projectile
+        emacs-company
         emacs-dashboard
         emacs-denote
         emacs-denote-silo
         emacs-dockerfile-mode
-	emacs-doom-themes
+        emacs-doom-themes
         emacs-embark
         emacs-evil
         emacs-evil-collection
@@ -38,6 +40,7 @@
         emacs-gptel
         emacs-guix
         emacs-helpful
+        emacs-hl-todo
         emacs-ivy
         emacs-ivy-rich
         emacs-lua-mode
@@ -59,6 +62,7 @@
         emacs-paredit
         emacs-perspective
         emacs-persp-projectile
+        emacs-prescient
         emacs-projectile
         emacs-pyvenv
         emacs-rainbow-delimiters
@@ -71,6 +75,7 @@
         emacs-use-package
         emacs-visual-fill-column
         emacs-which-key
+        emacs-ws-butler
         emacs-yaml
         emacs-yaml-mode))
 
