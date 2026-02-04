@@ -9,55 +9,24 @@
   #:use-module (gnu packages synergy)
   #:use-module (gnu home)
   #:use-module (gnu services containers)
+  #:use-module (gnu services networking)
   #:use-module (btv tailscale)
   #:use-module (gnu home services sound)
   #:use-module (gnu system accounts)
   #:use-module (nongnu packages linux)
   #:use-module (nongnu system linux-initrd)
   #:use-module (nongnu services nvidia)
+  #:use-module (nongnu packages nvidia)
+  #:use-module (nonguix transformations)
   #:use-module (xlibre))
 
 (use-service-modules cups desktop virtualization networking ssh xorg dbus shepherd security)
 
-(define my-xlibre-config
-  (xlibre-configuration
-   (modules (list xlibre-video-amdgpu xlibre-input-libinput))
-   ;;(drivers '("amdgpu"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
-   ;; (extra-config
-;;     (list
-;;      "
-;; Section \"Device\"
-;;     Identifier \"AMD-GPU\"
-;;     Driver \"amdgpu\"
-;;     Option \"TearFree\" \"off\"
-;;     #Option \"AccelMethod\" \"glamor\"
-;;     #Option \"DRI\" \"3\"
-;;     #Option \"VariableRefresh\" \"true\"
-;;     #Option \"EnablePageFlip\" \"true\"
-;;     #Option \"ShadowPrimary\" \"false\"
-;; EndSection
-
-;; Section \"Monitor\"
-;;     Identifier \"eDP-1\"
-;;     Option \"PreferredMode\" \"1920x1200\"
-;;     HorizSync 30.0-83.0
-;; EndSection
-
-;; Section \"Screen\"
-;;     Identifier \"Screen0\"
-;;     Device \"AMD-GPU\"
-;;     Monitor \"eDP-1\"
-;;     DefaultDepth 24
-;;     SubSection \"Display\"
-;;         Depth 24
-;;         Modes \"1920x1200\" \"1920x1080\" \"1600x1200\" \"1368x768\"
-;;     EndSubSection
-;; EndSection
-;; "
-;;      ))
-   ))
-
+(define my-nvidia-xorg-config
+  (xorg-configuration
+   (modules (list nvidia-driver))
+   (drivers '("nvidia"))
+   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
 
 (define einstein-system
   (operating-system
@@ -68,7 +37,12 @@
    (host-name "einstein")
    (kernel-arguments '("quiet"
                        "splash"
-                       "pcspkr.disable=1"))
+                       "pcspkr.disable=1"
+                       "modprobe.blacklist=nouveau"
+                       "nvidia-drm.modeset=1"))
+
+
+   ;;(kernel-loadable-modules (list nvidia-driver))
 
    ;; The list of user accounts ('root' is implicit).
    (users (cons* (user-account
@@ -76,7 +50,7 @@
                   (comment "Rafael")
                   (group "users")
                   (home-directory "/home/rafael")
-                  (supplementary-groups '("wheel" "netdev" "audio" "lp" "video")))
+                  (supplementary-groups '("wheel" "netdev" "audio" "lp" "video" "cgroup")))
                  %base-user-accounts))
    (packages (append  (map specification->package '( ;; Hardware/Drivers
                                                     "acpi-call-linux-module"
@@ -84,7 +58,7 @@
                                                     "v4l2loopback-linux-module"
                                                     "xlibre-server"
                                                     "xlibre-input-libinput"
-                                                    "xlibre-video-amdgpu"
+                                                    "xlibre-input-evdev"
                                                     "mesa"
                                                     "mesa-headers"
                                                     "llvm-for-mesa"
@@ -93,6 +67,7 @@
                                                     "vulkan-tools"
                                                     "vulkan-loader"
                                                     "linux-firmware"
+                                                    "nvidia-driver"
                                                     "openrgb"
 
                                                     ;;Bluetooth
@@ -163,6 +138,7 @@
                                                     "coreutils"
                                                     "grep"
                                                     "picom"
+                                                    "nextcloud-client"
                                                     "sed"))
                       %base-packages))
 
@@ -180,15 +156,25 @@
       ;; Tailscale
       (service tailscale-service-type)
 
-      (service iptables-service-type)
+      ;; Elogind
+      (service elogind-service-type)
+
+      ;; NetworkManager
+      (service network-manager-service-type)
+
+      ;; WPA-supplicant (required by NetworkManager)
+      (service wpa-supplicant-service-type)
+
+      ;; Rootless podman
       (service rootless-podman-service-type
                (rootless-podman-configuration
-                (subgids
-                 (list (subid-range (name "rafael"))))
-                (subuids
-                 (list (subid-range (name "rafael"))))))
+                (subuids (list (subid-range (name "rafael"))))
+                (subgids (list (subid-range (name "rafael"))))))
 
-      (service nvidia-service-type)
+      (service iptables-service-type)
+
+      ;;(service nvidia-service-type)
+
       ;; AIDE file integrity
       (simple-service 'aide
                       shepherd-root-service-type
@@ -262,17 +248,20 @@
                 (unix-sock-group "libvirt")
                 (tls-port "16555")))
 
-
       ;; Custom SLiM service with Xlibre
       (service slim-service-type
                (slim-configuration
                 (auto-login? #f)
-                (default-user "berkeley")
-                (xorg-configuration my-xlibre-config))))
+                (default-user "rafael")  ;; Note: was "berkeley"
+                ;; (xorg-configuration my-nvidia-xorg-config)
+                )))
 
-     (modify-services
-      %desktop-services
-      (delete gdm-service-type))))
+     %base-services
+     ;; (modify-services
+     ;;  %desktop-services
+     ;;  (delete gdm-service-type)
+     ;;  (delete screen-locker-service-type))
+     ))
 
    (bootloader (bootloader-configuration
                 (bootloader grub-efi-bootloader)
@@ -294,4 +283,5 @@
                          (device (uuid "E174-0557"
                                        'fat32))
                          (type "vfat")) %base-file-systems))))
-einstein-system
+
+((nonguix-transformation-nvidia #:configure-xorg? #f) einstein-system)

@@ -140,6 +140,7 @@
                                                     "qemu"
                                                     "virt-manager"
                                                     "podman"
+                                                    "distrobox"
 
                                                     ;; Development
                                                     "gcc-toolchain"
@@ -156,7 +157,6 @@
                                                     "coreutils"
                                                     "grep"
                                                     "picom"
-                                                    "nextcloud-client"
                                                     "sed"))
                       %base-packages))
 
