@@ -73,10 +73,17 @@
                                                     ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/uio.no --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no")
                                                     ("mbsync-all" . "guix shell cyrus-sasl-xoauth2 -L ~/dotfiles -- mbsync -a")))
                                          (bashrc (list (plain-file "bashrc-direnv"
-                                                                   "eval \"$(direnv hook bash)\"")))))
+                                                                   "# if direnv is installed, run the hook
+                                                                   if hash direnv 2> /dev/null; then
+                                                                       # get the shell name
+                                                                       tmp_shell=\"$(basename \"$SHELL\")\"
+                                                                       # add the hook
+                                                                       eval \"$(direnv hook ${tmp_shell})\"
+                                                                   fi")))))
                                (simple-service 'slicer-env-vars
                                                home-environment-variables-service-type
                                                `(("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")))
+
 
                                ;; Start background jobs (service home-mcron-service-type
                                ;;          (home-mcron-configuration

@@ -1308,5 +1308,4 @@
 ;;   (yas-reload-all))
 
 (use-package envrc
- :config
- (envrc-global-mode))
+  :hook (after-init . envrc-global-mode))

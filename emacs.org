@@ -1921,6 +1921,6 @@ This setup is inspired in [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
 
 #+begin_src emacs-lisp :tangle .files/.config/emacs/init.el
 (use-package envrc
- :config
- (envrc-global-mode))
+  :hook (after-init . envrc-global-mode))
+
           #+end_src
