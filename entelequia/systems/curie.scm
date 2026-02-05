@@ -157,6 +157,7 @@
                                                     "coreutils"
                                                     "grep"
                                                     "picom"
+                                                    "direnv"
                                                     "sed"))
                       %base-packages))
 

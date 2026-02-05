@@ -1,8 +1,8 @@
 (define-module (entelequia systems desktop)
   #:use-module (entelequia home-services emacs)
   #:use-module (entelequia home-services desktop)
-  ;;  #:use-module (daviwil home-services udiskie)
   #:use-module (entelequia packages polybar-themes)
+  #:use-module (gnu packages package-management)
   #:use-module (entelequia packages fonts)
   #:use-module (gnu)
   #:use-module (gnu services)
@@ -58,6 +58,15 @@
                                                `((".config/polybar"
                                                   ,(directory-union "polybar-themes"
                                                                     (list polybar-themes)))))
+
+                               (simple-service 'slicer-profile-setup
+                                               home-bash-service-type
+                                               (home-bash-extension
+                                                (bash-profile
+                                                 (list (plain-file "setup-slicer-profile-5"
+                                                                   "~/.local/bin/setup-guix-slicer-profile.sh ~/.slicer-guix-profile-5 5")
+                                                       (plain-file "setup-slicer-profile-6"
+                                                                   "~/.local/bin/setup-guix-slicer-profile.sh ~/.slicer-guix-profile-6 6")))))
                                (service home-bash-service-type
                                         (home-bash-configuration
                                          (aliases '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/ntnu.no --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
@@ -65,7 +74,9 @@
                                                     ("mbsync-all" . "guix shell cyrus-sasl-xoauth2 -L ~/dotfiles -- mbsync -a")))
                                          (bashrc (list (plain-file "bashrc-direnv"
                                                                    "eval \"$(direnv hook bash)\"")))))
-
+                               (simple-service 'slicer-env-vars
+                                               home-environment-variables-service-type
+                                               `(("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")))
 
                                ;; Start background jobs (service home-mcron-service-type
                                ;;          (home-mcron-configuration
