@@ -179,6 +179,16 @@
     ;;                     :font "Cantarell"
     ;;                     :weight 'normal))
 
+  ;; Frame transparency and maximization
+  (when (display-graphic-p)
+    ;; Set frame transparency
+    (set-frame-parameter (selected-frame) 'alpha 95)
+    (add-to-list 'default-frame-alist '(alpha . 95))
+
+    ;; Maximize the frame on startup
+    (add-to-list 'initial-frame-alist '(fullscreen . maximized))
+    (add-to-list 'default-frame-alist '(fullscreen . maximized)))
+
   ;; Adjust settings for terminal Emacs
   (unless (display-graphic-p)
     ;; Clear background color for transparent terminals
@@ -499,6 +509,8 @@
     "b"   '(:ignore t :which-key "Buffers")
     "bb"  '(ivy-switch-buffer :which-key "Switch buffer")
     "bk"  '(kill-current-buffer :which-key "Kill buffer")
+    "bB"  '(ivy-switch-buffer :which-key "Switch buffer (all)")
+    "bs"  '(persp-ibuffer :which-key "List buffers")
     "br"  '(revert-buffer :which-key "Revert buffer")
     "w"   '(:ignore t :which-key "Windows")
     "wd"  '(delete-window :which-key "Delete window")
@@ -679,16 +691,16 @@
     "p g" '(projectile-vc :which-key "Open project in VC")
     "p k" '(projectile-kill-buffers :which-key "Kill project buffers"))
 
-  (my/leader-keys
-    ;; Layout/Workspace bindings
-    "l" '(:ignore t :which-key "layout")
-    "l l" '(persp-switch :which-key "Switch workspace")
-    "l n" '(persp-next :which-key "Next workspace")
-    "l p" '(persp-prev :which-key "Previous workspace")
-    "l r" '(persp-rename :which-key "Rename workspace")
-    "l k" '(persp-kill :which-key "Kill workspace")
-    "l s" '(persp-save-state-to-file :which-key "Save workspace state")
-    "l L" '(persp-load-state-from-file :which-key "Load workspace state"))
+(my/leader-keys
+  "TAB" '(:ignore t :which-key "Workspace")
+  "TAB TAB" '(persp-switch :which-key "Switch workspace")
+  "TAB n" '(persp-switch :which-key "New/switch workspace")
+  "TAB d" '(persp-kill :which-key "Delete workspace")
+  "TAB r" '(persp-rename :which-key "Rename workspace")
+  "TAB [" '(persp-prev :which-key "Previous workspace")
+  "TAB ]" '(persp-next :which-key "Next workspace")
+  "TAB b" '(persp-switch-to-buffer :which-key "Switch buffer in workspace")
+  "TAB p" '(projectile-persp-switch-project :which-key "Project → workspace"))
 
 (use-package projectile
   :ensure nil
@@ -745,17 +757,57 @@
     :config
     (counsel-projectile-mode))
 
-  (use-package perspective
-    :ensure nil
-    :bind
-    ;; Bind perspective commands under "C-c p"
-    (("C-c p s" . persp-switch)
-     ("C-c p k" . persp-kill)
-     ("C-c p r" . persp-rename))
-    :init
-    ;; Suppress the warning about missing persp-mode-prefix-key
-    (setq persp-suppress-no-prefix-key-warning t)
-    (persp-mode))
+(use-package perspective
+  :ensure nil
+  :demand t
+  :init
+  (setq persp-mode-prefix-key (kbd "C-c M-p"))
+  :config
+  (persp-mode)
+
+  ;; Show perspectives in tab-bar
+  (setq tab-bar-show t
+        tab-bar-new-button-show nil
+        tab-bar-close-button-show nil)
+
+  ;; Sync tab-bar with perspectives
+  (add-hook 'persp-switch-hook #'persp-update-tab-bar)
+  (add-hook 'persp-created-hook #'persp-update-tab-bar)
+  (add-hook 'persp-killed-hook #'persp-update-tab-bar)
+
+  (defun persp-update-tab-bar ()
+    "Update tab-bar to show current perspective."
+    (let ((persp-names (persp-names)))
+      (setq tab-bar-tabs
+            (mapcar (lambda (name)
+                      `(tab
+                        (name . ,name)
+                        (explicit-name . t)
+                        (current . ,(equal name (persp-current-name)))))
+                    persp-names))))
+
+  ;; Initial update
+  (persp-update-tab-bar)
+
+  ;; Integration with projectile
+  (with-eval-after-load 'projectile
+    (require 'persp-projectile)))
+
+
+;; Enhance projectile to auto-create perspectives
+(with-eval-after-load 'projectile
+  (defun my/projectile-switch-project-action ()
+    "Switch to a perspective for the project, creating if needed."
+    (persp-switch (projectile-project-name))
+    (projectile-find-file))
+
+  (setq projectile-switch-project-action #'my/projectile-switch-project-action))
+
+;; Buffer filtering per perspective
+(with-eval-after-load 'ivy
+  (add-to-list 'ivy-ignore-buffers
+               (lambda (b)
+                 (not (persp-is-current-buffer b)))))
 
   (use-package perspective
     :config
@@ -763,6 +815,82 @@
     (use-package persp-projectile
       :ensure nil
       :bind (("C-c p p" . projectile-persp-switch-project))))
+
+;; Buffer filtering per perspective
+(with-eval-after-load 'ivy
+  (setq ivy-use-virtual-buffers nil)
+
+  ;; Filter buffers to current perspective
+  (defun my/persp-buffer-filter (buffer)
+    "Return t if BUFFER belongs to current perspective."
+    (memq buffer (persp-buffers (persp-curr))))
+
+  (add-to-list 'ivy-ignore-buffers
+               (lambda (buf)
+                 (not (my/persp-buffer-filter (get-buffer buf))))))
+
+;; Also filter in switch-to-buffer
+(advice-add 'switch-to-buffer :around
+            (lambda (orig-fun &rest args)
+              (let ((persp-buffers (persp-buffers (persp-curr))))
+                (apply orig-fun args))))
+
+;; Better buffer isolation for perspectives
+
+(with-eval-after-load 'perspective
+  ;; Make switch-to-buffer only show buffers in current perspective
+  (setq read-buffer-function #'persp-read-buffer)
+
+  ;; Make ibuffer only show current perspective's buffers
+  (add-hook 'ibuffer-hook
+            (lambda ()
+              (persp-ibuffer-set-filter-groups)
+              (unless (eq ibuffer-sorting-mode 'alphabetic)
+                (ibuffer-do-sort-by-alphabetic))))
+
+  (setq persp-show-modestring t))
+
+;; Update the ivy integration to use perspective buffers correctly
+(with-eval-after-load 'ivy
+  (setq ivy-use-virtual-buffers nil)
+
+  ;; Override ivy-switch-buffer to use perspective-aware completion
+  (defun my/ivy-switch-buffer-persp ()
+    "Switch to buffer in current perspective using ivy."
+    (interactive)
+    (ivy-read "Switch to buffer: "
+              (mapcar #'buffer-name (persp-buffers (persp-curr)))
+              :action #'ivy--switch-buffer-action
+              :keymap ivy-switch-buffer-map))
+
+  ;; Rebind buffer switching to use perspective-aware version
+  (global-set-key [remap ivy-switch-buffer] #'my/ivy-switch-buffer-persp))
+
+;; Update counsel integration
+(with-eval-after-load 'counsel
+  (defun my/counsel-switch-buffer-persp ()
+    "Switch to buffer in current perspective using counsel."
+    (interactive)
+    (ivy-read "Switch to buffer: "
+              (mapcar #'buffer-name (persp-buffers (persp-curr)))
+              :action #'ivy--switch-buffer-action
+              :matcher #'ivy--switch-buffer-matcher
+              :keymap ivy-switch-buffer-map))
+
+  (global-set-key (kbd "C-x b") #'my/counsel-switch-buffer-persp))
+
+;; Update counsel integration
+(with-eval-after-load 'counsel
+  (defun my/counsel-switch-buffer-persp ()
+    "Switch to buffer in current perspective using counsel."
+    (interactive)
+    (ivy-read "Switch to buffer: "
+              (persp-buffer-names (persp-curr))
+              :action #'ivy--switch-buffer-action
+              :matcher #'ivy--switch-buffer-matcher
+              :keymap ivy-switch-buffer-map))
+
+  (global-set-key (kbd "C-x b") #'my/counsel-switch-buffer-persp))
 
   ;; Force early credential loading
   (add-hook 'emacs-startup-hook
@@ -1072,6 +1200,9 @@
 
   ;; Hide dotfiles by default (toggle with M-o)
   (setq dired-omit-files "^\\.[^.]")
+
+  ;; Use 'a' to reuse the same buffer
+  (put 'dired-find-alternate-file 'disabled nil)
 
   ;; Better keybindings
   (define-key dired-mode-map (kbd "RET") 'dired-find-alternate-file)
