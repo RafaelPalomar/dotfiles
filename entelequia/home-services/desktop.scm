@@ -3,6 +3,8 @@
   #:use-module (gnu system)
   #:use-module (gnu home services)
   #:use-module (entelequia packages fonts)
+  #:use-module (nongnu packages fonts)
+  #:use-module (gnu packages fonts)
   #:export (home-desktop-service-type))
 
 (use-package-modules admin chromium compression curl dns fonts freedesktop gimp glib gnome
@@ -49,6 +51,8 @@
         font-google-noto-emoji
         font-liberation
         font-awesome
+        font-awesome-nonfree
+        font-atui-feather
         polybar-themes-fonts
         nerd-font-iosevka
         nerd-font-jetbrains
