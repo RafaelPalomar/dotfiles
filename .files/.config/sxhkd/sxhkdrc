@@ -109,4 +109,4 @@ set $layoutIndex 0
 
 # Rotate between layouts with Super + Space
 super + space
-      kb-layout-next.sh
+      ~/.local/bin/kb-layout-next.sh
