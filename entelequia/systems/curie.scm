@@ -158,6 +158,7 @@
                                                     "grep"
                                                     "picom"
                                                     "direnv"
+                                                    "light"
                                                     "sed"))
                       %base-packages))
 
