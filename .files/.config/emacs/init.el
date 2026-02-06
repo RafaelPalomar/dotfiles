@@ -690,36 +690,54 @@
     "l s" '(persp-save-state-to-file :which-key "Save workspace state")
     "l L" '(persp-load-state-from-file :which-key "Load workspace state"))
 
-  (use-package projectile
-    :ensure nil
-    :init
-    ;; Enable Projectile globally
-    (projectile-mode +1)
-    :config
-    ;; Set Projectile to use the native indexing method
-    (setq projectile-indexing-method 'native)
-    ;; Enable caching for faster indexing
-    (setq projectile-enable-caching t)
-    ;; Set the Projectile cache file directory
-    (setq projectile-cache-file (expand-file-name "projectile.cache" user-emacs-directory))
+(use-package projectile
+  :ensure nil
+  :init
+  (projectile-mode +1)
+  :config
+  ;; Set where projectile looks for projects
+  (setq projectile-project-search-path '("~/src/" "~/projects/" "~/"))
 
-    (setq projectile-enable-caching t)
+  ;; Ensure known projects file location
+  (setq projectile-known-projects-file
+        (expand-file-name "projectile-bookmarks.eld" user-emacs-directory))
 
-    (setq projectile-allow-remote-projects t          ;; allow TRAMP projects
-          projectile-track-known-projects-automatically t
-          projectile-indexing-method 'alien           ;; faster over TRAMP
-          projectile-enable-caching t)
+  ;; Auto-discover projects
+  (setq projectile-track-known-projects-automatically t)
 
-    ;; Doom-style projectile settings
-    (setq projectile-project-search-path '("~/src/" "~/projects/")
-          projectile-globally-ignored-directories '(".git" "node_modules" "__pycache__" ".venv" "venv")
-          projectile-globally-ignored-files '(".DS_Store" "TAGS" "*.elc")
-          projectile-sort-order 'recentf
-          projectile-completion-system 'ivy)
+  ;; Refresh project list on startup
+  (projectile-discover-projects-in-search-path))
 
-    ;; Allow remembering of remote projects
-    (with-eval-after-load 'tramp
-      (add-to-list 'tramp-remote-path 'tramp-own-remote-path)))
+;; (use-package projectile
+;;     :ensure nil
+;;     :init
+;;     ;; Enable Projectile globally
+;;     (projectile-mode +1)
+;;     :config
+;;     ;; Set Projectile to use the native indexing method
+;;     (setq projectile-indexing-method 'native)
+;;     ;; Enable caching for faster indexing
+;;     (setq projectile-enable-caching t)
+;;     ;; Set the Projectile cache file directory
+;;     (setq projectile-cache-file (expand-file-name "projectile.cache" user-emacs-directory))
+
+;;     (setq projectile-enable-caching t)
+
+;;     (setq projectile-allow-remote-projects t          ;; allow TRAMP projects
+;;           projectile-track-known-projects-automatically t
+;;           projectile-indexing-method 'alien           ;; faster over TRAMP
+;;           projectile-enable-caching t)
+
+;;     ;; Doom-style projectile settings
+;;     (setq projectile-project-search-path '("~/src/" "~/projects/")
+;;           projectile-globally-ignored-directories '(".git" "node_modules" "__pycache__" ".venv" "venv")
+;;           projectile-globally-ignored-files '(".DS_Store" "TAGS" "*.elc")
+;;           projectile-sort-order 'recentf
+;;           projectile-completion-system 'ivy)
+
+;;     ;; Allow remembering of remote projects
+;;     (with-eval-after-load 'tramp
+;;       (add-to-list 'tramp-remote-path 'tramp-own-remote-path)))
 
   (use-package counsel-projectile
     :after (counsel projectile)
@@ -1025,6 +1043,52 @@
                  '(".*" "remote-path"
                    ("/usr/local/sbin" "/usr/local/bin" "/usr/bin" "/bin"
                     tramp-own-remote-path))))
+
+;; Icons in dired
+(use-package all-the-icons-dired
+  :ensure nil
+  :hook (dired-mode . all-the-icons-dired-mode))
+
+;; Dired configurations
+(use-package dired
+  :ensure nil
+  :custom
+  ;; Copy/move to other dired window
+  (dired-dwim-target t)
+
+  ;; Better listings
+  (dired-listing-switches "-alh --group-directories-first")
+
+  ;; Reuse same buffer
+  (dired-kill-when-opening-new-dired-buffer t)
+
+  :hook
+  ;; Hide details by default
+  (dired-mode . dired-hide-details-mode)
+
+  :config
+  ;; Enable dired-x for extra features
+  (require 'dired-x)
+
+  ;; Hide dotfiles by default (toggle with M-o)
+  (setq dired-omit-files "^\\.[^.]")
+
+  ;; Better keybindings
+  (define-key dired-mode-map (kbd "RET") 'dired-find-alternate-file)
+  (define-key dired-mode-map (kbd "^")
+    (lambda () (interactive) (find-alternate-file ".."))))
+
+;; Colorful dired
+(use-package diredfl
+  :ensure nil
+  :hook (dired-mode . diredfl-mode))
+
+;; Extra dired features
+(use-package dired-aux
+  :ensure nil
+  :config
+  (setq dired-create-destination-dirs 'ask
+        dired-vc-rename-file t))
 
     (use-package denote
       :ensure nil

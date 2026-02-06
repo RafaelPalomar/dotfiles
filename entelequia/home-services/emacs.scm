@@ -42,6 +42,8 @@
         emacs-gptel
         emacs-guix
         emacs-helpful
+        emacs-nerd-icons
+        emacs-diredfl
         emacs-hl-todo
         emacs-ivy
         emacs-ivy-rich
