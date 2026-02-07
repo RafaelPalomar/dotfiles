@@ -20,7 +20,7 @@ super + apostrophe
 
 # Editor
 super + e
-  emacs
+    emacsclient -c -e '(progn (persp-switch (generate-new-buffer-name "workspace")) (dashboard-open))'
 
 # Make the current window floating
 super + s

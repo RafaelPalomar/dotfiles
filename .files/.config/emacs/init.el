@@ -129,12 +129,21 @@
     (when (file-exists-p custom-file)
       (load custom-file t))
 
-  ;; Load nano-theme without installing it via package.el
-  (use-package nano-theme
-    :ensure nil
-    :config
-    ;; Use the dark variant of the theme
-    (nano-dark))
+(use-package doom-themes
+  :ensure nil
+  :config
+  ;; Load doom-dracula theme
+  (load-theme 'doom-dracula t)
+
+  ;; Enable doom-themes features
+  (setq doom-themes-enable-bold t
+        doom-themes-enable-italic t)
+
+  ;; Enable flashing mode-line on errors
+  (doom-themes-visual-bell-config)
+
+  ;; Corrects (and improves) org-mode's native fontification
+  (doom-themes-org-config))
 
   (require 'ansi-color)
   (defun my/compilation-ansi-colorize ()
@@ -142,42 +151,47 @@
       (ansi-color-apply-on-region compilation-filter-start (point))))
   (add-hook 'compilation-filter-hook #'my/compilation-ansi-colorize)
 
-  ;; Enable nano-modeline for a minimalist mode line
-  (use-package nano-modeline
-    :ensure nil
-    :config
-    (add-hook 'prog-mode-hook            'nano-modeline-prog-mode)
-    (add-hook 'text-mode-hook            'nano-modeline-text-mode)
-    (add-hook 'org-mode-hook             'nano-modeline-org-mode)
-    (add-hook 'pdf-view-mode-hook        'nano-modeline-pdf-mode)
-    (add-hook 'mu4e-headers-mode-hook    'nano-modeline-mu4e-headers-mode)
-    (add-hook 'mu4e-view-mode-hook       'nano-modeline-mu4e-message-mode)
-    (add-hook 'elfeed-show-mode-hook     #'nano-modeline-elfeed-entry-mode)
-    (add-hook 'elfeed-search-mode-hook   #'nano-modeline-elfeed-search-mode)
-    (add-hook 'term-mode-hook            'nano-modeline-term-mode)
-    (add-hook 'xwidget-webkit-mode-hook  #'nano-modeline-xwidget-mode)
-    (add-hook 'messages-buffer-mode-hook 'nano-modeline-message-mode)
-    (add-hook 'org-capture-mode-hook     'nano-modeline-org-capture-mode)
-    (add-hook 'org-agenda-mode-hook      'nano-modeline-org-agenda-mode)
-    )
+;; Font configurations - universal for GUI and terminal
+(set-face-attribute 'default nil
+                    :font "JetBrains Mono"
+                    :height 110
+                    :weight 'normal)
 
-  ;; Font configurations
-  (when (display-graphic-p)
-    ;; Set default font for fixed-pitch (monospace) text
-    (set-face-attribute 'default nil
-                        :font "JetBrains Mono"
-                        :weight 'normal)
+(set-face-attribute 'fixed-pitch nil
+                    :font "Fira Code Retina"
+                    :weight 'normal)
 
-    ;; Set the fixed-pitch face
-    (set-face-attribute 'fixed-pitch nil
-                        :inherit 'default
-                        :font "Fira Code Retina"
-                        :weight 'normal))
+(set-face-attribute 'variable-pitch nil
+                    :font "Cantarell"
+                    :weight 'normal)
 
-    ;; Set the variable-pitch face
-    ;; (set-face-attribute 'variable-pitch nil
-    ;;                     :font "Cantarell"
-    ;;                     :weight 'normal))
+;; Ensure line numbers scale with text
+(set-face-attribute 'line-number nil
+                    :inherit 'default)
+(set-face-attribute 'line-number-current-line nil
+                    :inherit 'line-number
+                    :weight 'bold)
+
+;; Fix Org Agenda scaling
+(with-eval-after-load 'org-agenda
+  (set-face-attribute 'org-agenda-structure nil
+                      :inherit 'default
+                      :height 1.0))
+
+;; Fix Dashboard scaling
+(with-eval-after-load 'dashboard
+  (set-face-attribute 'dashboard-heading nil
+                      :inherit 'default
+                      :weight 'bold
+                      :height 1.0)
+  (set-face-attribute 'dashboard-items-face nil
+                      :inherit 'default))
+
+;; Frame transparency (GUI only feature, but won't error in terminal)
+(set-frame-parameter (selected-frame) 'alpha 95)
+(add-to-list 'default-frame-alist '(alpha . 95))
+(add-to-list 'initial-frame-alist '(fullscreen . maximized))
+(add-to-list 'default-frame-alist '(fullscreen . maximized))
 
   ;; Frame transparency and maximization
   (when (display-graphic-p)
@@ -189,22 +203,10 @@
     (add-to-list 'initial-frame-alist '(fullscreen . maximized))
     (add-to-list 'default-frame-alist '(fullscreen . maximized)))
 
-  ;; Adjust settings for terminal Emacs
-  (unless (display-graphic-p)
-    ;; Clear background color for transparent terminals
-    (set-face-background 'default "unspecified-bg"))
-
-  ;; Simplify the mode line
-  (setq-default mode-line-format
-                '("%e"
-                  mode-line-front-space
-                  "%b"           ; Buffer name
-                  " [%*] "       ; Modification status
-                  "("
-                  mode-line-position
-                  ") "
-                  mode-line-modes
-                  mode-line-end-spaces))
+  ;; ;; Adjust settings for terminal Emacs
+  ;; (unless (display-graphic-p)
+  ;;   ;; Clear background color for transparent terminals
+  ;;   (set-face-background 'default "unspecified-bg"))
 
   ;; Load all-the-icons without installing via package.el
   (use-package all-the-icons
@@ -315,38 +317,29 @@
     (evil-org-set-key-theme '(navigation insert textobjects additional))
     (evil-org-agenda-set-keys))
 
-  ;; Org Mode base configuration (Doom defaults)
-  (use-package org
-    :ensure nil
-    :config
-    (setq org-startup-indented t
-          org-startup-folded 'content
-          org-src-fontify-natively t
-          org-src-tab-acts-natively t
-          org-src-preserve-indentation t
-          org-log-done 'time
-          org-fontify-whole-heading-line t
-          org-fontify-done-headline t
-          org-fontify-quote-and-verse-blocks t))
+;; Org Mode base configuration (Doom defaults)
+(use-package org
+  :ensure nil
+  :config
+  (setq org-startup-indented t
+        org-startup-folded 'content
+        org-src-fontify-natively t
+        org-src-tab-acts-natively t
+        org-src-preserve-indentation t
+        org-log-done 'time
+        org-fontify-whole-heading-line t
+        org-fontify-done-headline t
+        org-fontify-quote-and-verse-blocks t))
 
-  ;; Enhance Org Mode appearance with org-modern
-  (use-package org-modern
-    :after (org)
-    :ensure nil
-    :hook
-    (org-mode . org-modern-mode)
-    :config
-    ;; Enable org-modern globally for all Org buffers
-    (global-org-modern-mode))
-
-  ;; Enhance text layout with visual-fill-column
-  (use-package visual-fill-column
-    :after (org)
-    :ensure nil
-    :hook (org-mode . visual-fill-column-mode)
-    :config
-    (setq visual-fill-column-width 100  ;; Set text width
-          visual-fill-column-center-text t))  ;; Center the text
+;; Enhance Org Mode appearance with org-modern
+(use-package org-modern
+  :after (org)
+  :ensure nil
+  :hook
+  (org-mode . org-modern-mode)
+  :config
+  ;; Enable org-modern globally for all Org buffers
+  (global-org-modern-mode))
 
   ;; Enable Org Indent Mode for better alignment
   (add-hook 'org-mode-hook 'org-indent-mode)
@@ -430,23 +423,23 @@
 (setq ob-mermaid-cli-path "/home/rafael/node_modules/.bin/mmdc")
 
   ;; Enable Ivy for enhanced completion
-  (use-package ivy
-    :ensure nil
-    :demand t
-    :diminish
-    :config
-    (ivy-mode 1)
-    (setq ivy-use-virtual-buffers t       ;; Extend searching to recent files and bookmarks
-          ivy-count-format "(%d/%d) "     ;; Display the current and total number of candidates
-          ivy-wrap t                      ;; Allow wrapping around completion candidates
-          ivy-height 15                   ;; Set the height of the Ivy completion window
-          ivy-fixed-height-minibuffer t ;; Maintain the completion window height
-          )
-    :bind (("C-s" . swiper)
-           :map ivy-minibuffer-map
-           ("TAB" . ivy-alt-done)
-           ("C-j" . ivy-next-line)
-           ("C-k" . ivy-previous-line)))
+(use-package ivy
+  :ensure nil
+  :demand t
+  :diminish
+  :config
+  (ivy-mode 1)
+  (setq ivy-use-virtual-buffers nil          ; Changed from t - no virtual buffers
+        ivy-count-format "(%d/%d) "
+        ivy-wrap t
+        ivy-height 15
+        ivy-fixed-height-minibuffer t
+        ivy-ignore-buffers nil)              ; Let perspective handle filtering
+  :bind (("C-s" . swiper)
+         :map ivy-minibuffer-map
+         ("TAB" . ivy-alt-done)
+         ("C-j" . ivy-next-line)
+         ("C-k" . ivy-previous-line)))
 
   ;; Use Counsel to enhance built-in Emacs commands
   (use-package counsel
@@ -506,12 +499,6 @@
     "fs"  '(save-buffer :which-key "Save buffer")
     "fr"  '(counsel-recentf :which-key "Recent files")
     "fS"  '(write-file :which-key "Save file as...")
-    "b"   '(:ignore t :which-key "Buffers")
-    "bb"  '(ivy-switch-buffer :which-key "Switch buffer")
-    "bk"  '(kill-current-buffer :which-key "Kill buffer")
-    "bB"  '(ivy-switch-buffer :which-key "Switch buffer (all)")
-    "bs"  '(persp-ibuffer :which-key "List buffers")
-    "br"  '(revert-buffer :which-key "Revert buffer")
     "w"   '(:ignore t :which-key "Windows")
     "wd"  '(delete-window :which-key "Delete window")
     "wo"  '(delete-other-windows :which-key "Delete other windows")
@@ -526,6 +513,7 @@
   ;; Text manipulation (Doom-style)
   (my/leader-keys
     "x"   '(:ignore t :which-key "text")
+    "xa"  '(align-regexp :which-key "Align")
     "xl"  '(downcase-region :which-key "Downcase")
     "xu"  '(upcase-region :which-key "Upcase")
     "xc"  '(capitalize-region :which-key "Capitalize")
@@ -635,9 +623,7 @@
     "t"   '(:ignore t :which-key "Toggle")
     "ts"  '(flyspell-mode :which-key "Toggle Flyspell")
     "tn"  '(display-line-numbers-mode :which-key "Toggle line numbers")
-    "tp"  '(visual-line-mode :which-key "Toggle Visual Line Mode")
-    "a"   '(align-regexp :which-key "Align with Regexp")
-    )
+    "tp"  '(visual-line-mode :which-key "Toggle Visual Line Mode"))
 
   ;; Help and documentation
   (my/leader-keys
@@ -789,6 +775,17 @@
   ;; Initial update
   (persp-update-tab-bar)
 
+  ;; Integration with Ivy/Counsel - THIS IS THE KEY PART
+  (setq read-buffer-function #'persp-read-buffer)
+  (setq persp-show-modestring t)
+
+  ;; Make ibuffer respect perspectives
+  (add-hook 'ibuffer-hook
+            (lambda ()
+              (persp-ibuffer-set-filter-groups)
+              (unless (eq ibuffer-sorting-mode 'alphabetic)
+                (ibuffer-do-sort-by-alphabetic))))
+
   ;; Integration with projectile
   (with-eval-after-load 'projectile
     (require 'persp-projectile)))
@@ -803,11 +800,15 @@
 
   (setq projectile-switch-project-action #'my/projectile-switch-project-action))
 
-;; Buffer filtering per perspective
-(with-eval-after-load 'ivy
-  (add-to-list 'ivy-ignore-buffers
-               (lambda (b)
-                 (not (persp-is-current-buffer b)))))
+(my/leader-keys
+  "b"   '(:ignore t :which-key "Buffers")
+  "bb"  '(persp-ivy-switch-buffer :which-key "Switch buffer")
+  "bk"  '(kill-current-buffer :which-key "Kill buffer")
+  "bB"  '(ivy-switch-buffer :which-key "Switch buffer (all)")
+  "bs"  '(persp-ibuffer :which-key "List buffers")
+  "br"  '(revert-buffer :which-key "Revert buffer")
+  "bn"  '(next-buffer :which-key "Next buffer")
+  "bp"  '(previous-buffer :which-key "Previous buffer"))
 
   (use-package perspective
     :config
@@ -816,26 +817,11 @@
       :ensure nil
       :bind (("C-c p p" . projectile-persp-switch-project))))
 
-;; Buffer filtering per perspective
-(with-eval-after-load 'ivy
-  (setq ivy-use-virtual-buffers nil)
-
-  ;; Filter buffers to current perspective
-  (defun my/persp-buffer-filter (buffer)
-    "Return t if BUFFER belongs to current perspective."
-    (memq buffer (persp-buffers (persp-curr))))
-
-  (add-to-list 'ivy-ignore-buffers
-               (lambda (buf)
-                 (not (my/persp-buffer-filter (get-buffer buf))))))
-
 ;; Also filter in switch-to-buffer
 (advice-add 'switch-to-buffer :around
             (lambda (orig-fun &rest args)
               (let ((persp-buffers (persp-buffers (persp-curr))))
                 (apply orig-fun args))))
-
-;; Better buffer isolation for perspectives
 
 (with-eval-after-load 'perspective
   ;; Make switch-to-buffer only show buffers in current perspective
@@ -850,54 +836,13 @@
 
   (setq persp-show-modestring t))
 
-;; Update the ivy integration to use perspective buffers correctly
-(with-eval-after-load 'ivy
-  (setq ivy-use-virtual-buffers nil)
-
-  ;; Override ivy-switch-buffer to use perspective-aware completion
-  (defun my/ivy-switch-buffer-persp ()
-    "Switch to buffer in current perspective using ivy."
-    (interactive)
-    (ivy-read "Switch to buffer: "
-              (mapcar #'buffer-name (persp-buffers (persp-curr)))
-              :action #'ivy--switch-buffer-action
-              :keymap ivy-switch-buffer-map))
-
-  ;; Rebind buffer switching to use perspective-aware version
-  (global-set-key [remap ivy-switch-buffer] #'my/ivy-switch-buffer-persp))
-
-;; Update counsel integration
-(with-eval-after-load 'counsel
-  (defun my/counsel-switch-buffer-persp ()
-    "Switch to buffer in current perspective using counsel."
-    (interactive)
-    (ivy-read "Switch to buffer: "
-              (mapcar #'buffer-name (persp-buffers (persp-curr)))
-              :action #'ivy--switch-buffer-action
-              :matcher #'ivy--switch-buffer-matcher
-              :keymap ivy-switch-buffer-map))
-
-  (global-set-key (kbd "C-x b") #'my/counsel-switch-buffer-persp))
-
-;; Update counsel integration
-(with-eval-after-load 'counsel
-  (defun my/counsel-switch-buffer-persp ()
-    "Switch to buffer in current perspective using counsel."
-    (interactive)
-    (ivy-read "Switch to buffer: "
-              (persp-buffer-names (persp-curr))
-              :action #'ivy--switch-buffer-action
-              :matcher #'ivy--switch-buffer-matcher
-              :keymap ivy-switch-buffer-map))
-
-  (global-set-key (kbd "C-x b") #'my/counsel-switch-buffer-persp))
-
+  ;; NOTE: Not considered due to emacs-daemon
   ;; Force early credential loading
-  (add-hook 'emacs-startup-hook
-            (lambda ()
-              (ignore-errors
-                (auth-source-search :max 1 :host "api.openai.com" :user "gptel")
-                (auth-source-search :max 1 :host "api.anthropic.com" :user "gptel"))))
+  ;; (add-hook 'emacs-startup-hook
+  ;;           (lambda ()
+  ;;             (ignore-errors
+  ;;               (auth-source-search :max 1 :host "api.openai.com" :user "gptel")
+  ;;               (auth-source-search :max 1 :host "api.anthropic.com" :user "gptel"))))
 
   ;; Configure gptel with multiple backends
   (use-package gptel
@@ -1272,10 +1217,11 @@
     (list denote-directory
           "~/Notes/Personal/")))
 
-  (use-package dashboard
-    :ensure nil
-    :config
-    (dashboard-setup-startup-hook))
+(use-package dashboard
+  :ensure nil
+  :config
+  (dashboard-setup-startup-hook)
+  (setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*"))))
 
   (use-package avy
     :ensure nil
@@ -1503,4 +1449,90 @@
 ;;   (yas-reload-all))
 
 (use-package envrc
+  :ensure nil
   :hook (after-init . envrc-global-mode))
+
+  ;; ERC - Emacs IRC Client
+  (use-package erc
+    :ensure nil
+    :commands (erc erc-tls)
+    :config
+    ;; Basic settings
+    (setq erc-server-coding-system '(utf-8 . utf-8)
+          erc-interpret-mirc-color t
+          erc-rename-buffers t
+          erc-hide-list '("JOIN" "PART" "QUIT")
+          erc-track-exclude-types '("JOIN" "NICK" "PART" "QUIT" "MODE"
+                                    "324" "329" "332" "333" "353" "477")
+          erc-lurker-hide-list '("JOIN" "PART" "QUIT")
+          erc-kill-buffer-on-part t
+          erc-kill-queries-on-quit t
+          erc-kill-server-buffer-on-quit t
+          erc-autojoin-timing 'ident
+          erc-fill-function 'erc-fill-static
+          erc-fill-static-center 22
+          erc-timestamp-format "[%H:%M] "
+          erc-prompt-for-nickserv-password nil))
+
+    ;; Auto-identify with services using authinfo
+    (use-package erc-services
+      :ensure nil
+      :config
+      (erc-services-mode 1)
+      (setq erc-prompt-for-nickserv-password nil
+            erc-nickserv-passwords nil))
+
+    ;; Track activity
+    (use-package erc-track
+      :ensure nil
+      :config
+      (erc-track-mode 1)
+      (setq erc-track-visibility nil
+            erc-track-exclude-types '("JOIN" "NICK" "PART" "QUIT" "MODE"
+                                      "324" "329" "332" "333" "353" "477")))
+
+    ;; Notification support
+    (use-package erc-match
+      :ensure nil
+      :config
+      (erc-match-mode 1)
+      (setq erc-keywords '("your-keywords-here")))
+
+    ;; Logging
+    (use-package erc-log
+      :ensure nil
+      :config
+      (setq erc-log-channels-directory "~/.local/share/erc/logs/"
+            erc-save-buffer-on-part nil
+            erc-save-queries-on-quit nil
+            erc-log-write-after-send t
+            erc-log-write-after-insert t))
+
+  ;; Helper function to connect to common IRC networks
+  (defun my/erc-connect (server port nick)
+    "Connect to IRC SERVER on PORT with NICK.
+  Credentials should be in ~/.authinfo.gpg with format:
+  machine irc.libera.chat login yournick password yourpass"
+    (interactive
+     (list
+      (read-string "Server: " "irc.libera.chat")
+      (read-number "Port: " 6697)
+      (read-string "Nick: " user-login-name)))
+    (let* ((auth (auth-source-search :host server
+                                     :user nick
+                                     :require '(:secret)
+                                     :max 1))
+           (password (when auth
+                      (funcall (plist-get (car auth) :secret)))))
+      (erc-tls :server server
+               :port port
+               :nick nick
+               :password password)))
+
+  ;; Keybindings
+  (my/leader-keys
+    "a"   '(:ignore t :which-key "Applications")
+    "ai"  '(:ignore t :which-key "IRC")
+    "aic" '(my/erc-connect :which-key "Connect to IRC")
+    "aiq" '(erc-quit-server :which-key "Quit IRC server")
+    "aib" '(erc-switch-to-buffer :which-key "Switch IRC buffer"))

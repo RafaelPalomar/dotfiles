@@ -191,11 +191,10 @@
                                   '("/bin/sh" "-c" "/usr/bin/aide --config=/etc/aide.conf --check")))
                         (stop #~(make-kill-destructor))
                         (auto-start? #f))))
+
       (guix-home-config
        (home-environment
-        (services (cons* (service home-emacs-config-service-type)
-                         desktop-home-services))))
-
+        (services desktop-home-services)))
 
       ;; mlocate db
       ;; (simple-service 'mlocate

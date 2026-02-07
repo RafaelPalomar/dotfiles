@@ -4,6 +4,7 @@
   #:use-module (gnu home services)
   #:use-module (gnu services)
   #:use-module (gnu packages emacs-xyz)
+  #:use-module (gnu home services shepherd)
   #:export (%emacs-pacakges
             home-emacs-config-service-type))
 
@@ -91,9 +92,39 @@
 
 (define home-emacs-config-service-type
   (service-type (name 'home-emacs-config)
-		(description "A service for configurig emacs")
-		(extensions
-		 (list (service-extension
-			home-profile-service-type
-			home-emacs-config-profile-service)))
-		 (default-value #f)))
+                (description "A service for configurig emacs")
+                (extensions
+                 (list (service-extension
+                        home-profile-service-type
+                        home-emacs-config-profile-service)
+                       (service-extension
+                        home-shepherd-service-type
+                        (lambda (config)
+                          (list (shepherd-service
+                                 (provision '(emacs))
+                                 (start #~(make-forkexec-constructor
+                                           (list #$(file-append emacs "/bin/emacs")
+                                                 "--fg-daemon")
+                                           #:environment-variables
+                                           (cons* (string-append "DISPLAY=" (or (getenv "DISPLAY") ":0"))
+                                                  (string-append "XAUTHORITY="
+                                                                 (or (getenv "XAUTHORITY")
+                                                                     (string-append (getenv "HOME") "/.Xauthority")))
+                                                  (default-environment-variables))))
+                                 (stop #~(make-kill-destructor))
+                                 (auto-start? #t)
+                                 (documentation "Emacs daemon")))))
+
+		                   ;; Add shepherd service for Emacs daemon
+		                   ;; (service-extension
+			                 ;; home-shepherd-service-type
+			                 ;; (lambda (config)
+			                 ;;   (list (shepherd-service
+			                 ;; 	 (provision '(emacs))
+			                 ;; 	 (start #~(make-forkexec-constructor
+			                 ;; 		   (list #$(file-append emacs "/bin/emacs")
+			                 ;; 			 "--fg-daemon")))
+			                 ;; 	 (stop #~(make-kill-destructor))
+			                 ;; 	 (documentation "Emacs daemon")))))
+                       ))
+		            (default-value #f)))
