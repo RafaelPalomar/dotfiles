@@ -1,0 +1,14 @@
+[global]
+    # ... your other dunst settings
+
+[urgency_low]
+    background = "{background}"
+    foreground = "{foreground}"
+
+[urgency_normal]
+    background = "{color1}"
+    foreground = "{foreground}"
+
+[urgency_critical]
+    background = "{color9}"
+    foreground = "{color15}"

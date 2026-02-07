@@ -1,76 +1,80 @@
-  ;; -*- lexical-binding: t; -*-
+;; -*- lexical-binding: t; -*-
 
           ;;; This file is generated from the =emacs.org= file in my dotfiles repository!
           ;;; ----- Basic Configuration -----
 
-  (setq read-process-output-max (* 1024 1024))  ;; 1MB
-  (setq process-adaptive-read-buffering nil)
+(setq read-process-output-max (* 1024 1024))  ;; 1MB
+(setq process-adaptive-read-buffering nil)
 
-  ;; Increase the garbage collection threshold during startup for faster startup
-  (setq gc-cons-threshold most-positive-fixnum)
+;; Increase the garbage collection threshold during startup for faster startup
+(setq gc-cons-threshold most-positive-fixnum)
 
-  ;; Reset garbage collection thresholds after startup
-  (add-hook 'emacs-startup-hook
-            (lambda ()
-              (setq gc-cons-threshold (* 16 1024 1024))  ;; 16MB
-              (setq gc-cons-percentage 0.1)))
+;; Reset garbage collection thresholds after startup
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (setq gc-cons-threshold (* 16 1024 1024))  ;; 16MB
+            (setq gc-cons-percentage 0.1)))
 
-  (set-language-environment "UTF-8")
-  (setq locale-coding-system 'utf-8)
+(set-language-environment "UTF-8")
+(setq locale-coding-system 'utf-8)
 
-  (setq network-enable-ipv6 nil)
-  (setq starttls-use-gnutls t
-        starttls-gnutls-program "gnutls-cli")
+(setq network-enable-ipv6 nil)
+(setq starttls-use-gnutls t
+      starttls-gnutls-program "gnutls-cli")
 
-  ;; Core settings
-  (setq visible-bell t                         ;; Flash the screen instead of beeping
-        inhibit-startup-message t              ;; Suppress the startup message
-        inhibit-startup-screen t               ;; Disable the startup screen
-        initial-scratch-message ";; Welcome to Emacs!\n\n"  ;; Set the scratch message
-        make-backup-files nil                  ;; Disable backup files
-        auto-save-default nil                  ;; Disable auto-saving to backup files
-        ad-redefinition-action 'accept         ;; Silence function redefinition warnings
-        ring-bell-function 'ignore             ;; Disable the bell completely
-        vc-follow-symlinks t                   ;; Always follow symlinks
-        large-file-warning-threshold nil       ;; Disable large file warnings
-        custom-file (expand-file-name "custom.el" user-emacs-directory) ;; Set custom file
-        frame-title-format
-        '((:eval (if (buffer-file-name)
-                     (abbreviate-file-name (buffer-file-name))
-                   "%b")))                     ;; Show full path in frame title
-        )
+;; Core settings
+(setq visible-bell t                         ;; Flash the screen instead of beeping
+      inhibit-startup-message t              ;; Suppress the startup message
+      inhibit-startup-screen t               ;; Disable the startup screen
+      initial-scratch-message ";; Welcome to Emacs!\n\n"  ;; Set the scratch message
+      make-backup-files nil                  ;; Disable backup files
+      auto-save-default nil                  ;; Disable auto-saving to backup files
+      ad-redefinition-action 'accept         ;; Silence function redefinition warnings
+      ring-bell-function 'ignore             ;; Disable the bell completely
+      vc-follow-symlinks t                   ;; Always follow symlinks
+      large-file-warning-threshold nil       ;; Disable large file warnings
+      custom-file (expand-file-name "custom.el" user-emacs-directory) ;; Set custom file
+      frame-title-format
+      '((:eval (if (buffer-file-name)
+                   (abbreviate-file-name (buffer-file-name))
+                 "%b")))                     ;; Show full path in frame title
+      )
 
-  ;; Load the custom file if it exists
-  (when (file-exists-p custom-file)
-    (load custom-file t))
+;; Load the custom file if it exists
+(when (file-exists-p custom-file)
+  (load custom-file t))
 
-  ;; Set default encoding to UTF-8
-  (prefer-coding-system 'utf-8)
+;; Set default encoding to UTF-8
+(prefer-coding-system 'utf-8)
 
-  ;; Set tabs to spaces and define tab width
-  (setq-default indent-tabs-mode nil           ;; Use spaces instead of tabs
-                tab-width 2)                   ;; Set default tab width to 2
+;; Set tabs to spaces and define tab width
+(setq-default indent-tabs-mode nil           ;; Use spaces instead of tabs
+              tab-width 2)                   ;; Set default tab width to 2
 
-  ;; Simplify the interface
-  (menu-bar-mode -1)                           ;; Disable the menu bar
-  (tool-bar-mode -1)                           ;; Disable the tool bar
-  (scroll-bar-mode -1)                         ;; Disable the scroll bar
+;; Simplify the interface
+(menu-bar-mode -1)                           ;; Disable the menu bar
+(tool-bar-mode -1)                           ;; Disable the tool bar
+(scroll-bar-mode -1)                         ;; Disable the scroll bar
 
-  ;; (fset 'geiser-xref-backend (lambda (&rest _) nil))
+;; (fset 'geiser-xref-backend (lambda (&rest _) nil))
 
-  ;; (with-eval-after-load 'xref
-  ;;   (remove-hook 'xref-backend-functions #'geiser-xref-backend))
+;; (with-eval-after-load 'xref
+;;   (remove-hook 'xref-backend-functions #'geiser-xref-backend))
 
-  ;; (with-eval-after-load 'geiser
-  ;;   (add-hook 'geiser-mode-hook
-  ;;             (lambda ()
-  ;;               (setq-local xref-backend-functions
-  ;;                           (remq 'geiser-xref-backend xref-backend-functions)))))
+;; (with-eval-after-load 'geiser
+;;   (add-hook 'geiser-mode-hook
+;;             (lambda ()
+;;               (setq-local xref-backend-functions
+;;                           (remq 'geiser-xref-backend xref-backend-functions)))))
 
-  ;; (with-eval-after-load 'geiser
-  ;;   (add-hook 'geiser-mode-hook
-  ;;             (lambda ()
-  ;;               (add-hook 'xref-backend-functions #'geiser-xref-backend nil t))))
+;; (with-eval-after-load 'geiser
+;;   (add-hook 'geiser-mode-hook
+;;             (lambda ()
+;;               (add-hook 'xref-backend-functions #'geiser-xref-backend nil t))))
+
+
+(setenv "PATH" (concat (getenv "HOME") "/.local/bin:" (getenv "PATH")))
+(add-to-list 'exec-path (expand-file-name "~/.local/bin"))
 
   ;; Core modes
   (repeat-mode 1)                              ;; Enable repeat mode
@@ -836,110 +840,90 @@
 
   (setq persp-show-modestring t))
 
-  ;; NOTE: Not considered due to emacs-daemon
-  ;; Force early credential loading
-  ;; (add-hook 'emacs-startup-hook
-  ;;           (lambda ()
-  ;;             (ignore-errors
-  ;;               (auth-source-search :max 1 :host "api.openai.com" :user "gptel")
-  ;;               (auth-source-search :max 1 :host "api.anthropic.com" :user "gptel"))))
+;; NOTE: Not considered due to emacs-daemon
+;; Force early credential loading
+;; (add-hook 'emacs-startup-hook
+;;           (lambda ()
+;;             (ignore-errors
+;;               (auth-source-search :max 1 :host "api.openai.com" :user "gptel")
+;;               (auth-source-search :max 1 :host "api.anthropic.com" :user "gptel"))))
 
-  ;; Configure gptel with multiple backends
-  (use-package gptel
-    :ensure nil
-    :config
-    ;; Try with curl first (remove workaround)
-    ;; (setq gptel-use-curl nil)  ; Comment this out to test
+;; Configure gptel with multiple backends
+(use-package gptel
+  :ensure nil
+  :config
+  ;; Try with curl first (remove workaround)
+  ;; (setq gptel-use-curl nil)  ; Comment this out to test
 
-    (setq gptel-default-mode 'org-mode)
+  (setq gptel-default-mode 'org-mode)
 
-    ;; Define available backends with explicit models
-    (setq gptel-backends
-          (list
-           ;; Claude (Anthropic) - set as default
-           (gptel-make-anthropic "Claude"
-             :stream t
-             :key (lambda ()
-                    (auth-source-pick-first-password :host "api.anthropic.com")))
+  ;; Define available backends with explicit models
+  (setq gptel-backends
+        (list
+         ;; Claude (Anthropic) - set as default
+         (gptel-make-anthropic "Claude"
+           :stream t
+           :key (lambda ()
+                  (auth-source-pick-first-password :host "api.anthropic.com")))
 
-           ;; OpenAI GPT with models
-           (gptel-make-openai "ChatGPT"
-             :stream t
-             :models '(gpt-5
-                       gpt-5-mini
-                       gpt-5-nano)
-             :key (lambda ()
-                    (auth-source-pick-first-password :host "api.openai.com")))))
+         ;; OpenAI GPT with models
+         (gptel-make-openai "ChatGPT"
+           :stream t
+           :models '(gpt-5
+                     gpt-5-mini
+                     gpt-5-nano)
+           :key (lambda ()
+                  (auth-source-pick-first-password :host "api.openai.com")))))
 
-    ;; Set default backend
-    (setq gptel-backend (car gptel-backends))
+  ;; Set default backend
+  (setq gptel-backend (car gptel-backends))
 
-    (setq gptel-model "claude-sonnet-4-5-20250929"))
+  (setq gptel-model 'claude-sonnet-4-5-20250929)
 
-  ;; Helper function to switch between backends
-  (defun my/gptel-switch-backend ()
-    "Interactively switch between configured gptel backends."
-    (interactive)
-    (let* ((backend-names (mapcar (lambda (b) (gptel-backend-name b)) gptel-backends))
-           (choice (completing-read "Select backend: " backend-names nil t)))
-      (setq gptel-backend (seq-find (lambda (b)
-                                      (string= (gptel-backend-name b) choice))
-                                    gptel-backends))
-      (message "Switched to %s" choice)))
+  ;; Custom directives for common tasks
+  (gptel-make-directive "code-review"
+                        "Review this code for bugs, performance, and best practices.")
 
+  (gptel-make-directive "explain"
+                        "Explain this code in simple terms."))
 
-    ;; ;; This is a workaround https://github.com/karthink/gptel/issues/342
-    ;;   (setq gptel-use-curl nil)
-    ;;   (setq gptel-default-mode 'org-mode)
+;; Helper function to switch between backends
+(defun my/gptel-switch-backend ()
+  "Interactively switch between configured gptel backends."
+  (interactive)
+  (let* ((backend-names (mapcar (lambda (b) (gptel-backend-name b)) gptel-backends))
+         (choice (completing-read "Select backend: " backend-names nil t)))
+    (setq gptel-backend (seq-find (lambda (b)
+                                    (string= (gptel-backend-name b) choice))
+                                  gptel-backends))
+    (message "Switched to %s" choice)))
 
-    ;;   ;; Configure gptel with multiple backends
-    ;;   (use-package gptel
-    ;;     :ensure nil
-    ;;     :config
-    ;;     ;; Define available backends
-    ;;     (setq gptel-backends
-    ;;           (list
-    ;;            ;; Claude (Anthropic) - set as default
-    ;;            (gptel-make-anthropic "Claude"
-    ;;              :stream t
-    ;;              :key (lambda ()
-    ;;                     (auth-source-pick-first-password :host "api.anthropic.com")))
+(defun my/ai-continue-code ()
+  "Send selected region/function with 'continue this' prompt"
+  (interactive)
+  (gptel-send "Continue implementing this:" :context 'buffer))
 
-    ;;            ;; OpenAI GPT
-    ;;            (gptel-make-openai "ChatGPT"
-    ;;              :stream t
-    ;;              :key (lambda ()
-    ;;                     (auth-source-pick-first-password :host "api.openai.com")))))
+(defun my/ai-fix-error ()
+  "Fix compilation/runtime error at point"
+  (interactive)
+  (gptel-send "Fix this error:" :context 'buffer))
 
-    ;;     ;; Set Claude as the default backend
-    ;;     (setq gptel-backend (car gptel-backends))
-
-    ;;     ;; Set default Claude model
-    ;;     (setq gptel-model 'claude-sonnet-4-5-20250929))
-
-    ;;   ;; Helper function to switch between backends
-    ;;   (defun my/gptel-switch-backend ()
-    ;;     "Interactively switch between configured gptel backends."
-    ;;     (interactive)
-    ;;     (let* ((backend-names (mapcar (lambda (b) (gptel-backend-name b)) gptel-backends))
-    ;;            (choice (completing-read "Select backend: " backend-names nil t)))
-    ;;       (setq gptel-backend (seq-find (lambda (b)
-    ;;                                       (string= (gptel-backend-name b) choice))
-    ;;                                     gptel-backends))
-    ;;       (message "Switched to %s" choice)))
-
-      ;; Keybindings
-      (my/leader-keys
-        "o"    '(:ignore t :which-key "AI models")
-        "og"   '(gptel :which-key "Invoke gptel")
-        "oa"   '(gptel-abort :which-key "Abort gptel invocation")
-        "om"   '(gptel-menu :which-key "gptel-menu")
-        "ob"   '(my/gptel-switch-backend :which-key "Switch AI backend")
-        "oc"   '(:ignore t :which-key "AI models context manipulation")
-        "ocb"  '(gptel-add :which-key "Add/Remove buffer to AI context")
-        "ocf"  '(gptel-context-add-file :which-key "Add file to AI context")
-        "ocr"  '(gptel-context-remove-all :which-key "Remove all AI context")
-        "or"   '(gptel-rewrite :which-key "AI model rewrite"))
+;; Keybindings
+(my/leader-keys
+  "o"    '(:ignore t :which-key "AI models")
+  "oa"   '(gptel-abort :which-key "Abort gptel invocation")
+  "ob"   '(my/gptel-switch-backend :which-key "Switch AI backend")
+  "oc"   '(:ignore t :which-key "AI context")
+  "ocb"  '(gptel-add :which-key "Add/Remove buffer to AI context")
+  "occ"  '(my/ai-continue-code :which-key "Continue this")
+  "ocf"  '(gptel-context-add-file :which-key "Add file to AI context")
+  "ocr"  '(gptel-context-remove-all :which-key "Remove all AI context")
+  "of"   '(my/ai-fix-error :which-key "Fix this error")
+  "og"   '(gptel :which-key "Invoke gptel")
+  "oi"   '(gptel-send :which-key "Send to AI")
+  "om"   '(gptel-menu :which-key "gptel-menu")
+  "or"   '(gptel-rewrite :which-key "AI model rewrite")
+  "ov"   '(aider-transient-menu :which-key "Vibe code w/ Aider"))
 
   (add-to-list 'auto-mode-alist '("CMakeLists\\.txt\\'" . cmake-mode))
   (add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))
@@ -953,7 +937,7 @@
     ;; General mu4e settings that need to be set before mu4e loads
     (setq mu4e-maildir "~/.local/share/mail"
           mu4e-attachment-dir "~/Downloads"
-          mu4e-get-mail-command  "guix shell -L ~/dotfiles cyrus-sasl-xoauth2 -- mbsync -a"
+          mu4e-get-mail-command  "guix shell -L ~/.dotfiles cyrus-sasl-xoauth2 -- mbsync -a"
           mu4e-update-interval 300
           mu4e-index-cleanup t
           mu4e-index-update-error-warning t
@@ -1536,3 +1520,54 @@
     "aic" '(my/erc-connect :which-key "Connect to IRC")
     "aiq" '(erc-quit-server :which-key "Quit IRC server")
     "aib" '(erc-switch-to-buffer :which-key "Switch IRC buffer"))
+
+;; GitHub Copilot - best for vibe coding
+(use-package copilot
+  :hook (prog-mode . copilot-mode)
+  :bind (:map copilot-completion-map
+              ("<tab>" . copilot-accept-completion)
+              ("TAB" . copilot-accept-completion)))
+
+(use-package aider
+  :config
+  ;; Point to wrapper script
+  (setq aider-program (expand-file-name "~/.local/bin/aider-wrapper.sh"))
+
+  (setq aider-args
+        (list "--model" "claude-sonnet-4-5-20250929"
+              "--no-auto-commits"))
+  )
+
+(defun my/aider-setup-api-key ()
+  "Set Anthropic API key before running aider."
+  (unless (getenv "ANTHROPIC_API_KEY")
+    (setenv "ANTHROPIC_API_KEY"
+            (auth-source-pick-first-password :host "api.anthropic.com" :user "aider"))))
+
+(advice-add 'aider-transient-menu :before #'my/aider-setup-api-key)
+(advice-add 'aider :before #'my/aider-setup-api-key)
+
+(defun my/ai-commit-message ()
+  "Generate a commit message from staged changes."
+  (interactive)
+  (let* ((diff (shell-command-to-string "git diff --cached"))
+         (prompt (format "Write a concise commit message (conventional commits format) for:\n\n%s" diff)))
+    (gptel-request
+        prompt
+      :callback
+      (lambda (response info)
+        (when response
+          (kill-new (string-trim response))
+          (message "Commit message copied: %s" (string-trim response)))))))
+
+(my/leader-keys
+  "g"   '(:ignore t :which-key "Git")
+  "gs"  '(magit-status :which-key "Magit Status")
+  "gg"  '(magit-status :which-key "Magit Status")
+  "gb"  '(magit-branch-checkout :which-key "Checkout branch")
+  "gc"  '(:ignore t :which-key "Commit")        ; Make it a prefix
+  "gcc" '(magit-commit-create :which-key "Commit")
+  "gca" '(my/ai-commit-message :which-key "AI commit msg")
+  "gC"  '(magit-clone :which-key "Clone repository")
+  "gp"  '(magit-push-current :which-key "Push changes")
+  "gl"  '(magit-log :which-key "Show log"))

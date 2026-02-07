@@ -31,7 +31,7 @@ super + t
     bspc node -t tiled
 
 # Toggle fullscreen
-super +f
+super + f
 	  bspc node -t "~fullscreen"
 
 # Set the window state
@@ -62,17 +62,8 @@ control + alt + {q,r}
 super + {_,shift + }q
     bspc node -{c,k}
 
-super + m
-    sh -c 'if pgrep neomutt ; then bspc desktop -f 4 ; else "$TERMINAL" --class Neomutt,Neomutt --title neomutt --command neomutt ; fi'
-
 super + n
       $TERMINAL --class TermApp,TermApp --title nmtui --command nmtui
-
-super + r
-      $TERMINAL --class TermApp,TermApp --title lf --command lf
-
-super + w
-      $TERMINAL --class TermApp,TermApp --title taskwarrior-tui --command taskwarrior-tui
 
 # Multimedia keys
 XF86AudioRaiseVolume
@@ -109,4 +100,7 @@ set $layoutIndex 0
 
 # Rotate between layouts with Super + Space
 super + space
-      ~/.local/bin/kb-layout-next.sh
+    ~/.local/bin/kb-layout-next.sh
+
+super + w
+    ~/.local/bin/set-wallpaper.sh $(find ~/Pictures/Wallpapers -type f | rofi -dmenu -p "Select wallpaper")

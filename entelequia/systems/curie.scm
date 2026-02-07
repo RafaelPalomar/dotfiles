@@ -5,10 +5,12 @@
   #:use-module (entelequia home-services emacs)
   #:use-module (gnu)
   #:use-module (gnu packages linux)
+  #:use-module (gnu packages python )
   #:use-module (gnu packages networking)
   #:use-module (gnu packages synergy)
   #:use-module (gnu home)
   #:use-module (gnu home services sound)
+  #:use-module (gnu home services)
   #:use-module (nongnu packages linux)
   #:use-module (btv tailscale)
   #:use-module (nongnu system linux-initrd)
@@ -112,6 +114,9 @@
                                                     "xsetroot"
                                                     "xterm"
                                                     "xwininfo"
+                                                    "feh"
+                                                    "python-pywal"
+                                                    "imagemagick"
 
                                                     ;; File management
                                                     "lf"
@@ -141,6 +146,7 @@
                                                     "virt-manager"
                                                     "podman"
                                                     "distrobox"
+                                                    "node"
 
                                                     ;; Development
                                                     "gcc-toolchain"
@@ -191,6 +197,7 @@
                                   '("/bin/sh" "-c" "/usr/bin/aide --config=/etc/aide.conf --check")))
                         (stop #~(make-kill-destructor))
                         (auto-start? #f))))
+
 
       (guix-home-config
        (home-environment

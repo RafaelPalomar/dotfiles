@@ -1,5 +1,14 @@
 #!/bin/sh
 
+# Restore pywal colors
+wal -R
+
+# Source pywal colors
+. "${HOME}/.cache/wal/colors.sh"
+
+# Apply bspwm colors
+[ -f ~/.cache/wal/colors-bspwm.sh ] && . ~/.cache/wal/colors-bspwm.sh
+
 #
 # UTILITY FUNCTIONS
 #
@@ -7,9 +16,6 @@
 C () { bspc config "$@" & }
 R () { bspc rule -a "$@" & }
 S () { pkill -x "$1"; { sleep 0.1; "$@" & }; }
-
-# Set wallpaper
-feh --bg-scale ~/Wallpapers/the_wallpaper.jpg
 
 # bspwm settings
 bspc monitor -d 1 2 3 4 5 6 7 8 9 10

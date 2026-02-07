@@ -3,7 +3,6 @@
   #:use-module (gnu)
   #:use-module (gnu home services)
   #:use-module (gnu services)
-  #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu home services shepherd)
   #:export (%emacs-pacakges
             home-emacs-config-service-type))
@@ -12,6 +11,7 @@
 
 (define %emacs-packages
   (list emacs-ace-window
+        emacs-aider
         emacs-all-the-icons
         emacs-all-the-icons-dired
         emacs-avy
@@ -20,6 +20,7 @@
         emacs-counsel
         emacs-counsel-projectile
         emacs-company
+        emacs-copilot
         emacs-dashboard
         emacs-denote
         emacs-denote-silo

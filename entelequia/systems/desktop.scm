@@ -82,7 +82,8 @@
                                                                    fi")))))
                                (simple-service 'slicer-env-vars
                                                home-environment-variables-service-type
-                                               `(("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")))
+                                               `(("PATH" . "$HOME/.local/bin:$PATH")
+                                                 ("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")))
 
 
                                ;; Start background jobs (service home-mcron-service-type

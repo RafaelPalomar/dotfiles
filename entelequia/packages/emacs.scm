@@ -4,6 +4,7 @@
   #:use-module (guix download)
   #:use-module (guix build-system emacs)
   #:use-module ((gnu packages emacs-xyz) #:prefix upstream:)
+  #:use-module ((gnu packages emacs-build) #:prefix upstream:)
   #:use-module (guix packages)
   #:use-module (guix git-download)
   #:use-module ((guix licenses) #:prefix license:))
@@ -138,4 +139,90 @@ https://github.com/wamei/elscreen-separate-buffer-list/issues/8 -
 https://www.rousette.org.uk/archives/using-the-tab-bar-in-emacs/ -
 https://github.com/minad/consult#multiple-sources -
 https://github.com/florommel/bufferlo.")
+    (license #f)))
+
+(define-public emacs-aider
+  (package
+   (name "emacs-aider")
+   (version "0.13.2")
+   (source
+    (origin
+     (method git-fetch)
+     (uri (git-reference
+           (url "https://github.com/tninja/aider.el")
+           (commit "6f6472586413f59cce992ecaa79276e3b56212ca")))
+     (file-name (git-file-name name version))
+     (sha256
+      (base32 "1932ghif057mxm9nz1213gf8j26ispl6ikfr90hrlag168c2f630"))))
+   (build-system emacs-build-system)
+   (propagated-inputs (list upstream:emacs-transient upstream:emacs-magit
+                            upstream:emacs-markdown-mode upstream:emacs-s))
+   (arguments
+    '(#:include '("^[^/]*.el$" "^[^/]*.el.in$"
+                  "^dir$"
+                  "^[^/]*.info$"
+                  "^[^/]*.texi$"
+                  "^[^/]*.texinfo$"
+                  "^doc/dir$"
+                  "^doc/[^/]*.info$"
+                  "^doc/[^/]*.texi$"
+                  "^doc/[^/]*.texinfo$"
+                  "^snippets$")
+      #:exclude '("^.dir-locals.el$" "^test.el$" "^tests.el$"
+                  "^[^/]*-test.el$" "^[^/]*-tests.el$")))
+   (home-page "https://github.com/tninja/aider.el")
+   (synopsis "AI assisted programming with Aider and LLM")
+   (description
+    "Boost your programming efficiency! This package + Aider (https://aider.chat/)
+brings AI-assisted programming capabilities *inside* Emacs! Aider works
+seamlessly with both *new* and *existing* codebases in your local Git repo,
+using AI models (Claude, @code{ChatGPT}, Gemini, even local ones!) to assist
+you.  It can suggest improvements, squash bugs, or even write whole new sections
+of code.  Enhance your coding with AI without ever leaving your Emacs comfort
+zone.  The package also supports AI-assisted Agile development workflows and
+AI-assisted code reading to help you understand complex codebases faster and
+more thoroughly.  To use aider.el, you need to install the Aider command line
+tool: https://aider.chat/#getting-started After that, configure it with (use
+sonnet as example): (use-package aider :config ;; For latest claude sonnet model
+(setq aider-args (\"--model\" \"sonnet\" \"--no-auto-accept-architect\")) (setenv
+\"ANTHROPIC_API_KEY\" anthropic-api-key) (global-set-key (kbd \"C-c a\")
+aider-transient-menu)) For more details, see https://github.com/tninja/aider.el
+If you like the feature of this package, but wish to use Claude Code / Gemini
+CLI / or @code{OpenAI} Codex, please take a look at
+https://github.com/tninja/ai-code-interface.el Comparing to its forked peer
+(aidermacs), Aider.el has brought in lots of application-level features and
+tools to enhance daily programming.  These include: - AI-assisted agile
+development methodologies (like TDD, refactoring and legacy code handling based
+on established software engineering books) - Code / module reading AI assistant
+- Diff extraction and AI code review tools - Let aider to fix the errors
+reported by flycheck - Expand context by adding current file's
+dependencies/dependents - Software planning / brainstorming discussion
+capabilities - Prompt candidates for code change / document change / question
+ask - Run current script to validate AI's change - Code / repo evolution
+analysis with git blame and git log - Utilities for bootstrapping new files and
+projects. - Organize project with repo specific Aider prompt file - Snippets
+from community and aider use experience and pattern Besides of that, aider.el
+focus on simplicity.  It has much less configurations (transparent to aider
+config), simplified menu.")
+   (license #f)))
+
+(define-public emacs-copilot
+  (package
+    (name "emacs-copilot")
+    (version "0.3.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/copilot-emacs/copilot.el")
+             (commit "b98754712ad05282e1bb392bb35e5918ed35c9b6")))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0n1kpjkr6vdfpb20x28bsg14piqv9vl0iz0jswc5qm0qgdmi23ah"))))
+    (build-system emacs-build-system)
+    (propagated-inputs (list upstream:emacs-editorconfig upstream:emacs-jsonrpc
+                             upstream:emacs-track-changes upstream:emacs-f))
+    (home-page "https://github.com/copilot-emacs/copilot.el")
+    (synopsis "An unofficial Copilot plugin")
+    (description "An unofficial Copilot plugin for Emacs.")
     (license #f)))
