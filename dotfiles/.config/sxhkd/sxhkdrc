@@ -104,3 +104,7 @@ super + space
 
 super + w
     ~/.local/bin/set-wallpaper.sh $(find ~/Pictures/Wallpapers -type f | rofi -dmenu -p "Select wallpaper")
+
+# Screen locker
+super + l
+    slock

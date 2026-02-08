@@ -12,7 +12,7 @@
 (use-package-modules admin chromium compression curl dns fonts freedesktop gimp glib gnome
                      gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf
                      linux lsof music password-utils pdf pulseaudio ssh syncthing terminals
-                     tmux video wget wm xdisorg)
+                     tmux video wget wm xdisorg suckless)
 
 ;;; Desktop home service
 ;;;
@@ -30,6 +30,8 @@
         polybar
         rofi
         pinentry-rofi
+        slock
+        xautolock
 
         ;; Flatpak and XDG utilities
         flatpak
@@ -115,7 +117,7 @@
   '(("_JAVA_AWT_WM_NONREPARENTING" . "1")))
 
 (define (home-desktop-shepherd-service config)
-  "Return shepherd service for gammastep color temperature adjustment."
+  "Return shepherd services for desktop utilities."
   (list
    (shepherd-service
     (documentation "Gammastep color temperature adjustment for Oslo")
@@ -129,6 +131,21 @@
                          (or (getenv "XDG_STATE_HOME")
                              (string-append (getenv "HOME") "/.local/state"))
                          "/gammastep.log")))
+    (stop #~(make-kill-destructor))
+    (respawn? #t))
+
+   (shepherd-service
+    (documentation "Auto-lock screen after inactivity")
+    (provision '(xautolock))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append xautolock "/bin/xautolock")
+                    "-time" "10"        ; Lock after 10 minutes
+                    "-locker" #$(file-append slock "/bin/slock")
+                    "-detectsleep")     ; Don't lock on suspend
+              #:log-file (string-append
+                         (or (getenv "XDG_STATE_HOME")
+                             (string-append (getenv "HOME") "/.local/state"))
+                         "/xautolock.log")))
     (stop #~(make-kill-destructor))
     (respawn? #t))))
 
