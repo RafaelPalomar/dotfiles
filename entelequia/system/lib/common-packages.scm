@@ -114,7 +114,9 @@
     "coreutils"
     "grep"
     "picom"
-    "sed"))
+    "sed"
+    "powertop"
+    "acpi"))
 
 ;;; GPU-specific packages
 

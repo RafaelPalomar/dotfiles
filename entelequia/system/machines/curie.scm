@@ -4,6 +4,7 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
+  #:use-module (entelequia system lib common-services)
   #:use-module (entelequia systems desktop)  ; For desktop-home-services
   #:use-module (gnu)
   #:use-module (gnu home)
@@ -49,19 +50,23 @@
 
 ;; Define curie-specific services
 (define curie-services
-  (list
-   ;; Guix Home configuration
-   (guix-home-config
-    curie-config
-    (home-environment
-     (services desktop-home-services)))
+  (append
+   (list
+    ;; Guix Home configuration
+    (guix-home-config
+     curie-config
+     (home-environment
+      (services desktop-home-services)))
 
-   ;; SLiM display manager with AMD Xlibre config
-   (service slim-service-type
-            (slim-configuration
-             (auto-login? #f)
-             (default-user "rafael")
-             (xorg-configuration amd-xlibre-config)))))
+    ;; SLiM display manager with AMD Xlibre config
+    (service slim-service-type
+             (slim-configuration
+              (auto-login? #f)
+              (default-user "rafael")
+              (xorg-configuration amd-xlibre-config))))
+
+   ;; zram compressed swap (8GB, zstd compression)
+   (zram-service #:size-mb 8192)))
 
 (define curie-system
   (operating-system

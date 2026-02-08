@@ -2,6 +2,8 @@
   #:use-module (gnu)
   #:use-module (gnu system)
   #:use-module (gnu home services)
+  #:use-module (gnu home services shepherd)
+  #:use-module (gnu services shepherd)
   #:use-module (entelequia packages fonts)
   #:use-module (nongnu packages fonts)
   #:use-module (gnu packages fonts)
@@ -112,6 +114,24 @@
 (define (home-desktop-environment-variables config)
   '(("_JAVA_AWT_WM_NONREPARENTING" . "1")))
 
+(define (home-desktop-shepherd-service config)
+  "Return shepherd service for gammastep color temperature adjustment."
+  (list
+   (shepherd-service
+    (documentation "Gammastep color temperature adjustment for Oslo")
+    (provision '(gammastep))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append gammastep "/bin/gammastep")
+                    "-l" "59.9:10.8"    ; Oslo coordinates
+                    "-t" "6500:3500"    ; Day:Night color temperature
+                    "-b" "1.0:0.8")     ; Day:Night brightness
+              #:log-file (string-append
+                         (or (getenv "XDG_STATE_HOME")
+                             (string-append (getenv "HOME") "/.local/state"))
+                         "/gammastep.log")))
+    (stop #~(make-kill-destructor))
+    (respawn? #t))))
+
 (define home-desktop-service-type
   (service-type (name 'home-desktop)
                 (description "Desktop environment packages and settings")
@@ -121,5 +141,8 @@
                         home-desktop-profile-service)
                        (service-extension
                         home-environment-variables-service-type
-                        home-desktop-environment-variables)))
+                        home-desktop-environment-variables)
+                       (service-extension
+                        home-shepherd-service-type
+                        home-desktop-shepherd-service)))
                 (default-value #f)))

@@ -81,7 +81,7 @@
                          password-store
                          python-pygments
                          ripgrep
-                         texlive
+                         texlive-scheme-full
                          texlive-minted
                          texlive-xetex
                          ungoogled-chromium

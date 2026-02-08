@@ -178,13 +178,6 @@
                (service dbus-root-service-type)
                fontconfig-file-system-service ;; Manage the fontconfig cache
 
-               ;; Power and thermal management services
-               (service thermald-service-type)
-               (service tlp-service-type
-                        (tlp-configuration
-                         (cpu-boost-on-ac? #t)
-                         (wifi-pwr-on-bat? #t)))
-
                ;; Enable JACK to enter realtime mode
                (service pam-limits-service-type
                         (list
@@ -247,7 +240,20 @@
                                 ;; Run `guix gc' 5 minutes after midnight every day.
                                 ;; Clean up generations older than 2 months and free
                                 ;; at least 10G of space.
-                                #~(job "5 0 * * *" "guix gc -d 2m -F 10G"))))))
+                                #~(job "5 0 * * *" "guix gc -d 2m -F 10G")
+
+                                ;; Run fstrim weekly (Sundays at 3 AM) for SSD health
+                                #~(job "0 3 * * 0" "fstrim -av"))))
+
+              ;; Power management services (laptop-only)
+              ;; Note: thermald removed - Intel-specific, not needed on AMD
+              ;; AMD Zen 5 uses kernel Powercap thermal management
+              (if (eq? (machine-config-machine-type config) 'laptop)
+                  (list (service tlp-service-type
+                                 (tlp-configuration
+                                  (cpu-boost-on-ac? #t)
+                                  (wifi-pwr-on-bat? #t))))
+                  '())))
 
    ;; Allow resolution of '.local' host names with mDNS
    (name-service-switch %mdns-host-lookup-nss)))
