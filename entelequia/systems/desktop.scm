@@ -1,6 +1,6 @@
 (define-module (entelequia systems desktop)
-  #:use-module (entelequia home-services emacs)
-  #:use-module (entelequia home-services desktop)
+  #:use-module (entelequia home services emacs)
+  #:use-module (entelequia home services desktop)
   #:use-module (entelequia packages polybar-themes)
   #:use-module (gnu packages package-management)
   #:use-module (entelequia packages fonts)
@@ -51,7 +51,7 @@
 
                                (service home-dotfiles-service-type
 	                                      (home-dotfiles-configuration
-	                                       (directories '("../../.files"))))
+	                                       (directories '("../../dotfiles"))))
 
                                (simple-service 'polybar-themes
                                                home-files-service-type

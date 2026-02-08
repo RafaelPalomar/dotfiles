@@ -1,4 +1,4 @@
-(define-module (entelequia home-services desktop)
+(define-module (entelequia home services desktop)
   #:use-module (gnu)
   #:use-module (gnu system)
   #:use-module (gnu home services)
@@ -9,8 +9,14 @@
 
 (use-package-modules admin chromium compression curl dns fonts freedesktop gimp glib gnome
                      gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf
-		     linux lsof music password-utils pdf pulseaudio ssh syncthing terminals
-		     tmux video wget wm xdisorg)
+                     linux lsof music password-utils pdf pulseaudio ssh syncthing terminals
+                     tmux video wget wm xdisorg)
+
+;;; Desktop home service
+;;;
+;;; Provides desktop environment packages and settings.
+;;; Refactored from home-services/desktop.scm with bash/GPG config
+;;; moved to separate services (shell.scm, gpg.scm).
 
 (define (home-desktop-profile-service config)
   (list bspwm
@@ -21,18 +27,17 @@
         dunst
         polybar
         rofi
-	pinentry-rofi
+        pinentry-rofi
 
         ;; Flatpak and XDG utilities
         flatpak
-        ;;TODO Review this package pinning
         xdg-desktop-portal
         xdg-desktop-portal-gtk
         xdg-desktop-portal-wlr
         xdg-utils ;; For xdg-open, etc
         xdg-dbus-proxy
         shared-mime-info
-       (list glib "bin")
+        (list glib "bin")
 
         ;; Appearance
         matcha-theme
@@ -109,7 +114,7 @@
 
 (define home-desktop-service-type
   (service-type (name 'home-desktop)
-                (description "My desktop environment service.")
+                (description "Desktop environment packages and settings")
                 (extensions
                  (list (service-extension
                         home-profile-service-type

@@ -14,28 +14,80 @@ This is a **GNU Guix-based declarative dotfiles system** called "entelequia". It
 /home/rafael/.dotfiles/
 ├── channels.scm              # Guix channel declarations (6 pinned channels)
 ├── emacs.org                 # Literate Emacs config (tangles to init.el)
-├── .files/                   # User dotfiles (deployed via guix-home)
+├── dotfiles/                 # User dotfiles (deployed via guix-home)
 │   ├── .xsession
 │   ├── .config/              # Application configs (bspwm, sxhkd, alacritty, etc.)
 │   └── .local/bin/           # User scripts
+├── scripts/                  # Deployment and testing scripts
+│   ├── deploy.sh
+│   ├── test-vm.sh
+│   └── validate-refactor.sh
 └── entelequia/               # Main Guix module namespace
-    ├── home/                 # Base home environment configuration
-    ├── home-services/        # Reusable home services (emacs, desktop)
+    ├── lib/                  # Core shared utilities
+    │   ├── records.scm       # machine-config record type
+    │   └── helpers.scm       # GPU and package helper functions
+    ├── home/                 # Home environment configuration
+    │   ├── home-config.scm   # Base home environment
+    │   ├── profiles/         # Package groupings
+    │   │   ├── base.scm      # Essential packages
+    │   │   ├── development.scm  # Development tools
+    │   │   └── email.scm     # Email stack with OAuth2
+    │   └── services/         # Modular home services
+    │       ├── emacs.scm     # Emacs daemon service
+    │       ├── desktop.scm   # Desktop services (D-Bus, PipeWire, GPG)
+    │       ├── gpg.scm       # GPG agent configuration
+    │       └── shell.scm     # Shell configuration
     ├── packages/             # Custom package definitions
-    └── systems/              # Complete system configurations
-        ├── base.scm          # Shared OS base (kernel, bootloader, services)
-        ├── desktop.scm       # Shared desktop home services
-        ├── einstein.scm      # Desktop system (NVIDIA GPU)
-        └── curie.scm         # Laptop system (AMD GPU)
+    │   ├── emacs.scm         # Custom Emacs packages
+    │   ├── fonts.scm         # Nerd fonts
+    │   └── ...
+    ├── system/               # System-level configuration
+    │   ├── layers/           # Composable OS layers
+    │   │   ├── base.scm      # Core OS foundation (~71 services)
+    │   │   ├── desktop-base.scm  # Desktop layer additions
+    │   │   └── server-base.scm   # Server layer (headless)
+    │   ├── machines/         # Hardware-specific configurations
+    │   │   ├── einstein.scm  # Desktop (NVIDIA GPU)
+    │   │   └── curie.scm     # Laptop (AMD GPU)
+    │   ├── lib/              # System-level shared code
+    │   │   ├── common-packages.scm  # Package lists by category
+    │   │   └── common-services.scm  # Reusable service definitions
+    │   └── vms/              # VM test configurations
+    │       ├── test-desktop.scm  # Desktop VM for testing
+    │       └── test-server.scm   # Server VM for testing
+    ├── systems/              # Legacy compatibility (desktop.scm)
+    └── tests/                # Test infrastructure
+        └── vm-runner.scm     # VM test harness
 ```
 
 ### Key Concepts
 
 - **Declarative System**: Everything from kernel to dotfiles is declared in Scheme
-- **Multi-System Support**: Two distinct systems (`einstein` desktop, `curie` laptop) share a common base
+- **Layered Architecture**: Base → Desktop-Base/Server-Base → Machine-specific (composable layers)
+- **Parameterization**: `machine-config` record eliminates hardcoded values (hostname, GPU, timezone, etc.)
+- **DRY Principle**: 90%+ code deduplication through shared libraries (common-packages, common-services)
+- **Multi-System Support**: Two distinct systems (`einstein` desktop, `curie` laptop) share common base
 - **Guix Channels**: 6 pinned channels provide reproducible package sources (guix, nonguix, guix-xlibre, tailscale, guix-systole, systole-artwork)
 - **Home Environment**: Uses Guix Home (not GNU Stow) to manage user packages and dotfiles
 - **Literate Configuration**: Emacs config written in org-mode for documentation alongside code
+- **Testability**: VM configurations for pre-deployment testing
+
+### Architecture Benefits
+
+The layered architecture provides several key benefits:
+
+1. **Maintainability**: Changes to shared code (packages, services) propagate to all systems automatically
+2. **Extensibility**: Easy to add new machines by inheriting from base layers and providing hardware specifics
+3. **Testability**: VM configurations allow safe testing before deploying to hardware
+4. **Clarity**: Clear separation of concerns (base OS, desktop additions, hardware specifics)
+5. **Reusability**: Composable layers can be mixed and matched (desktop-base, server-base)
+6. **Parameterization**: machine-config record eliminates duplicate configuration code
+
+**Code Deduplication**: The refactoring achieved ~90% reduction in duplicate code:
+- Common packages extracted to 8 categories in `common-packages.scm`
+- 7+ reusable services defined in `common-services.scm`
+- GPU-specific logic centralized in `helpers.scm`
+- Home packages organized into 3 profiles (base, development, email)
 
 ## Common Commands
 
@@ -43,8 +95,15 @@ This is a **GNU Guix-based declarative dotfiles system** called "entelequia". It
 
 ```bash
 # Apply system configuration (run from ~/.dotfiles)
-sudo guix time-machine -C ~/.dotfiles/channels.scm -- system reconfigure entelequia/systems/einstein.scm  # Desktop
-sudo guix time-machine -C ~/.dotfiles/channels.scm -- system reconfigure entelequia/systems/curie.scm     # Laptop
+sudo guix time-machine -C ~/.dotfiles/channels.scm -- system reconfigure entelequia/system/machines/einstein.scm  # Desktop
+sudo guix time-machine -C ~/.dotfiles/channels.scm -- system reconfigure entelequia/system/machines/curie.scm     # Laptop
+
+# Test build before applying (dry-run, no sudo needed)
+guix time-machine -C channels.scm -- system build -L . entelequia/system/machines/einstein.scm --dry-run
+
+# Test in VM before deploying to hardware
+./scripts/test-vm.sh test-desktop  # Desktop VM test
+./scripts/test-vm.sh test-server   # Server VM test
 
 # Update channels to latest pinned commits
 guix pull --channels=channels.scm
@@ -153,15 +212,35 @@ pkill -USR1 sxhkd
 
 ### Adding New Packages
 
-1. **System-level package**: Edit `entelequia/systems/einstein.scm` or `curie.scm`, add to packages list
-2. **Home-level package**: Edit `entelequia/home/home-config.scm`, add to packages list
-3. **Custom package**: Create in `entelequia/packages/`, follow existing patterns (see `emacs.scm`, `fonts.scm`)
+1. **System-level package (all machines)**: Edit `entelequia/system/lib/common-packages.scm`, add to appropriate category
+2. **System-level package (machine-specific)**: Edit `entelequia/system/machines/einstein.scm` or `curie.scm`, add to packages list
+3. **Home-level package (all machines)**: Edit `entelequia/home/profiles/base.scm`, `development.scm`, or `email.scm`
+4. **Home-level package (machine-specific)**: Edit `entelequia/home/home-config.scm`, add to packages list
+5. **Custom package**: Create in `entelequia/packages/`, follow existing patterns (see `emacs.scm`, `fonts.scm`)
 
 ### Creating New Services
 
-1. **Home service**: Add to `entelequia/home-services/` (see `emacs.scm`, `desktop.scm`)
-2. **System service**: Add to services list in `base.scm` or system-specific config
-3. Use `simple-service` for basic configurations (environment variables, udev rules, etc.)
+1. **Home service**: Add to `entelequia/home/services/` (see `emacs.scm`, `desktop.scm`, `gpg.scm`, `shell.scm`)
+2. **System service (shared)**: Add to `entelequia/system/lib/common-services.scm` for reusable services
+3. **System service (layer-specific)**: Add to `entelequia/system/layers/base.scm`, `desktop-base.scm`, or `server-base.scm`
+4. **System service (machine-specific)**: Add to `entelequia/system/machines/einstein.scm` or `curie.scm`
+5. Use `simple-service` for basic configurations (environment variables, udev rules, etc.)
+
+### Adding a New Machine
+
+1. Create new file: `entelequia/system/machines/new-machine.scm`
+2. Define `machine-config` with hostname, GPU type, etc.:
+   ```scheme
+   (define new-machine-config
+     (machine-config
+      (hostname "new-machine")
+      (username "rafael")
+      (gpu-type 'intel)  ; or 'nvidia, 'amd
+      (machine-type 'laptop)))  ; or 'desktop
+   ```
+3. Inherit from appropriate base layer (desktop-base or server-base)
+4. Add machine-specific file-systems, bootloader, and packages
+5. Test with: `./scripts/test-vm.sh` (create VM config first)
 
 ### Modifying Emacs Configuration
 
@@ -172,37 +251,96 @@ pkill -USR1 sxhkd
 
 ### Adding Dotfiles
 
-1. Place files in `.files/` directory structure (mirrors home directory)
+1. Place files in `dotfiles/` directory structure (mirrors home directory)
 2. Run `guix home reconfigure` to symlink into home
 3. Files are automatically deployed via `home-dotfiles-service-type`
 
 ## Module System
 
-The codebase uses Guile Scheme modules:
+The codebase uses Guile Scheme modules with a layered architecture:
 
 ```scheme
-(define-module (entelequia systems base)
+(define-module (entelequia system layers base)
   #:use-module (gnu)
-  #:export (base-operating-system guix-home-config))
+  #:use-module (entelequia lib records)
+  #:use-module (entelequia system lib common-services)
+  #:export (make-base-operating-system))
 ```
 
 - **Import modules**: `#:use-module (module name)`
 - **Export definitions**: `#:export (function-name variable-name)`
 - **Use package shortcuts**: `use-package-modules`, `use-service-modules`
 
+### Key Module Patterns
+
+**Layered OS Construction**:
+```scheme
+;; Base layer creates foundation
+(define (make-base-operating-system config) ...)
+
+;; Desktop layer adds on top
+(define (make-desktop-base-os config #:key (extra-services '()))
+  (let ((base-os (make-base-operating-system config)))
+    (operating-system
+     (inherit base-os)
+     (packages ...))))  ; Only override specific fields
+
+;; Machine config adds hardware specifics
+(define einstein-base (make-desktop-base-os einstein-config))
+(define einstein-system
+  (operating-system
+   (inherit einstein-base)
+   (bootloader ...)
+   (file-systems ...)))
+```
+
+**Using machine-config Record**:
+```scheme
+(use-modules (entelequia lib records))
+
+(define my-config
+  (machine-config
+   (hostname "my-machine")
+   (username "user")
+   (gpu-type 'nvidia)      ; 'nvidia, 'amd, or 'intel
+   (machine-type 'desktop) ; 'desktop or 'laptop
+   (timezone "Europe/Oslo")
+   (locale "en_US.utf8")))
+```
+
 ## Important Files
 
 ### Critical Configuration
 - `channels.scm` - Package source definitions (commit-pinned for reproducibility)
-- `entelequia/systems/base.scm` - Shared OS base (kernel, bootloader, networking, virtualization)
+- `entelequia/lib/records.scm` - Core `machine-config` record type definition
+- `entelequia/lib/helpers.scm` - GPU and package helper functions
+- `entelequia/system/layers/base.scm` - Shared OS base (~71 services: kernel, bootloader, networking, virtualization, security)
+- `entelequia/system/layers/desktop-base.scm` - Desktop layer (adds desktop packages to base)
+- `entelequia/system/lib/common-packages.scm` - Shared package lists (8 categories: hardware, audio, bluetooth, X11, security, etc.)
+- `entelequia/system/lib/common-services.scm` - Reusable service definitions (AIDE, bluetooth, libvirt, polkit, etc.)
 - `entelequia/home/home-config.scm` - Base home environment (packages, dotfiles service, bash config)
-- `entelequia/home-services/emacs.scm` - Emacs daemon service with 60+ packages
-- `entelequia/home-services/desktop.scm` - Desktop services (D-Bus, PipeWire, GPG, polybar)
 
-### System Definitions
-- `entelequia/systems/einstein.scm` - Desktop system (NVIDIA, more packages)
-- `entelequia/systems/curie.scm` - Laptop system (AMD, power management)
+### Machine Configurations
+- `entelequia/system/machines/einstein.scm` - Desktop system (NVIDIA, AIDE, Podman, more packages)
+- `entelequia/system/machines/curie.scm` - Laptop system (AMD, TLP, thermald, power management)
+
+### Home Environment
+- `entelequia/home/profiles/base.scm` - Essential packages (git, compression, text processing)
+- `entelequia/home/profiles/development.scm` - Development tools (GCC, Node.js, Python, debugging)
+- `entelequia/home/profiles/email.scm` - Email stack with OAuth2 support
+- `entelequia/home/services/emacs.scm` - Emacs daemon service with 60+ packages
+- `entelequia/home/services/desktop.scm` - Desktop services (D-Bus, PipeWire, GPG, polybar)
+- `entelequia/home/services/gpg.scm` - GPG agent configuration
+- `entelequia/home/services/shell.scm` - Shell configuration
 - `entelequia/systems/desktop.scm` - Shared desktop home services (imported by both systems)
+
+### Test Infrastructure
+- `entelequia/system/vms/test-desktop.scm` - Desktop VM for testing before deployment
+- `entelequia/system/vms/test-server.scm` - Server VM for testing
+- `entelequia/tests/vm-runner.scm` - VM test harness
+- `scripts/test-vm.sh` - Script to launch test VMs
+- `scripts/validate-refactor.sh` - Validation script for module syntax
+- `scripts/deploy.sh` - Deployment script
 
 ### Custom Packages
 - `entelequia/packages/emacs.scm` - Custom Emacs packages (denote-silo, evil-snipe, ob-mermaid, persp-projectile)
@@ -211,18 +349,65 @@ The codebase uses Guile Scheme modules:
 - `entelequia/packages/cyrus-sasl-xoauth2.scm`, `mutt-oauth2.scm` - OAuth2 email authentication
 
 ### User Dotfiles
-- `.files/.xsession` - X11 startup (compositor, WM, notifications)
-- `.files/.config/bspwm/bspwmrc` - Window manager config
-- `.files/.config/sxhkd/sxhkdrc` - Keybindings (Super key shortcuts)
-- `.files/.config/alacritty/alacritty.toml` - Terminal emulator
-- `.files/.local/bin/` - User scripts (wallpaper, keyboard layout, aider wrapper)
+- `dotfiles/.xsession` - X11 startup (compositor, WM, notifications)
+- `dotfiles/.config/bspwm/bspwmrc` - Window manager config
+- `dotfiles/.config/sxhkd/sxhkdrc` - Keybindings (Super key shortcuts)
+- `dotfiles/.config/alacritty/alacritty.toml` - Terminal emulator
+- `dotfiles/.local/bin/` - User scripts (wallpaper, keyboard layout, aider wrapper)
 
 ## Testing Changes
 
-1. **Test configuration syntax**: `guix home build entelequia/systems/einstein.scm`
-2. **Dry-run**: `guix home reconfigure --dry-run entelequia/systems/einstein.scm`
-3. **Apply changes**: `guix home reconfigure entelequia/systems/einstein.scm`
+### System Configuration Testing
+
+1. **Validate module syntax** (fast, no builds):
+   ```bash
+   ./scripts/validate-refactor.sh
+   ```
+
+2. **Test system build** (dry-run, no sudo needed):
+   ```bash
+   guix time-machine -C channels.scm -- system build -L . \
+     entelequia/system/machines/einstein.scm --dry-run
+   ```
+
+3. **Test in VM** (safest, isolated environment):
+   ```bash
+   # Desktop VM test
+   ./scripts/test-vm.sh test-desktop
+
+   # Server VM test
+   ./scripts/test-vm.sh test-server
+   ```
+
+4. **Dry-run on actual hardware** (shows changes without applying):
+   ```bash
+   sudo guix time-machine -C channels.scm -- \
+     system reconfigure entelequia/system/machines/einstein.scm --dry-run
+   ```
+
+5. **Apply to actual hardware**:
+   ```bash
+   sudo guix time-machine -C channels.scm -- \
+     system reconfigure entelequia/system/machines/einstein.scm
+   ```
+
+6. **Rollback if needed**: `sudo guix system roll-back`
+
+### Home Environment Testing
+
+1. **Test home build**: `guix home build entelequia/home/home-config.scm`
+2. **Dry-run**: `guix home reconfigure --dry-run entelequia/home/home-config.scm`
+3. **Apply changes**: `guix home reconfigure entelequia/home/home-config.scm`
 4. **Rollback if needed**: `guix home roll-back`
+
+### Best Practice Testing Workflow
+
+For major changes, follow this sequence:
+1. Run `./scripts/validate-refactor.sh` (syntax check)
+2. Test in VM with `./scripts/test-vm.sh test-desktop`
+3. Dry-run on actual hardware (laptop first, easier to rollback)
+4. Deploy to laptop (curie), test for 24-48 hours
+5. Deploy to desktop (einstein) after laptop proves stable
 
 ## Troubleshooting
 

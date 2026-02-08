@@ -1,14 +1,15 @@
-(define-module (entelequia systems base)
-  :use-module (gnu)
+(define-module (entelequia system layers base)
+  #:use-module (entelequia lib records)
+  #:use-module (entelequia system lib common-services)
+  #:use-module (gnu)
   #:use-module (gnu services)
   #:use-module (gnu home services)
   #:use-module (gnu system privilege)
   #:use-module (nongnu packages linux)
   #:use-module (btv tailscale)
   #:use-module (nongnu system linux-initrd)
-  #:export (base-operating-system
-            guix-home-config)
-  )
+  #:export (make-base-operating-system
+            guix-home-config))
 
 (use-package-modules audio video nfs certs shells ssh linux bash emacs gnome
                      networking wm fonts libusb cups freedesktop file-systems
@@ -17,11 +18,20 @@
 (use-service-modules dns guix admin sysctl pm nix avahi dbus cups desktop linux
                      mcron networking xorg ssh docker audio virtualization)
 
-(define-public base-operating-system
+;;; Parameterized base operating system
+;;;
+;;; This function creates a base operating system configuration
+;;; using a machine-config record for parameterization, eliminating
+;;; hardcoded values and enabling easy creation of new systems.
+
+(define* (make-base-operating-system config #:key (extra-services '()))
+  "Create a base operating system from a machine-config record.
+   CONFIG should be a <machine-config> record with all required fields.
+   EXTRA-SERVICES can be provided to add machine-specific services."
   (operating-system
-   (host-name "adam")
-   (timezone "Europe/Oslo")
-   (locale "en_US.utf8")
+   (host-name (machine-config-hostname config))
+   (timezone (machine-config-timezone config))
+   (locale (machine-config-locale config))
 
    ;; Use non-free Linux and firmware
    (kernel linux)
@@ -31,20 +41,24 @@
    ;; Additional kernel modules
    (kernel-loadable-modules (list v4l2loopback-linux-module))
 
-   ;; Choose US English keyboard layout.  The "altgr-intl"
-   ;; variant provides dead keys for accented characters.
-   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
+   ;; Use keyboard layout from config
+   (keyboard-layout (machine-config-keyboard config))
 
    ;; Use the UEFI variant of GRUB with the EFI System
    ;; Partition mounted on /boot/efi.
    (bootloader (bootloader-configuration
                 (bootloader grub-efi-bootloader)
                 (targets '("/boot/efi"))
-                (keyboard-layout keyboard-layout)))
+                (keyboard-layout (machine-config-keyboard config))))
 
    ;; Guix doesn't like it when there isn't a file-systems
-   ;; entry, so add one that is meant to be overridden
+   ;; entry, so add placeholders that are meant to be overridden
    (file-systems (cons*
+                  ;; Placeholder root filesystem (override in machine config)
+                  (file-system
+                   (mount-point "/")
+                   (device "none")
+                   (type "tmpfs"))
                   (file-system
                    (mount-point "/tmp")
                    (device "none")
@@ -53,10 +67,10 @@
                   %base-file-systems))
 
    (users (cons (user-account
-                 (name "rafael")
-                 (comment "Rafael Palomar")
+                 (name (machine-config-username config))
+                 (comment "User Account")
                  (group "users")
-                 (home-directory "/home/rafael")
+                 (home-directory (string-append "/home/" (machine-config-username config)))
                  (supplementary-groups '("wheel"  ;; sudo
                                          "netdev" ;; network devices
                                          "kvm"
@@ -86,9 +100,12 @@
 
    ;; Configure only the services necessary to run the system
    (services (append
+              ;; Add any extra services passed to this function
+              extra-services
               (modify-services %base-services
+                               ;; Remove login-service-type since display manager (SLiM) handles login
                                (delete login-service-type)
-                               (delete mingetty-service-type)
+                               ;; Remove console-font-service-type as we configure it manually below
                                (delete console-font-service-type))
               (list
                ;; Seat management (can't use seatd because Wireplumber depends on elogind)
@@ -114,25 +131,6 @@
                          (program (file-append swaylock "/bin/swaylock"))
                          (using-pam? #t)
                          (using-setuid? #f)))
-
-;; (service greetd-service-type
-;;                         (greetd-configuration
-;;                          (greeter-supplementary-groups (list "video" "input"))
-;;                          (terminals
-;;                           (list
-;;                            ;; TTY1 is the graphical login screen for Sway
-;;                            (greetd-terminal-configuration
-;;                             (terminal-vt "1")
-;;                             (terminal-switch #t)
-;;                             ;; (default-session-command (greetd-wlgreet-sway-session
-;;                             ;;                           (sway-configuration
-;;                             ;;                            (plain-file "sway-greet.conf"
-;;                             ;;                                        "output * bg /home/daviwil/.dotfiles/backgrounds/samuel-ferrara-uOi3lg8fGl4-unsplash.jpg fill\n"))))
-;;                             )
-
-;;                            ;; Set up remaining TTYs for terminal use
-;;                            (greetd-terminal-configuration (terminal-vt "2"))
-;;                            (greetd-terminal-configuration (terminal-vt "3"))))))
 
                ;; Configure the Guix service and ensure we use Nonguix substitutes
                (simple-service 'add-nonguix-substitutes
@@ -176,7 +174,7 @@
                (service udisks-service-type)
                (service upower-service-type)
                (service cups-pk-helper-service-type)
-               (service polkit-service-type)
+               ;; Note: polkit-wheel-service is defined above (line 139)
                (service dbus-root-service-type)
                fontconfig-file-system-service ;; Manage the fontconfig cache
 
@@ -254,9 +252,9 @@
    ;; Allow resolution of '.local' host names with mDNS
    (name-service-switch %mdns-host-lookup-nss)))
 
-(define (guix-home-config home-environment)
-  "Helper function to create a guix-home service for user 'rafael'."
+(define* (guix-home-config config home-environment)
+  "Helper function to create a guix-home service for the configured user.
+   CONFIG should be the machine-config record.
+   HOME-ENVIRONMENT should be the home-environment configuration."
   (service guix-home-service-type
-           `(("rafael" ,home-environment))))
-
-base-operating-system
+           `((,(machine-config-username config) ,home-environment))))
