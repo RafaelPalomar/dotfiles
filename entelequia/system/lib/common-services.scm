@@ -12,6 +12,7 @@
   #:use-module (gnu packages networking)
   #:use-module (gnu packages virtualization)
   #:use-module (gnu packages audio)
+  #:use-module (gnu packages admin)  ; For aide
   #:use-module (guix gexp)
   #:export (aide-service
             file-permissions-service
@@ -25,17 +26,80 @@
 ;;; from einstein and curie, providing a single source of truth.
 
 ;;; AIDE file integrity monitoring service
+;;; Provides file integrity monitoring with scheduled checks
+
+(define aide-config
+  (plain-file "aide.conf"
+              "# AIDE configuration for file integrity monitoring
+
+# Database paths
+database=file:/var/lib/aide/aide.db
+database_out=file:/var/lib/aide/aide.db.new
+database_new=file:/var/lib/aide/aide.db.new
+
+# Report settings
+report_url=file:/var/log/aide/aide.log
+report_url=stdout
+
+# Monitoring rules
+# p = permissions, i = inode, n = number of links, u = user, g = group
+# s = size, b = block count, m = mtime, a = atime, c = ctime
+# S = check for growing size, md5/sha256 = checksums
+
+# System binaries - monitor everything
+/bin PERMS+SHA256
+/sbin PERMS+SHA256
+/usr/bin PERMS+SHA256
+/usr/sbin PERMS+SHA256
+/gnu/store R+SHA256
+
+# System configuration
+/etc PERMS+SHA256
+!/etc/mtab
+
+# Boot files
+/boot PERMS+SHA256
+
+# Libraries
+/lib PERMS+SHA256
+/lib64 PERMS+SHA256
+
+# Exclude frequently changing directories
+!/tmp
+!/var/tmp
+!/var/cache
+!/var/log
+!/proc
+!/sys
+!/dev
+!/run
+
+# Custom rules
+PERMS = p+i+n+u+g+s+b+m+c+md5+sha256
+"))
 
 (define aide-service
-  (simple-service 'aide
-                  shepherd-root-service-type
-                  (list
-                   (shepherd-service
-                    (provision '(aide))
-                    (start #~(make-forkexec-constructor
-                              '("/bin/sh" "-c" "/usr/bin/aide --config=/etc/aide.conf --check")))
-                    (stop #~(make-kill-destructor))
-                    (auto-start? #f)))))
+  (list
+   ;; Install AIDE configuration
+   (simple-service 'aide-config
+                   etc-service-type
+                   (list `("aide/aide.conf" ,aide-config)))
+
+   ;; AIDE shepherd service for manual checks
+   (simple-service 'aide-check
+                   shepherd-root-service-type
+                   (list
+                    (shepherd-service
+                     (documentation "AIDE file integrity check")
+                     (provision '(aide-check))
+                     (start #~(lambda ()
+                                (invoke #$(file-append aide "/bin/aide")
+                                        "--config=/etc/aide/aide.conf"
+                                        "--check")
+                                #t))
+                     (stop #~(const #f))
+                     (one-shot? #t)
+                     (auto-start? #f))))))
 
 ;;; File permissions service for /home and /var/lib/aide
 

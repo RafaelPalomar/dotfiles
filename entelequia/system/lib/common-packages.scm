@@ -89,6 +89,8 @@
 
 (define base-security-packages
   '("nftables"
+    "fail2ban"
+    "audit"
     "gnupg"
     "openvpn"
     "openssl"

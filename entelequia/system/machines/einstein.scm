@@ -80,22 +80,23 @@
   (operating-system
    (inherit (make-desktop-base-os einstein-config
                                   #:extra-packages einstein-extra-packages
-                                  #:extra-services einstein-services))
+                                  #:extra-services einstein-services
+                                  ;; Allow Synergy for keyboard/mouse sharing
+                                  #:firewall-extra-tcp-ports '(24800)))
 
    ;; NVIDIA-specific kernel arguments
    (kernel-arguments (gpu-kernel-arguments 'nvidia))
 
-   ;; Add cgroup group for container management
-   (groups (cons (user-group (name "cgroup") (system? #t))
-                 %base-groups))
-
-   ;; User configuration (add cgroup to supplementary groups for containers)
+   ;; User configuration (add lp and cgroup to supplementary groups)
+   ;; Note: cgroup group now defined in base.scm
    (users (cons* (user-account
                   (name "rafael")
                   (comment "Rafael")
                   (group "users")
                   (home-directory "/home/rafael")
-                  (supplementary-groups '("wheel" "netdev" "audio" "lp" "video" "cgroup")))
+                  ;; Include all base groups + lp (printers) + cgroup (containers)
+                  (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
+                                          "realtime" "audio" "video" "lp" "cgroup")))
                  %base-user-accounts))
 
    ;; Bootloader configuration

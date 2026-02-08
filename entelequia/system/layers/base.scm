@@ -1,6 +1,7 @@
 (define-module (entelequia system layers base)
   #:use-module (entelequia lib records)
   #:use-module (entelequia system lib common-services)
+  #:use-module (entelequia system lib security-hardening)
   #:use-module (gnu)
   #:use-module (gnu services)
   #:use-module (gnu home services)
@@ -8,6 +9,7 @@
   #:use-module (nongnu packages linux)
   #:use-module (btv tailscale)
   #:use-module (nongnu system linux-initrd)
+  #:use-module (guix gexp)
   #:export (make-base-operating-system
             guix-home-config))
 
@@ -24,10 +26,15 @@
 ;;; using a machine-config record for parameterization, eliminating
 ;;; hardcoded values and enabling easy creation of new systems.
 
-(define* (make-base-operating-system config #:key (extra-services '()))
+(define* (make-base-operating-system config
+                                     #:key
+                                     (extra-services '())
+                                     (firewall-extra-tcp-ports '())
+                                     (firewall-extra-udp-ports '()))
   "Create a base operating system from a machine-config record.
    CONFIG should be a <machine-config> record with all required fields.
-   EXTRA-SERVICES can be provided to add machine-specific services."
+   EXTRA-SERVICES can be provided to add machine-specific services.
+   FIREWALL-EXTRA-TCP-PORTS and FIREWALL-EXTRA-UDP-PORTS can be provided for machine-specific firewall rules."
   (operating-system
    (host-name (machine-config-hostname config))
    (timezone (machine-config-timezone config))
@@ -59,11 +66,14 @@
                    (mount-point "/")
                    (device "none")
                    (type "tmpfs"))
+                  ;; Hardened /tmp mount with security flags
                   (file-system
                    (mount-point "/tmp")
                    (device "none")
                    (type "tmpfs")
-                   (check? #f))
+                   (check? #f)
+                   (flags '(no-dev no-suid no-exec))  ; Security: prevent execution and setuid
+                   (options "mode=1777,strictatime"))  ; World-writable with sticky bit
                   %base-file-systems))
 
    (users (cons (user-account
@@ -82,9 +92,10 @@
 
                 %base-user-accounts))
 
-   ;; Add the 'realtime' group
-   (groups (cons (user-group (system? #t) (name "realtime"))
-                 %base-groups))
+   ;; Add the 'realtime' and 'cgroup' groups
+   (groups (cons* (user-group (system? #t) (name "realtime"))
+                  (user-group (system? #t) (name "cgroup"))
+                  %base-groups))
 
    ;; Install bare-minimum system packages
    (packages (cons* exfat-utils
@@ -201,12 +212,19 @@
                          (unix-sock-group "libvirt")
                          (tls-port "16555")))
 
-               ;; Enable SSH access
-               (service openssh-service-type
-                        (openssh-configuration
-                         (openssh openssh-sans-x)
-                         (port-number 2222)))
+               ;; Enable hardened SSH access
+               (hardened-ssh-service 2222))
 
+              ;; Security hardening services (kernel, firewall, fail2ban, audit)
+              (security-hardening-services #:ssh-port 2222
+                                           #:enable-fail2ban? #t
+                                           #:enable-firewall? #t
+                                           #:enable-audit? #t
+                                           #:firewall-extra-tcp-ports firewall-extra-tcp-ports
+                                           #:firewall-extra-udp-ports firewall-extra-udp-ports)
+
+              ;; Continue with other services
+              (list
                ;; Sync system clock with time servers
                (service ntp-service-type)
 
