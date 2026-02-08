@@ -66,8 +66,8 @@
    (guix-home-config
     einstein-config
     (home-environment
-     (services (cons* (service home-emacs-config-service-type)
-                      desktop-home-services))))
+     ;; desktop-home-services already includes emacs service
+     (services desktop-home-services)))
 
    ;; SLiM display manager with NVIDIA Xorg config
    (service slim-service-type

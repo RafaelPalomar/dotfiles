@@ -1,0 +1,87 @@
+configuration {
+    modi: "drun,run,window";
+    font: "Iosevka 12";
+    show-icons: true;
+    icon-theme: "Papirus-Dark";
+    display-drun: "Applications";
+    display-run: "Run";
+    display-window: "Windows";
+    drun-display-format: "{name}";
+    disable-history: false;
+    sidebar-mode: false;
+}
+
+/* Import pywal colors */
+@import "~/.cache/wal/colors-rofi.rasi"
+
+window {
+    transparency: "real";
+    background-color: @background;
+    border: 2;
+    border-color: @selected-background;
+    border-radius: 10;
+    width: 600;
+    location: center;
+    x-offset: 0;
+    y-offset: 0;
+}
+
+mainbox {
+    background-color: @background;
+    border: 0;
+    border-radius: 0;
+    children: [inputbar, listview];
+}
+
+inputbar {
+    children: [prompt, entry];
+    background-color: @background;
+    border-radius: 5;
+    padding: 10px;
+    margin: 10px;
+}
+
+prompt {
+    background-color: @selected-background;
+    padding: 6px;
+    text-color: @background;
+    border-radius: 5;
+    margin: 0px 10px 0px 0px;
+}
+
+entry {
+    text-color: @foreground;
+    background-color: @background;
+    padding: 6px;
+}
+
+listview {
+    border: 0;
+    padding: 0px 10px 10px 10px;
+    columns: 1;
+    lines: 8;
+    background-color: @background;
+}
+
+element {
+    padding: 8px;
+    background-color: @background;
+    text-color: @foreground;
+    border-radius: 5;
+}
+
+element selected {
+    background-color: @selected-background;
+    text-color: @background;
+}
+
+element-icon {
+    size: 32;
+    margin: 0px 10px 0px 0px;
+}
+
+element-text {
+    background-color: inherit;
+    text-color: inherit;
+    vertical-align: 0.5;
+}

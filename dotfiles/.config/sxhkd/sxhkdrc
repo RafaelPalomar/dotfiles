@@ -44,7 +44,7 @@ super + Escape
 
 # Launch rofi
 super + d
-     rofi -no-config -no-lazy-grab -show drun -modi drun -theme ~/.config/polybar/shapes/scripts/rofi/launcher.rasi
+     rofi -show drun -modi drun
 
 # Restart XOrg
 super + alt + BackSpace
