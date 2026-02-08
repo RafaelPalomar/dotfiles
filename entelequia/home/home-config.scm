@@ -93,7 +93,7 @@
         ;; Drop files (gnu stow replacement)
         (service home-dotfiles-service-type
                  (home-dotfiles-configuration
-                  (directories '("../../files"))))
+                  (directories '("../../dotfiles"))))
 
         (service home-gpg-agent-service-type
                  (home-gpg-agent-configuration
