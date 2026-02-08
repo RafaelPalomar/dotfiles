@@ -4,6 +4,7 @@
   #:use-module (gnu home services)
   #:use-module (gnu services)
   #:use-module (gnu home services shepherd)
+  #:use-module (gnu packages emacs)
   #:export (%emacs-pacakges
             home-emacs-config-service-type))
 
@@ -86,7 +87,7 @@
         emacs-yaml-mode))
 
 (define (home-emacs-config-profile-service config)
-  (append (list emacs
+  (append (list emacs-lucid
 		            font-fira-code
                 font-abattis-cantarell)
           %emacs-packages))
@@ -104,7 +105,7 @@
                           (list (shepherd-service
                                  (provision '(emacs))
                                  (start #~(make-forkexec-constructor
-                                           (list #$(file-append emacs "/bin/emacs")
+                                           (list #$(file-append emacs-lucid "/bin/emacs")
                                                  "--fg-daemon")
                                            #:environment-variables
                                            (cons* (string-append "DISPLAY=" (or (getenv "DISPLAY") ":0"))
@@ -113,19 +114,7 @@
                                                                      (string-append (getenv "HOME") "/.Xauthority")))
                                                   (default-environment-variables))))
                                  (stop #~(make-kill-destructor))
+                                 (respawn? #t)
                                  (auto-start? #t)
-                                 (documentation "Emacs daemon")))))
-
-		                   ;; Add shepherd service for Emacs daemon
-		                   ;; (service-extension
-			                 ;; home-shepherd-service-type
-			                 ;; (lambda (config)
-			                 ;;   (list (shepherd-service
-			                 ;; 	 (provision '(emacs))
-			                 ;; 	 (start #~(make-forkexec-constructor
-			                 ;; 		   (list #$(file-append emacs "/bin/emacs")
-			                 ;; 			 "--fg-daemon")))
-			                 ;; 	 (stop #~(make-kill-destructor))
-			                 ;; 	 (documentation "Emacs daemon")))))
-                       ))
+                                 (documentation "Emacs daemon with auto-restart on failure")))))))
 		            (default-value #f)))
