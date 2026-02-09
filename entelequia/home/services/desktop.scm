@@ -9,7 +9,7 @@
   #:use-module (gnu packages fonts)
   #:export (home-desktop-service-type))
 
-(use-package-modules admin chromium compression curl dns fonts freedesktop gimp glib gnome
+(use-package-modules admin chromium compression curl disk dns fonts freedesktop gimp glib gnome
                      gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf
                      linux lsof music password-utils pdf pulseaudio ssh syncthing terminals
                      tmux video wget wm xdisorg suckless)
@@ -100,6 +100,9 @@
         ;; File syncing
         syncthing-gtk
 
+        ;; USB disk management
+        udiskie        ;; Automatic USB disk mounting with notifications
+
         ;; General utilities
         curl
         wget
@@ -146,6 +149,21 @@
                          (or (getenv "XDG_STATE_HOME")
                              (string-append (getenv "HOME") "/.local/state"))
                          "/xautolock.log")))
+    (stop #~(make-kill-destructor))
+    (respawn? #t))
+
+   (shepherd-service
+    (documentation "Automatic USB disk mounting with notifications")
+    (provision '(udiskie))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append udiskie "/bin/udiskie")
+                    "--tray"           ; System tray applet
+                    "--notify"         ; Desktop notifications
+                    "--automount")     ; Auto-mount on insertion
+              #:log-file (string-append
+                         (or (getenv "XDG_STATE_HOME")
+                             (string-append (getenv "HOME") "/.local/state"))
+                         "/udiskie.log")))
     (stop #~(make-kill-destructor))
     (respawn? #t))))
 
