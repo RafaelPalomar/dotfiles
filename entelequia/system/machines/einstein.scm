@@ -4,8 +4,12 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
+  #:use-module (entelequia system machines datalocker-udev-rules)
   #:use-module (entelequia systems desktop)  ; For desktop-home-services
   #:use-module (entelequia home services emacs)
+  #:use-module (entelequia home profiles base)
+  #:use-module (entelequia home profiles development)
+  #:use-module (entelequia home profiles email)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -62,10 +66,17 @@
              (subuids (list (subid-range (name "rafael"))))
              (subgids (list (subid-range (name "rafael"))))))
 
+   ;; DataLocker Sentry ONE auto-unlock udev rule
+   datalocker-udev-rules-service
+
    ;; Guix Home configuration
    (guix-home-config
     einstein-config
     (home-environment
+     ;; Include profile packages
+     (packages (append base-home-packages
+                       development-home-packages
+                       email-home-packages))
      ;; desktop-home-services already includes emacs service
      (services desktop-home-services)))
 

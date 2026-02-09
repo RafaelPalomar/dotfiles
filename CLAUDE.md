@@ -550,6 +550,596 @@ sysctl kernel.unprivileged_bpf_disabled
 - Some security features may need adjustment for specific use cases (e.g., containers need user namespaces)
 - Audit logs can grow large; rotate regularly
 
+## Cryptographic Key Infrastructure (GPG)
+
+This system uses a **maximum security GPG architecture** with an offline master key and online subkeys. This approach provides strong security while maintaining daily usability.
+
+### Architecture Overview
+
+**Master Key + Subkeys Model**:
+- **Master Key** (`[C]` - Certification only): Kept offline, used only for key management
+- **Signing Subkey** (`[S]`): Git commits, documents, package signatures
+- **Encryption Subkey** (`[E]`): Email, file encryption
+- **Authentication Subkey** (`[A]`): SSH authentication via GPG agent
+
+**Key Benefits**:
+- ✅ Revoke/rotate subkeys without changing identity
+- ✅ Compromise of daily-use key doesn't compromise master key
+- ✅ Master key stays offline on encrypted backup
+- ✅ Single key infrastructure for multiple purposes
+- ✅ Can have different expiration policies per subkey
+
+### Directory Structure
+
+```
+~/.keys/
+├── gpg/
+│   ├── master/                          # OFFLINE storage (encrypted USB/separate disk)
+│   │   ├── master-key.asc.gpg          # Master key encrypted with strong passphrase
+│   │   ├── master-key-backup.tar.gpg   # Full GNUPGHOME backup
+│   │   ├── revocation-cert.asc         # CRITICAL: print and store securely
+│   │   └── README.md                   # Key generation metadata (date, fingerprint)
+│   ├── public/                          # Can be version controlled in dotfiles
+│   │   ├── public-key.asc              # Public key (all subkeys)
+│   │   └── fingerprint.txt             # Key fingerprint for verification
+│   └── subkeys-backup/                  # Encrypted subkey backups
+│       ├── subkeys.tar.gpg             # Periodic encrypted backups
+│       └── restore-instructions.md      # Recovery procedures
+├── ssh/
+│   ├── id_ed25519_github               # GitHub-specific key (if not using GPG auth)
+│   ├── id_ed25519_servers              # Server access keys
+│   └── config                          # SSH config (can be in dotfiles)
+└── README.md                           # Key management procedures
+```
+
+### Initial Master Key Generation
+
+**IMPORTANT**: Perform this on an air-gapped machine or bootable Linux USB for maximum security. For practical security, a clean system with network disabled is acceptable.
+
+#### 1. Prepare Secure Environment
+
+```bash
+# Create key directory structure
+mkdir -p ~/.keys/gpg/{master,public,subkeys-backup}
+mkdir -p ~/.keys/ssh
+
+# Optional: Disconnect network for key generation
+nmcli networking off  # or physically disconnect
+
+# Set restrictive permissions
+chmod 700 ~/.keys
+chmod 700 ~/.keys/gpg/master
+```
+
+#### 2. Generate Master Key (Certification Only)
+
+```bash
+# Use expert mode for certification-only key
+gpg --expert --full-generate-key
+
+# Select:
+# (8) RSA (set your own capabilities)
+# Toggle off Sign and Encrypt, keep only Certify
+# Key size: 4096 bits
+# Expiration: 0 (does not expire) - master key stays valid
+# Real name: Rafael [Your Last Name]
+# Email: your-primary-email@example.com
+# Comment: Master Certification Key (optional)
+
+# Use a STRONG passphrase (6+ words, diceware recommended)
+# Example: "correct horse battery staple fluffy penguin"
+```
+
+**Record Key Information**:
+```bash
+# Get your key fingerprint
+gpg --list-keys --keyid-format LONG your-email@example.com
+
+# Save fingerprint to file
+gpg --fingerprint your-email@example.com | tee ~/.keys/gpg/public/fingerprint.txt
+
+# Export master key ID
+export KEYID="YOUR_KEY_ID_HERE"  # e.g., 0xABCDEF1234567890
+```
+
+#### 3. Generate Subkeys
+
+**Signing Subkey** (for Git commits, documents):
+```bash
+gpg --expert --edit-key $KEYID
+gpg> addkey
+# Select: (4) RSA (sign only)
+# Key size: 4096 bits
+# Expiration: 2y (2 years - shorter than master for rotation)
+gpg> save
+```
+
+**Encryption Subkey** (for email, files):
+```bash
+gpg --expert --edit-key $KEYID
+gpg> addkey
+# Select: (6) RSA (encrypt only)
+# Key size: 4096 bits
+# Expiration: 2y (2 years)
+gpg> save
+```
+
+**Authentication Subkey** (for SSH):
+```bash
+gpg --expert --edit-key $KEYID
+gpg> addkey
+# Select: (8) RSA (set your own capabilities)
+# Toggle off Sign and Encrypt, toggle on Authenticate
+# Key size: 4096 bits
+# Expiration: 2y (2 years)
+gpg> save
+```
+
+#### 4. Generate Revocation Certificate
+
+**CRITICAL**: Generate and secure this immediately:
+
+```bash
+# Generate revocation certificate
+gpg --output ~/.keys/gpg/master/revocation-cert.asc \
+    --gen-revoke $KEYID
+
+# IMPORTANT STEPS:
+# 1. Print this file and store in a safe (fire-proof if possible)
+# 2. Store encrypted copy on separate media
+# 3. DO NOT lose this - it's your only way to revoke if master key is lost
+
+# Create encrypted backup
+gpg --symmetric --cipher-algo AES256 \
+    ~/.keys/gpg/master/revocation-cert.asc
+
+# Verify the encrypted backup
+gpg --decrypt ~/.keys/gpg/master/revocation-cert.asc.gpg
+```
+
+#### 5. Backup Master Key
+
+```bash
+# Export secret master key (encrypted with your passphrase)
+gpg --export-secret-keys --armor $KEYID > \
+    ~/.keys/gpg/master/master-key.asc
+
+# Create encrypted backup of entire GNUPGHOME
+tar czf - ~/.gnupg | gpg --symmetric --cipher-algo AES256 \
+    --output ~/.keys/gpg/master/master-key-backup.tar.gpg
+
+# Verify backup integrity
+gpg --decrypt ~/.keys/gpg/master/master-key-backup.tar.gpg | tar tzf - > /dev/null
+echo "Backup verified: $?"  # Should be 0
+```
+
+#### 6. Export Public Key
+
+```bash
+# Export public key (shareable)
+gpg --export --armor $KEYID > ~/.keys/gpg/public/public-key.asc
+
+# Optionally, upload to key servers
+gpg --send-keys $KEYID
+
+# Or upload to specific keyserver
+gpg --keyserver keys.openpgp.org --send-keys $KEYID
+```
+
+#### 7. Create Subkey-Only Keyring (Daily Use)
+
+**Critical step**: Remove master key from daily-use keyring for security.
+
+```bash
+# Export all subkeys (without master secret key)
+gpg --export-secret-subkeys $KEYID > /tmp/subkeys.gpg
+
+# Backup current keyring
+cp -r ~/.gnupg ~/.gnupg.backup
+
+# Delete secret master key from keyring
+gpg --delete-secret-keys $KEYID
+
+# Import subkeys back (master key secret is now absent)
+gpg --import /tmp/subkeys.gpg
+
+# Securely delete temporary file
+shred -u /tmp/subkeys.gpg
+
+# Verify: Master key should show "sec#" (# means secret is not present)
+gpg --list-secret-keys
+# Look for: sec#  rsa4096/KEYID [C] (pound sign indicates offline)
+```
+
+### Key Storage Strategy
+
+**Master Key Storage** (choose one or multiple):
+1. **Encrypted USB drive**: Keep in safe/lockbox, preferably off-site
+2. **Encrypted external disk**: Secondary location (parent's house, bank vault)
+3. **Paper backup**: QR code or printed ASCII-armored key (fire-proof safe)
+4. **Encrypted cloud backup**: As last resort, triple-encrypted (GPG + VeraCrypt + provider encryption)
+
+**DO NOT**:
+- ❌ Store master key on daily-use machine
+- ❌ Store in unencrypted cloud storage
+- ❌ Keep only one copy (redundancy is critical)
+- ❌ Store revocation certificate with master key (separate locations)
+
+**Subkeys** (daily use):
+- ✅ Stored in `~/.gnupg` (encrypted by GPG agent)
+- ✅ Backed up encrypted to `~/.keys/gpg/subkeys-backup/`
+- ✅ Can be revoked/rotated without affecting identity
+
+### Daily Usage Workflow
+
+#### Git Commit Signing
+
+```bash
+# Configure Git to use GPG (already in your Guix config)
+git config --global user.signingkey $KEYID
+git config --global commit.gpgsign true
+git config --global tag.gpgSign true
+
+# Sign commits automatically
+git commit -m "Your commit message"  # Automatically signed
+
+# Verify signatures
+git log --show-signature
+```
+
+#### Email Encryption (with your existing setup)
+
+Your system already has GPG configured for email via `entelequia/home/services/gpg.scm`. Ensure your email client is configured:
+
+```bash
+# Export public key for correspondents
+gpg --armor --export your-email@example.com > my-public-key.asc
+
+# Decrypt email
+gpg --decrypt encrypted-message.asc
+
+# Encrypt file for someone
+gpg --encrypt --recipient their-email@example.com document.pdf
+```
+
+#### SSH Authentication via GPG
+
+**Enable GPG SSH support** (add to `~/.bashrc` or Guix shell config):
+
+```bash
+# Add to shell configuration
+export GPG_TTY=$(tty)
+export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+gpgconf --launch gpg-agent
+
+# Add to ~/.gnupg/gpg-agent.conf (or Guix GPG service config)
+enable-ssh-support
+default-cache-ttl 3600
+max-cache-ttl 7200
+```
+
+**Extract SSH public key from GPG**:
+
+```bash
+# Get SSH public key from authentication subkey
+gpg --export-ssh-key $KEYID > ~/.keys/ssh/gpg-auth-key.pub
+
+# Add to remote servers
+ssh-copy-id -i ~/.keys/ssh/gpg-auth-key.pub user@server
+
+# Test authentication
+ssh -v user@server  # Should use GPG key
+```
+
+### Key Maintenance and Rotation
+
+#### Extending Subkey Expiration
+
+```bash
+# Before subkeys expire, extend expiration (requires master key)
+# 1. Import master key temporarily (from offline storage)
+gpg --import ~/.keys/gpg/master/master-key.asc
+
+# 2. Edit key
+gpg --edit-key $KEYID
+gpg> key 1  # Select first subkey (signing)
+gpg> expire
+# Set new expiration: 2y
+gpg> key 1  # Deselect
+gpg> key 2  # Select encryption subkey
+gpg> expire
+# Set new expiration: 2y
+gpg> key 2  # Deselect
+gpg> key 3  # Select authentication subkey
+gpg> expire
+# Set new expiration: 2y
+gpg> save
+
+# 3. Export updated public key
+gpg --export --armor $KEYID > ~/.keys/gpg/public/public-key.asc
+
+# 4. Update key servers
+gpg --send-keys $KEYID
+
+# 5. Remove master key again and re-import subkeys only
+# (repeat steps from "Create Subkey-Only Keyring" section)
+
+# 6. Backup updated keys
+tar czf - ~/.gnupg | gpg --symmetric --cipher-algo AES256 \
+    --output ~/.keys/gpg/subkeys-backup/subkeys-$(date +%Y%m%d).tar.gpg
+```
+
+#### Rotating Compromised Subkeys
+
+```bash
+# If a subkey is compromised (requires master key)
+# 1. Import master key
+gpg --import ~/.keys/gpg/master/master-key.asc
+
+# 2. Revoke compromised subkey
+gpg --edit-key $KEYID
+gpg> key 1  # Select compromised subkey
+gpg> revkey
+# Reason: 1 = Key has been compromised
+gpg> save
+
+# 3. Generate new subkey (repeat generation steps above)
+
+# 4. Update public key and keyservers
+gpg --export --armor $KEYID > ~/.keys/gpg/public/public-key.asc
+gpg --send-keys $KEYID
+
+# 5. Remove master key from keyring again
+```
+
+#### Complete Key Revocation (Emergency)
+
+**Only if master key is compromised or permanently lost**:
+
+```bash
+# Import revocation certificate
+gpg --import ~/.keys/gpg/master/revocation-cert.asc
+
+# Upload to key servers
+gpg --send-keys $KEYID
+
+# Notify contacts and generate new key infrastructure
+```
+
+### Integration with Guix System
+
+Your GPG configuration is already in `entelequia/home/services/gpg.scm`. Enhance it to include:
+
+```scheme
+;; Example additions to gpg.scm or home-config.scm
+
+;; Ensure GPG agent uses Rofi for passphrases (already configured)
+(simple-service 'gpg-agent-config
+                home-environment-variables-service-type
+                `(("GPG_TTY" . "$(tty)")
+                  ("SSH_AUTH_SOCK" . "$(gpgconf --list-dirs agent-ssh-socket)")))
+
+;; Add public key to dotfiles (version control safe)
+(simple-service 'gpg-public-key
+                home-files-service-type
+                `((".gnupg/public-key.asc" ,(local-file "~/.keys/gpg/public/public-key.asc"))))
+```
+
+**Declarative Git Configuration** (add to `home-config.scm` or dotfiles):
+
+```bash
+# In ~/.gitconfig or via Guix home-git-service
+[user]
+    name = Rafael [Your Name]
+    email = your-email@example.com
+    signingkey = YOUR_KEY_ID_HERE
+[commit]
+    gpgsign = true
+[tag]
+    gpgSign = true
+```
+
+### Best Practices
+
+#### Security Practices
+
+1. **Strong Passphrases**:
+   - Minimum 6 random words (diceware method)
+   - Use different passphrases for master key vs. backup encryption
+   - Consider using a password manager (KeePassXC) to store passphrases
+
+2. **Master Key Protection**:
+   - Never store on internet-connected device
+   - Use only when needed (extending expiration, revoking subkeys)
+   - Keep multiple encrypted backups in separate physical locations
+
+3. **Revocation Certificate**:
+   - Print and store in fire-proof safe
+   - Keep separate from master key
+   - Create multiple copies (not digital)
+
+4. **Subkey Rotation**:
+   - Set 2-year expiration on subkeys
+   - Extend or rotate 1 month before expiration
+   - Rotate immediately if compromise suspected
+
+5. **Backup Verification**:
+   - Test backup restoration annually
+   - Verify encrypted backups decrypt correctly
+   - Document restoration procedures
+
+#### Operational Practices
+
+1. **Key Distribution**:
+   - Upload public key to multiple keyservers
+   - Add to GitHub/GitLab profiles
+   - Include in email signatures
+   - Publish fingerprint on personal website
+
+2. **Signature Verification**:
+   - Always verify signatures on received encrypted messages
+   - Verify others' keys via multiple channels (TOFU - Trust On First Use)
+   - Use key fingerprints, not just email addresses
+
+3. **Backup Schedule**:
+   - Weekly: Encrypted subkey backup to `~/.keys/gpg/subkeys-backup/`
+   - Monthly: Verify master key backup is accessible
+   - Annually: Test full key restoration from backup
+
+4. **Documentation**:
+   - Keep key generation date and parameters in `~/.keys/gpg/master/README.md`
+   - Document all subkey rotations with dates
+   - Maintain list of where public key is published
+
+### Common GPG Commands
+
+```bash
+# List all keys
+gpg --list-keys
+
+# List secret keys (show sec# for offline master)
+gpg --list-secret-keys
+
+# Show key fingerprint
+gpg --fingerprint $KEYID
+
+# Check subkey capabilities and expiration
+gpg --list-keys --keyid-format LONG --with-subkey-fingerprints $KEYID
+
+# Encrypt file
+gpg --encrypt --recipient your-email@example.com file.txt
+
+# Decrypt file
+gpg --decrypt file.txt.gpg > file.txt
+
+# Sign file (detached signature)
+gpg --detach-sign document.pdf
+# Verify: gpg --verify document.pdf.sig document.pdf
+
+# Clearsign text file
+gpg --clearsign message.txt
+
+# Export public key for sharing
+gpg --armor --export $KEYID > public-key.asc
+
+# Import someone's public key
+gpg --import their-public-key.asc
+
+# Sign someone's key (after verifying identity)
+gpg --sign-key their-key-id
+
+# Update keys from keyserver
+gpg --refresh-keys
+
+# Search keyserver
+gpg --search-keys email@example.com
+
+# Check GPG agent status
+gpgconf --check-programs
+gpgconf --list-components
+
+# Restart GPG agent (after config changes)
+gpgconf --kill gpg-agent
+gpg-agent --daemon
+```
+
+### Troubleshooting
+
+#### GPG Agent Not Working
+
+```bash
+# Check agent status
+echo "test" | gpg --clearsign
+
+# If fails, check GPG_TTY
+echo $GPG_TTY  # Should show /dev/pts/X
+
+# Restart agent
+gpgconf --kill gpg-agent
+gpgconf --launch gpg-agent
+
+# Check agent socket
+ls -la $(gpgconf --list-dirs agent-socket)
+
+# Check SSH support
+echo $SSH_AUTH_SOCK  # Should point to GPG agent socket
+```
+
+#### "No Secret Key" Errors
+
+```bash
+# Verify subkeys are present
+gpg --list-secret-keys
+
+# If missing, restore from backup
+gpg --import ~/.keys/gpg/subkeys-backup/subkeys.tar.gpg
+
+# Check keygrip (links secret keys to GPG agent)
+gpg --with-keygrip --list-secret-keys
+ls -la ~/.gnupg/private-keys-v1.d/
+```
+
+#### SSH Authentication Not Using GPG
+
+```bash
+# Verify environment variables
+echo $SSH_AUTH_SOCK
+echo $GPG_TTY
+
+# Test SSH key is available
+ssh-add -L  # Should show GPG-based key
+
+# If not, add to shell profile
+export GPG_TTY=$(tty)
+export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+gpgconf --launch gpg-agent
+
+# Verify agent has SSH support enabled
+grep enable-ssh-support ~/.gnupg/gpg-agent.conf
+```
+
+#### Passphrase Prompt Issues (Rofi)
+
+```bash
+# Check pinentry program (should be rofi for graphical prompts)
+gpgconf --list-components | grep pinentry
+
+# Update pinentry (in Guix GPG service or ~/.gnupg/gpg-agent.conf)
+# pinentry-program /path/to/pinentry-rofi
+
+# Test pinentry
+echo "GETPIN" | pinentry
+```
+
+### Quick Reference Card
+
+**Key Capabilities**:
+- `[C]` = Certification (master key, sign other keys)
+- `[S]` = Signing (sign commits, documents, packages)
+- `[E]` = Encryption (encrypt emails, files)
+- `[A]` = Authentication (SSH, authentication tokens)
+
+**Key Status Indicators**:
+- `sec` = Secret key present
+- `sec#` = Secret key not present (stub only - GOOD for daily use)
+- `ssb` = Secret subkey present
+- `pub` = Public key
+
+**Expiration Policy**:
+- Master key: No expiration (permanent identity)
+- Subkeys: 2-year expiration (rotate regularly)
+
+**Backup Locations**:
+1. Master key: Offline encrypted storage (USB, external disk, safe)
+2. Revocation cert: Printed paper in safe (separate from master key)
+3. Subkeys: Encrypted backup in `~/.keys/gpg/subkeys-backup/`
+4. Public key: Version controlled in dotfiles, uploaded to keyservers
+
+**Emergency Contacts**:
+- If master key lost: Use revocation certificate, generate new key
+- If subkey compromised: Revoke subkey, generate new one with master key
+- If all keys lost: Use revocation certificate, start over
+
 ## Performance Considerations
 
 - Guix uses `/gnu/store` for immutable packages (can grow large, use `guix gc` regularly)

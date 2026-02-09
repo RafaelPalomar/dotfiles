@@ -1,0 +1,37 @@
+#!/run/current-system/profile/bin/bash
+#
+# DataLocker Udev Trigger Wrapper
+# Called by udev rule - handles environment setup and backgrounding
+
+# Log that udev triggered us
+echo "[$(date)] Udev rule triggered - START" >> /tmp/datalocker-udev-trigger.log 2>&1
+
+# Set up X11 environment for the user
+export DISPLAY=:0
+export XAUTHORITY=/home/rafael/.Xauthority
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+export HOME=/home/rafael
+
+# Log environment
+{
+    echo "USER: $(whoami)"
+    echo "DISPLAY: $DISPLAY"
+    echo "HOME: $HOME"
+    echo "PATH: $PATH"
+    echo "SCRIPT: $0"
+} >> /tmp/datalocker-udev-trigger.log 2>&1
+
+# Run the unlock script in the background as a detached process
+# Use nohup and redirect to ensure it survives udev context
+nohup /run/setuid-programs/sudo -u rafael \
+    env DISPLAY="$DISPLAY" \
+        XAUTHORITY="$XAUTHORITY" \
+        DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+        HOME="$HOME" \
+    /home/rafael/.local/bin/datalocker-unlock \
+    >> /tmp/datalocker-udev-trigger.log 2>&1 &
+
+echo "[$(date)] Unlock script launched in background (PID: $!)" >> /tmp/datalocker-udev-trigger.log 2>&1
+
+# Exit immediately so udev doesn't wait
+exit 0

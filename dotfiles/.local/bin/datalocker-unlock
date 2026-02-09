@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# DataLocker Sentry ONE automatic unlock script
+# Prompts for password via Rofi and unlocks the encrypted volume
+
+set -e
+
+UNLOCKER_MOUNT="/run/media/rafael/UNLOCKER"
+UNLOCKER_BIN="$UNLOCKER_MOUNT/linux/Unlocker_64.exe"
+LOG_FILE="/tmp/datalocker-unlock.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+# Wait for UNLOCKER partition to be mounted
+wait_for_unlocker() {
+    local max_wait=10
+    local count=0
+
+    while [ ! -d "$UNLOCKER_MOUNT" ] && [ $count -lt $max_wait ]; do
+        log "Waiting for UNLOCKER partition to mount..."
+        sleep 1
+        count=$((count + 1))
+    done
+
+    if [ ! -d "$UNLOCKER_MOUNT" ]; then
+        log "ERROR: UNLOCKER partition not found at $UNLOCKER_MOUNT"
+        notify-send -u critical "DataLocker" "Failed to find UNLOCKER partition"
+        exit 1
+    fi
+
+    if [ ! -x "$UNLOCKER_BIN" ]; then
+        log "ERROR: Unlocker binary not found at $UNLOCKER_BIN"
+        notify-send -u critical "DataLocker" "Unlocker software not found"
+        exit 1
+    fi
+}
+
+# Get password from Rofi (pinentry-style)
+get_password() {
+    rofi -dmenu -password -p "DataLocker Password" -theme-str 'window {width: 400px;} listview {enabled: false;}'
+}
+
+# Main unlock process
+main() {
+    log "DataLocker unlock initiated"
+
+    # Wait for UNLOCKER partition
+    wait_for_unlocker
+
+    # Get password from user
+    PASSWORD=$(get_password)
+
+    if [ -z "$PASSWORD" ]; then
+        log "Password prompt cancelled"
+        exit 0
+    fi
+
+    log "Running unlocker..."
+
+    # Use expect to feed password to the unlocker
+    expect -c "
+        set timeout 30
+        log_user 0
+
+        spawn $UNLOCKER_BIN
+
+        expect {
+            -re {password:} {
+                send \"$PASSWORD\r\"
+                exp_continue
+            }
+            -re {Password:} {
+                send \"$PASSWORD\r\"
+                exp_continue
+            }
+            -re {unlocked|success|mounted} {
+                puts \"SUCCESS: Device unlocked\"
+                exit 0
+            }
+            -re {failed|error|incorrect|invalid} {
+                puts \"ERROR: Unlock failed\"
+                exit 1
+            }
+            timeout {
+                puts \"ERROR: Timeout waiting for unlock\"
+                exit 2
+            }
+            eof {
+                puts \"INFO: Unlocker completed\"
+                exit 0
+            }
+        }
+    " 2>&1 | tee -a "$LOG_FILE"
+
+    RESULT=${PIPESTATUS[0]}
+
+    if [ $RESULT -eq 0 ]; then
+        log "SUCCESS: Device unlocked"
+        notify-send -u normal "DataLocker" "Device unlocked successfully"
+
+        # Wait a moment for the device to appear and auto-mount
+        sleep 2
+
+        # Show mounted volume
+        SECURE_DEV=$(lsblk -no NAME,VENDOR,MODEL,MOUNTPOINT | grep "DL.*Sentry" | grep -v "UNLOCKER" | awk '{print $NF}')
+        if [ -n "$SECURE_DEV" ]; then
+            log "Secure volume mounted at: $SECURE_DEV"
+            notify-send -u normal "DataLocker" "Mounted at: $SECURE_DEV"
+        fi
+    else
+        log "ERROR: Failed to unlock device (exit code: $RESULT)"
+        notify-send -u critical "DataLocker" "Failed to unlock device"
+        exit 1
+    fi
+}
+
+main "$@"

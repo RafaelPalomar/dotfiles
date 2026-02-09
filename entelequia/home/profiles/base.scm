@@ -12,6 +12,7 @@
        '(;; Shell utilities
          "bash-completion"
          "coreutils"
+         "expect"  ;; For automated interaction with CLI programs
 
          ;; Version control
          "git"

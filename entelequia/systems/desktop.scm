@@ -1,6 +1,7 @@
 (define-module (entelequia systems desktop)
   #:use-module (entelequia home services emacs)
   #:use-module (entelequia home services desktop)
+  #:use-module (entelequia home services encrypted-usb)
   #:use-module (entelequia packages polybar-themes)
   #:use-module (gnu packages package-management)
   #:use-module (entelequia packages fonts)
@@ -97,6 +98,18 @@
 
    ;; Monitor battery levels
    (service home-batsignal-service-type)
+
+   ;; DataLocker Sentry ONE auto-unlock
+   ;; Note: No auto-lock on disconnect - use keyboard shortcut or polybar button
+   (service home-encrypted-usb-service-type
+            (encrypted-usb-configuration
+             (name "datalocker")
+             (vendor-id "230a")
+             (model-id "1550")
+             (mount-point "UNLOCKER")
+             (unlock-command "$HOME/.local/bin/datalocker-unlock")
+             (lock-command #f)  ; Manual lock only
+             (poll-interval 2)))
 
    ;; Udiskie for auto-mounting devices (service home-udiskie-service-type)
    ))

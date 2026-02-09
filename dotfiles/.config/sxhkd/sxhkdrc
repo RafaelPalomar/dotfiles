@@ -108,3 +108,7 @@ super + w
 # Screen locker
 super + l
     slock
+
+# DataLocker - Lock encrypted USB
+super + shift + l
+    ~/.local/bin/datalocker-lock

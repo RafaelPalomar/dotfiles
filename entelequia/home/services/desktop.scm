@@ -27,6 +27,7 @@
         gammastep
         network-manager-applet
         dunst
+        libnotify  ;; Provides notify-send for desktop notifications
         polybar
         rofi
         pinentry-rofi

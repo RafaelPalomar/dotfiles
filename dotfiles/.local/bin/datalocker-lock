@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# DataLocker Sentry ONE - Lock Script
+# Safely locks the encrypted volume before unplugging the USB drive
+
+# Don't use pipefail when called from polybar - exit codes can be misleading
+set -u
+
+# Configuration
+UNLOCKER_MOUNT="/run/media/rafael/UNLOCKER"
+LOG_FILE="/tmp/datalocker-lock.log"
+
+# Logging function
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+log "DataLocker lock initiated"
+
+# Try to mount UNLOCKER if not already mounted
+if [ ! -d "$UNLOCKER_MOUNT" ]; then
+    log "UNLOCKER not mounted, attempting to mount..."
+    # Find the UNLOCKER device (sr0 or sr1)
+    UNLOCKER_DEV=$(lsblk -no NAME,LABEL | grep UNLOCKER | awk '{print "/dev/"$1}' | head -1)
+    if [ -n "$UNLOCKER_DEV" ]; then
+        log "Found UNLOCKER device at $UNLOCKER_DEV"
+        if udisksctl mount -b "$UNLOCKER_DEV" 2>&1 | tee -a "$LOG_FILE"; then
+            log "UNLOCKER mounted successfully"
+            sleep 1
+        else
+            log "Failed to mount UNLOCKER, checking if it's already mounted elsewhere"
+        fi
+    else
+        log "ERROR: Could not find UNLOCKER device"
+        notify-send -u critical "DataLocker Lock Failed" "UNLOCKER partition not found"
+        exit 1
+    fi
+fi
+
+# Verify UNLOCKER is now accessible
+if [ ! -d "$UNLOCKER_MOUNT" ]; then
+    log "ERROR: UNLOCKER partition still not accessible at $UNLOCKER_MOUNT"
+    notify-send -u critical "DataLocker Lock Failed" "UNLOCKER partition not mounted"
+    exit 1
+fi
+
+# Find and unmount the data partition (PRIVATE_USB)
+DATA_MOUNT=$(mount | grep "PRIVATE_USB" | awk '{print $3}' | head -1)
+DATA_DEV=$(mount | grep "PRIVATE_USB" | awk '{print $1}' | head -1)
+
+if [ -n "$DATA_MOUNT" ]; then
+    log "Unmounting data partition $DATA_DEV at $DATA_MOUNT"
+    if udisksctl unmount -b "$DATA_DEV" >> "$LOG_FILE" 2>&1; then
+        log "Data partition unmounted successfully"
+        notify-send "DataLocker" "Data partition unmounted" 2>/dev/null || true
+    else
+        log "WARNING: Could not unmount data partition"
+        notify-send -u normal "DataLocker" "Could not unmount data partition (may be in use)" 2>/dev/null || true
+    fi
+else
+    log "Data partition not mounted, skipping unmount"
+fi
+
+# Lock the device
+log "Locking device..."
+if "$UNLOCKER_MOUNT/linux/Unlocker_64.exe" -l >> "$LOG_FILE" 2>&1; then
+    log "SUCCESS: Device locked"
+    notify-send "DataLocker Locked" "Device is now safe to remove" 2>/dev/null || true
+else
+    log "ERROR: Failed to lock device"
+    notify-send -u critical "DataLocker Lock Failed" "Could not lock the device" 2>/dev/null || true
+    exit 1
+fi
+
+log "Lock complete"
