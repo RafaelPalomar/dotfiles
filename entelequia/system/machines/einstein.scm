@@ -39,8 +39,8 @@
 ;;; NVIDIA Xorg configuration
 
 (define nvidia-xorg-config
-  (xorg-configuration
-   (modules (list nvidia-driver))
+  (xlibre-configuration
+   (modules (list nvidia-driver xlibre-input-libinput))
    (drivers '("nvidia"))
    (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
 
