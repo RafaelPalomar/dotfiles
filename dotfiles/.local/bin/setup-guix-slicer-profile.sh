@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -eux
-
 if [ $# -lt 1 ]; then
     echo "Usage: $0 PROFILE_PATH [QT_VERSION] [EXTRA_PACKAGES...]"
     exit 1
