@@ -1,5 +1,6 @@
 (define-module (entelequia home home-config)
   #:use-module (entelequia home services emacs)
+  #:use-module (entelequia home profiles documentation)
   #:use-module (entelequia packages mutt-oauth2)
   #:use-module (entelequia packages cyrus-sasl-xoauth2)
   #:use-module (entelequia packages emacs)
@@ -49,6 +50,7 @@
 (home-environment
  (packages (append
                    %email-packages
+                   documentation-home-packages
                    (list bash-completion
                          deskflow
                          font-cica

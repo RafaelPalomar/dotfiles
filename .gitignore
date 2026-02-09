@@ -1,1 +1,7 @@
 .aider*
+
+# Generated documentation (auto-generated from RST sources)
+CLAUDE.md
+
+# Sphinx build artifacts
+docs/build/
