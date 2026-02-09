@@ -87,6 +87,7 @@ kernel.randomize_va_space = 2
 # Restrict ptrace to parent processes only
 kernel.yama.ptrace_scope = 1
 # Disable unprivileged BPF
+# NOTE: I suspect, it produces -- guix system: warning: failed to load operating system for kexec: In procedure kexec-load-file: Operation not permitted
 kernel.unprivileged_bpf_disabled = 1
 # Restrict unprivileged user namespaces (prevents container escapes)
 kernel.unprivileged_userns_clone = 0

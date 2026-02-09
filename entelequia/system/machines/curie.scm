@@ -36,7 +36,7 @@
 (define amd-xlibre-config
   (xlibre-configuration
    (modules (list xlibre-video-amdgpu xlibre-input-libinput))
-   (drivers '("modesetting"))
+   (drivers '("amdgpu" "modesetting"))
    (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
 
 ;;; Curie-specific packages
@@ -74,7 +74,7 @@
                                   #:extra-packages curie-extra-packages
                                   #:extra-services curie-services))
 
-   ;; AMD-specific kernel arguments (amd_pstate, network interface naming)
+   ;; Curie-specific kernel arguments (amd_pstate, network interface naming)
    (kernel-arguments (gpu-kernel-arguments 'amd
                                            #:extra-args '("net.ifnames=0"
                                                           "biosdevname=0")))
