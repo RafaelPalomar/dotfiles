@@ -744,11 +744,13 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   (setq gptel-model 'claude-sonnet-4-5-20250929)
 
   ;; Custom directives for common tasks
-  (gptel-make-directive "code-review"
-                        "Review this code for bugs, performance, and best practices.")
-
-  (gptel-make-directive "explain"
-                        "Explain this code in simple terms."))
+  ;; TODO: Fix gptel-make-directive - function doesn't exist in current version
+  ;; (gptel-make-directive "code-review"
+  ;;                       "Review this code for bugs, performance, and best practices.")
+  ;;
+  ;; (gptel-make-directive "explain"
+  ;;                       "Explain this code in simple terms.")
+  )
 
 ;; Helper function to switch between backends
 (defun my/gptel-switch-backend ()
