@@ -138,6 +138,15 @@
     "fuse-overlayfs"
     "uid-wrapper"
     "slirp4netns"
+    "feh"
+    "python-pywal"
+    "imagemagick"
+    "gcc-toolchain"
+    "glibc"
+    "make"
+    "cmake"
+    "node"
+    "light"
     "nextcloud-client"))
 
 (define curie-specific-packages
@@ -145,6 +154,7 @@
     "python-pywal"
     "imagemagick"
     "gcc-toolchain"
+    "nextcloud-client"
     "glibc"
     "make"
     "cmake"
