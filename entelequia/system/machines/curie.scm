@@ -6,6 +6,9 @@
   #:use-module (entelequia system lib common-packages)
   #:use-module (entelequia system lib common-services)
   #:use-module (entelequia systems desktop)  ; For desktop-home-services
+  #:use-module (entelequia home profiles base)
+  #:use-module (entelequia home profiles development)
+  #:use-module (entelequia home profiles email)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -56,6 +59,11 @@
     (guix-home-config
      curie-config
      (home-environment
+      ;; Include profile packages
+      (packages (append base-home-packages
+                        development-home-packages
+                        email-home-packages))
+      ;; desktop-home-services includes DataLocker service
       (services desktop-home-services)))
 
     ;; SLiM display manager with AMD Xlibre config
