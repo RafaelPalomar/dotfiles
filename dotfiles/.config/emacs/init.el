@@ -508,18 +508,31 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   :config
   (counsel-projectile-mode 1))
 
-;; Project management
+;; Project management (Doom Emacs style)
 (my/leader-keys
   "p"   '(:ignore t :which-key "Project")
-  "pp"  '(counsel-projectile-switch-project :which-key "Switch project")
-  "pf"  '(counsel-projectile-find-file :which-key "Find file in project")
+  "p!"  '(projectile-run-shell-command-in-root :which-key "Run shell command")
+  "p&"  '(projectile-run-async-shell-command-in-root :which-key "Async shell command")
+  "pa"  '(projectile-toggle-between-implementation-and-test :which-key "Toggle impl/test")
   "pb"  '(counsel-projectile-switch-to-buffer :which-key "Switch buffer in project")
-  "pd"  '(projectile-dired :which-key "Project Dired")
-  "ps"  '(counsel-projectile-rg :which-key "Search in project")
-  "pR"  '(projectile-replace :which-key "Replace in project")
-  "pD"  '(projectile-kill-buffers :which-key "Kill project buffers")
   "pc"  '(projectile-compile-project :which-key "Compile project")
-  "pC"  '(projectile-configure-project :which-key "Configure project"))
+  "pC"  '(projectile-configure-project :which-key "Configure project")
+  "pd"  '(projectile-dired :which-key "Project Dired")
+  "pD"  '(projectile-kill-buffers :which-key "Kill project buffers")
+  "pe"  '(projectile-edit-dir-locals :which-key "Edit dir-locals")
+  "pf"  '(counsel-projectile-find-file :which-key "Find file in project")
+  "pg"  '(projectile-find-tag :which-key "Find tag")
+  "pi"  '(projectile-invalidate-cache :which-key "Invalidate cache")
+  "pk"  '(projectile-kill-buffers :which-key "Kill project buffers")
+  "po"  '(projectile-find-other-file :which-key "Find other file")
+  "pp"  '(counsel-projectile-switch-project :which-key "Switch project")
+  "pr"  '(projectile-recentf :which-key "Recent files")
+  "pR"  '(projectile-replace :which-key "Replace in project")
+  "ps"  '(counsel-projectile-rg :which-key "Search in project")
+  "pS"  '(projectile-save-project-buffers :which-key "Save project buffers")
+  "pt"  '(projectile-test-project :which-key "Test project")
+  "pT"  '(projectile-run-project :which-key "Run project")
+  "px"  '(projectile-run-shell :which-key "Run shell"))
 
 ;; Window and buffer navigation
 (my/leader-keys
@@ -624,10 +637,18 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   (setq projectile-indexing-method 'alien)
 
   ;; Sort results by recent
-  (setq projectile-sort order 'recentf)
+  (setq projectile-sort-order 'recentf)
 
-  ;; Refresh project list on startup
-  (projectile-discover-projects-in-search-path))
+  ;; Refresh project list after Emacs fully starts
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (run-with-timer 0.5 nil #'projectile-discover-projects-in-search-path)))
+
+  ;; Also refresh when switching to dashboard
+  (with-eval-after-load 'dashboard
+    (advice-add 'dashboard-refresh-buffer :before
+                (lambda (&rest _)
+                  (projectile-load-known-projects)))))
 
 (use-package counsel-projectile
   :after (counsel projectile)
