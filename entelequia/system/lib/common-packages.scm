@@ -94,7 +94,10 @@
     "gnupg"
     "openvpn"
     "openssl"
-    "tailscale"))
+    "tailscale"
+    "network-manager"              ; Provides NetworkManager daemon and icons
+    "network-manager-openconnect"  ; OpenConnect VPN support for NTNU
+    "openconnect"))                ; OpenConnect VPN client
 
 ;;; Virtualization and containerization packages
 

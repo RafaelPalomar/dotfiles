@@ -15,7 +15,7 @@
 
 (use-package-modules audio video nfs certs shells ssh linux bash emacs gnome
                      networking wm fonts libusb cups freedesktop file-systems
-                     version-control package-management vim shellutils)
+                     version-control package-management vim shellutils vpn)
 
 (use-service-modules dns guix admin sysctl pm nix avahi dbus cups desktop linux
                      mcron networking xorg ssh docker audio virtualization)
@@ -170,7 +170,8 @@
                (service network-manager-service-type
                         (network-manager-configuration
                          (vpn-plugins
-                          (list network-manager-openvpn))))
+                          (list network-manager-openvpn
+                                network-manager-openconnect))))
                (service wpa-supplicant-service-type) ;; Needed by NetworkManager
                (service modem-manager-service-type)  ;; For cellular modems
                (service bluetooth-service-type

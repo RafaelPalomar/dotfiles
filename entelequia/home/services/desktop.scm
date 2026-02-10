@@ -166,6 +166,19 @@
                              (string-append (getenv "HOME") "/.local/state"))
                          "/udiskie.log")))
     (stop #~(make-kill-destructor))
+    (respawn? #t))
+
+   (shepherd-service
+    (documentation "NetworkManager system tray applet")
+    (provision '(nm-applet))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append network-manager-applet "/bin/nm-applet")
+                    "--indicator")     ; Use indicator mode for system tray
+              #:log-file (string-append
+                         (or (getenv "XDG_STATE_HOME")
+                             (string-append (getenv "HOME") "/.local/state"))
+                         "/nm-applet.log")))
+    (stop #~(make-kill-destructor))
     (respawn? #t))))
 
 (define home-desktop-service-type
