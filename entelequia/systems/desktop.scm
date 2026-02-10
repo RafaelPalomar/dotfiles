@@ -65,9 +65,9 @@
                    home-bash-service-type
                    (home-bash-extension
                     (bash-profile
-                     (list (plain-file "setup-slicer-profile-5"
+                     (list (plain-file "setup-slicer-profile-qt5"
                                        "~/.local/bin/setup-guix-slicer-profile.sh ~/.slicer-guix-profile-5 5")
-                           (plain-file "setup-slicer-profile-6"
+                           (plain-file "setup-slicer-profile-qt6"
                                        "~/.local/bin/setup-guix-slicer-profile.sh ~/.slicer-guix-profile-6 6")))))
    (service home-bash-service-type
             (home-bash-configuration

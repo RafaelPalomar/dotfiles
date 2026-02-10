@@ -21,10 +21,10 @@
                    (lambda (config)
                      (home-bash-extension
                       (bash-profile
-                       (list (plain-file "setup-slicer-profile-5"
-                                         "~/.local/bin/setup-guix-slicer-profile.sh ~/.slicer-guix-profile-5 5")
-                             (plain-file "setup-slicer-profile-6"
-                                         "~/.local/bin/setup-guix-slicer-profile.sh ~/.slicer-guix-profile-6 6"))))))
+                       (list (plain-file "setup-slicer-profile-qt5"
+                                         "~/.local/bin/setup-guix-slicer-profile.sh ~/.slicer-guix-profile-qt5 5")
+                             (plain-file "setup-slicer-profile-qt6"
+                                         "~/.local/bin/setup-guix-slicer-profile.sh ~/.slicer-guix-profile-qt6 6"))))))
 
                   ;; Bash configuration with aliases and direnv
                   (service-extension
@@ -48,5 +48,5 @@ fi"))))))
                    home-environment-variables-service-type
                    (lambda (config)
                      '(("PATH" . "$HOME/.local/bin:$PATH")
-                       ("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6"))))))
+                       ("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-qt6"))))))
                 (default-value #f)))

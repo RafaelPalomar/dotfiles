@@ -114,8 +114,6 @@
               ;; Add any extra services passed to this function
               extra-services
               (modify-services %base-services
-                               ;; Remove login-service-type since display manager (SLiM) handles login
-                               (delete login-service-type)
                                ;; Remove console-font-service-type as we configure it manually below
                                (delete console-font-service-type))
               (list
