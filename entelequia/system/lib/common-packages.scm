@@ -159,4 +159,5 @@
     "make"
     "cmake"
     "node"
-    "light"))
+    "light"
+    "sakura"))

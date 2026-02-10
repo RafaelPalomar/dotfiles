@@ -12,7 +12,7 @@ Directory Structure
     ├── emacs.org                 # Literate Emacs config (tangles to init.el)
     ├── dotfiles/                 # User dotfiles (deployed via guix-home)
     │   ├── .xsession
-    │   ├── .config/              # Application configs (bspwm, sxhkd, alacritty, etc.)
+    │   ├── .config/              # Application configs (bspwm, sxhkd, kitty, etc.)
     │   └── .local/bin/           # User scripts
     ├── scripts/                  # Deployment and testing scripts
     │   ├── deploy.sh

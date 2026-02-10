@@ -12,7 +12,7 @@ Desktop Environment Stack
 - **Hotkey Daemon**: sxhkd (Super key prefix)
 - **Compositor**: picom (transparency, shadows, animations)
 - **Status Bar**: polybar (per-monitor themes)
-- **Terminal**: Alacritty
+- **Terminal**: Kitty
 - **Editor**: Emacs (lucid build, daemon mode with auto-restart)
 - **Display Server**: X11 (xlibre variant for custom libinput/GPU drivers)
 - **Color Scheme**: Pywal (dynamic theming from wallpapers)
@@ -105,7 +105,7 @@ User Dotfiles
 - ``dotfiles/.xsession`` - X11 startup (compositor, WM, notifications)
 - ``dotfiles/.config/bspwm/bspwmrc`` - Window manager config
 - ``dotfiles/.config/sxhkd/sxhkdrc`` - Keybindings (Super key shortcuts)
-- ``dotfiles/.config/alacritty/alacritty.toml`` - Terminal emulator
+- ``dotfiles/.config/kitty/kitty.conf`` - Terminal emulator
 - ``dotfiles/.local/bin/`` - User scripts (wallpaper, keyboard layout, aider wrapper)
 
 Performance Considerations

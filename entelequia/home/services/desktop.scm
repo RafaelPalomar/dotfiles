@@ -23,7 +23,7 @@
 (define (home-desktop-profile-service config)
   (list bspwm
         sxhkd
-        alacritty
+        kitty
         gammastep
         network-manager-applet
         dunst

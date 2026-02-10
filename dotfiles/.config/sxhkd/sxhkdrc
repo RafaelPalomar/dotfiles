@@ -16,7 +16,7 @@ super + alt + {h,j,k,l}
 
 # Terminal
 super + apostrophe
-  alacritty
+  kitty
 
 # Editor
 super + e
