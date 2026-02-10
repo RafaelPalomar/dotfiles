@@ -620,6 +620,12 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   ;; Auto-discover projects
   (setq projectile-track-known-projects-automatically t)
 
+  ;; Sets the Alien indexing method
+  (setq projectile-indexing-method 'alien)
+
+  ;; Sort results by recent
+  (setq projectile-sort order 'recentf)
+
   ;; Refresh project list on startup
   (projectile-discover-projects-in-search-path))
 
@@ -1106,7 +1112,8 @@ agenda."
   :init
   (setq geiser-active-implementations '(guile))
   :hook
-  ((scheme-mode . geiser-mode))
+  ((scheme-mode . geiser-mode)
+   (scheme-mode . (lambda () (setq-local tab-width 2))))
   :config
   (setq geiser-mode-auto-p t))
 
@@ -1360,7 +1367,20 @@ machine irc.libera.chat login yournick password yourpass"
   :hook (prog-mode . copilot-mode)
   :bind (:map copilot-completion-map
               ("<tab>" . copilot-accept-completion)
-              ("TAB" . copilot-accept-completion)))
+              ("TAB" . copilot-accept-completion))
+  :config
+  ;; Set default indentation offset
+  (setq copilot-indent-offset-alist
+        '((prog-mode . 2)
+          (c-mode . 2)
+          (c++-mode . 2)
+          (python-mode . 4)
+          (emacs-lisp-mode . 2)
+          (scheme-mode . 2)
+          (org-mode . 2)))
+
+  ;; Suppress the warning
+  (setq warning-suppress-types '((copilot copilot-no-mode-indent))))
 
 (use-package aider
   :config
