@@ -103,9 +103,7 @@
 
 (define base-virtualization-packages
   '("qemu"
-    "virt-manager"
-    "podman"
-    "distrobox"))
+    "virt-manager"))
 
 ;;; System monitoring and utility packages
 

@@ -13,9 +13,11 @@
   #:use-module (gnu home)
   #:use-module (gnu services)
   #:use-module (gnu services xorg)
+  #:use-module (gnu services containers)
+  #:use-module (gnu system accounts)
   #:use-module (xlibre))
 
-(use-service-modules xorg)
+(use-service-modules xorg containers)
 
 ;;; Curie system configuration
 ;;;
@@ -55,6 +57,12 @@
 (define curie-services
   (append
    (list
+    ;; Rootless podman for containerization
+    (service rootless-podman-service-type
+             (rootless-podman-configuration
+              (subuids (list (subid-range (name "rafael"))))
+              (subgids (list (subid-range (name "rafael"))))))
+
     ;; Guix Home configuration
     (guix-home-config
      curie-config
@@ -86,6 +94,18 @@
    (kernel-arguments (gpu-kernel-arguments 'amd
                                            #:extra-args '("net.ifnames=0"
                                                           "biosdevname=0")))
+
+   ;; User configuration (add cgroup to supplementary groups for containers)
+   ;; Note: cgroup group now defined in base.scm
+   (users (cons* (user-account
+                  (name "rafael")
+                  (comment "Rafael")
+                  (group "users")
+                  (home-directory "/home/rafael")
+                  ;; Include all base groups + cgroup (containers)
+                  (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
+                                          "realtime" "audio" "video" "cgroup")))
+                 %base-user-accounts))
 
    ;; Bootloader configuration
    (bootloader (bootloader-configuration

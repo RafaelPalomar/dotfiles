@@ -90,7 +90,9 @@ kernel.yama.ptrace_scope = 1
 # NOTE: I suspect, it produces -- guix system: warning: failed to load operating system for kexec: In procedure kexec-load-file: Operation not permitted
 kernel.unprivileged_bpf_disabled = 1
 # Restrict unprivileged user namespaces (prevents container escapes)
-kernel.unprivileged_userns_clone = 0
+# NOTE: Disabled for rootless containers (podman/distrobox) - they require user namespaces
+# Also not available on all kernels
+# kernel.unprivileged_userns_clone = 0
 
 # Filesystem hardening
 # Enable protection against hardlink/symlink attacks

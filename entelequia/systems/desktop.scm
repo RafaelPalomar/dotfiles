@@ -2,6 +2,7 @@
   #:use-module (entelequia home services emacs)
   #:use-module (entelequia home services desktop)
   #:use-module (entelequia home services encrypted-usb)
+  #:use-module (entelequia home services containers)
   #:use-module (entelequia packages polybar-themes)
   #:use-module (gnu packages package-management)
   #:use-module (entelequia packages fonts)
@@ -48,6 +49,9 @@
    ;; Set up desktop environment
    (service home-desktop-service-type)
 
+   ;; Container configuration (podman and distrobox)
+   (service home-containers-service-type)
+
    (service home-pipewire-service-type
             (home-pipewire-configuration (enable-pulseaudio? #t)))
 
@@ -81,7 +85,12 @@
                                                                        tmp_shell=\"$(basename \"$SHELL\")\"
                                                                        # add the hook
                                                                        eval \"$(direnv hook ${tmp_shell})\"
-                                                                   fi")))))
+                                                                   fi")
+                           (plain-file "bashrc-container-isolation"
+                                       "# Source container isolation script if in a distrobox container
+if [ -n \"$CONTAINER_ID\" ] && [ -f /etc/profile.d/zz-container-guix-isolation.sh ]; then
+    . /etc/profile.d/zz-container-guix-isolation.sh
+fi")))))
    (simple-service 'slicer-env-vars
                    home-environment-variables-service-type
                    `(("PATH" . "$HOME/.local/bin:$PATH")
