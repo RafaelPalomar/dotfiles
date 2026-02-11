@@ -37,11 +37,15 @@
    (machine-type 'laptop)))
 
 ;;; AMD Xlibre configuration
+;;; Using modesetting driver instead of xlibre-video-amdgpu for better pixmap stability
+;;; Modesetting provides better per-CRTC framebuffer handling to prevent pixmap corruption
+;;; See: https://wiki.archlinux.org/title/AMDGPU#Xorg_configuration
+;;; Rollback if needed: sudo guix system roll-back
 
 (define amd-xlibre-config
   (xlibre-configuration
-   (modules (list xlibre-video-amdgpu xlibre-input-libinput))
-   (drivers '("amdgpu" "modesetting"))
+   (modules (list xlibre-input-libinput))  ; Removed xlibre-video-amdgpu module
+   (drivers '("modesetting"))               ; Use modesetting driver only
    (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
 
 ;;; Curie-specific packages

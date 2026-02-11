@@ -9,7 +9,7 @@
   #:use-module (gnu packages fonts)
   #:export (home-desktop-service-type))
 
-(use-package-modules admin chromium compression curl disk dns fonts freedesktop gimp glib gnome
+(use-package-modules admin chromium compton compression curl disk dns fonts freedesktop gimp glib gnome
                      gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf
                      linux lsof music password-utils pdf pulseaudio ssh syncthing terminals
                      tmux video wget wm xdisorg suckless)
@@ -24,6 +24,7 @@
   (list bspwm
         sxhkd
         kitty
+        picom
         gammastep
         network-manager-applet
         dunst
@@ -123,6 +124,27 @@
 (define (home-desktop-shepherd-service config)
   "Return shepherd services for desktop utilities."
   (list
+   (shepherd-service
+    (documentation "Picom compositor with GLX backend for AMD GPU")
+    (provision '(picom))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append picom "/bin/picom")
+                    "--config"
+                    (string-append (getenv "HOME")
+                                   "/.config/picom/picom-"
+                                   (let ((hostname (gethostname)))
+                                     (cond
+                                      ((string=? hostname "einstein") "einstein")
+                                      ((string=? hostname "curie") "curie")
+                                      (else "curie")))
+                                   ".conf"))
+              #:log-file (string-append
+                         (or (getenv "XDG_STATE_HOME")
+                             (string-append (getenv "HOME") "/.local/state"))
+                         "/picom.log")))
+    (stop #~(make-kill-destructor))
+    (respawn? #t))
+
    (shepherd-service
     (documentation "Gammastep color temperature adjustment for Oslo")
     (provision '(gammastep))
