@@ -115,7 +115,8 @@
                         `(("LESSHISTFILE" . "$XDG_CACHE_HOME/.lesshst")
                           ("USELESS_VAR" . #f)
                           ("_JAVA_AWT_WM_NONREPARENTING" . #t)
-                          ("LITERAL_VALUE" . ,(literal-string "${abc}"))))
+                          ("LITERAL_VALUE" . ,(literal-string "${abc}"))
+                          ("TERMINAL" . "kitty")))
 
         (service home-dbus-service-type)
 
