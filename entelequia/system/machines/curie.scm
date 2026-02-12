@@ -39,6 +39,7 @@
 ;;; AMD Xlibre configuration
 ;;; Using modesetting driver instead of xlibre-video-amdgpu for better pixmap stability
 ;;; Modesetting provides better per-CRTC framebuffer handling to prevent pixmap corruption
+;;; TearFree option enabled at driver level for smooth rendering
 ;;; See: https://wiki.archlinux.org/title/AMDGPU#Xorg_configuration
 ;;; Rollback if needed: sudo guix system roll-back
 
@@ -46,7 +47,13 @@
   (xlibre-configuration
    (modules (list xlibre-input-libinput))  ; Removed xlibre-video-amdgpu module
    (drivers '("modesetting"))               ; Use modesetting driver only
-   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
+   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
+   (extra-config
+    (list "Section \"Device\""
+          "  Identifier \"AMD Graphics\""
+          "  Driver \"modesetting\""
+          "  Option \"TearFree\" \"true\""
+          "EndSection"))))
 
 ;;; Curie-specific packages
 
