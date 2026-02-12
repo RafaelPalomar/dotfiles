@@ -20,17 +20,16 @@ S () { pkill -x "$1"; { sleep 0.1; "$@" & }; }
 # bspwm settings
 bspc monitor -d 1 2 3 4 5 6 7 8 9 10
 
-R Gimp desktop=^8 follow=on floating=on
-R Chromium desktop=^3
+R Gimp floating=on
 R mplayer2 floating=on
 R Kupfer.py focus=on
 R Screenkey manage=off
-R zoom state=floating center=on follow=on border=off desktop="^10"
-R Emacs state=tiled follow=on desktop="^1"
-R ${TERMINAL^} state=tiled follow=on desktop="^2"
-R firefox state=tiled follow=on desktop="^3"
-R Neomutt state=tiled follow=on desktop="^4"
-R Slicer follow=off desktop="^9"
+R zoom state=floating center=on follow=on border=off
+R Emacs state=tiled follow=on
+R ${TERMINAL^} state=tiled follow=on
+R firefox state=tiled follow=on
+R Neomutt state=tiled follow=on
+R Slicer follow=off
 R Thunar state=floating
 
 
