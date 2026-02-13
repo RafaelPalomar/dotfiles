@@ -1,0 +1,8 @@
+# rofi-rbw configuration
+action = type
+target = password
+prompt = Bitwarden
+clear-after = 15
+selector-args = -dmenu -i -p
+# Custom keybindings within rofi-rbw
+keybindings = Alt+1:type:username-password,Alt+2:type:username,Alt+3:type:password,Alt+u:copy:username,Alt+p:copy:password,Alt+t:copy:totp

@@ -113,6 +113,14 @@ super + l
 super + shift + l
     ~/.local/bin/datalocker-lock
 
+# Bitwarden password manager
+super + p
+    rofi-rbw
+
+# Bitwarden - Quick TOTP copy
+super + shift + p
+    rofi-rbw --action copy --target totp
+
 # Org capture
 super + c
     /home/rafael/.local/bin/org-quick-capture.sh

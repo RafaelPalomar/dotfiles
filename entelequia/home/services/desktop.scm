@@ -1,4 +1,5 @@
 (define-module (entelequia home services desktop)
+  #:use-module (entelequia packages python-xyz)
   #:use-module (gnu)
   #:use-module (gnu system)
   #:use-module (gnu home services)
@@ -12,7 +13,7 @@
 (use-package-modules admin chromium compton compression curl disk dns fonts freedesktop gimp glib gnome
                      gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf
                      linux lsof music password-utils pdf pulseaudio ssh syncthing terminals
-                     tmux video wget wm xdisorg suckless)
+                     tmux video wget wm xdisorg suckless rust-apps)
 
 ;;; Desktop home service
 ;;;
@@ -77,6 +78,10 @@
 
         ;; Authentication
         password-store
+        rbw          ;; Bitwarden CLI with agent
+        python-rofi-rbw  ;; Rofi frontend for Bitwarden
+        xdotool      ;; For autotype functionality
+        xclip        ;; For clipboard operations
 
         ;; Audio devices and media playback
         mpv

@@ -88,3 +88,41 @@ Window Manager (bspwm)
 
     # Check polybar
     ~/.config/polybar.local/launch.sh
+
+Password Management (Bitwarden)
+================================
+
+.. code-block:: bash
+
+    # Open password picker
+    super + p
+
+    # Quick TOTP code copy
+    super + shift + p
+
+    # First-time setup
+    ~/.local/bin/bitwarden-setup.sh
+
+    # Unlock vault manually
+    rbw unlock
+
+    # Lock vault manually
+    rbw lock
+
+    # Sync with Bitwarden server
+    rbw sync
+
+    # List all items
+    rbw list
+
+    # Get specific password
+    rbw get "Item Name"
+
+    # Get specific field
+    rbw get "Item Name" --field username
+
+    # Check unlock status
+    rbw unlocked
+
+    # Generate password
+    rbw generate

@@ -26,6 +26,7 @@ Contents
    packages
    security
    gpg
+   bitwarden-rofi
    testing
    troubleshooting
 

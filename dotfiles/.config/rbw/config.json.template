@@ -1,0 +1,6 @@
+{
+  "email": "your-bitwarden-email@example.com",
+  "lock_timeout": 3600,
+  "sync_interval": 3600,
+  "pinentry": "pinentry-rofi"
+}
