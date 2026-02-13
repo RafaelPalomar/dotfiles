@@ -112,3 +112,26 @@ super + l
 # DataLocker - Lock encrypted USB
 super + shift + l
     ~/.local/bin/datalocker-lock
+
+# Org capture
+super + c
+    /home/rafael/.local/bin/org-quick-capture.sh
+
+super + shift + c
+    /home/rafael/.local/bin/org-capture-menu.sh
+
+# Org agenda
+super + shift + a
+    emacsclient -c -e '(org-agenda nil "a")'
+
+# Denote quick note
+super + shift + n
+    emacsclient -c -e '(denote-create-note)'
+
+# Org clock control
+super + shift + i
+    /home/rafael/.local/bin/org-clock-control.sh
+
+# GitHub sync
+super + shift + g
+    /home/rafael/.local/bin/org-github-sync.sh

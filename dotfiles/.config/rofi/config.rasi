@@ -44,7 +44,7 @@ inputbar {
 prompt {
     background-color: @selected-background;
     padding: 6px;
-    text-color: @background;
+    text-color: @foreground;
     border-radius: 5;
     margin: 0px 10px 0px 0px;
 }
@@ -70,9 +70,26 @@ element {
     border-radius: 5;
 }
 
-element selected {
+/* Make ALL unselected rows identical */
+element normal.normal,
+element alternate.normal,
+element normal.active,
+element alternate.active,
+element normal.urgent,
+element alternate.urgent {
+    background-color: @background;
+    text-color: @foreground;
+}
+
+/* Make ALL selected rows identical with good contrast */
+element selected.normal,
+element selected.active,
+element selected.urgent,
+element alternate selected.normal,
+element alternate selected.active,
+element alternate selected.urgent {
     background-color: @selected-background;
-    text-color: @background;
+    text-color: @foreground;
 }
 
 element-icon {

@@ -332,6 +332,16 @@
          "* TODO %?\nEntered on %U\n  %i\n\n")
         ("tp" "Personal Todo" entry (file+olp "~/org/inbox-personal.org" "Inbox")
          "* TODO %? :personal:\nEntered on %U\n  %i\n\n")
+        ("q" "Quick Capture" entry (file+olp "~/org/inbox.org" "Inbox")
+         "* TODO %?\nEntered on %U\n" :immediate-finish t)
+        ("p" "Project Idea" entry (file+olp "~/org/projects.org" "Project Ideas")
+         "* PROJECT %?\n:PROPERTIES:\n:CREATED: %U\n:STATUS: idea\n:END:\n\n** Goals\n\n** Notes\n\n")
+        ("a" "AI-Friendly Task" entry (file+olp "~/org/inbox.org" "Inbox")
+         "* TODO %?\n:PROPERTIES:\n:AI_FRIENDLY: t\n:CONTEXT: \n:EXPECTED_OUTPUT: \n:FILES: \n:END:\n\n#+BEGIN_AI_CONTEXT\n\n#+END_AI_CONTEXT\n\n** Acceptance Criteria\n- [ ] \n")
+        ("g" "GitHub Issue" entry (file+olp "~/org/github-issues.org" "Open Issues")
+         "* TODO %?\n:PROPERTIES:\n:REPO: \n:ISSUE: \n:STATE: \n:GITHUB_URL: \n:LABELS: \n:END:\n\n")
+        ("n" "Meeting Note" entry (file+olp "~/org/inbox.org" "Meetings")
+         "* Meeting: %?\n:PROPERTIES:\n:CREATED: %U\n:ATTENDEES: \n:END:\n\n** Agenda\n\n** Notes\n\n** Action Items\n")
         ("m" "Email Workflow")
         ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
          "* TODO Follow up with %:fromname on [[%:link][%:subject]]
@@ -347,8 +357,10 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 %i" :immediate-finish nil)))
 
 (setq org-agenda-files '("~/org/inbox.org"
-                         "~/org/archive.org"
                          "~/org/inbox-personal.org"
+                         "~/org/projects.org"
+                         "~/org/github-issues.org"
+                         "~/org/archive.org"
                          "~/org/archive-personal.org"))
 
 (setq-default org-refile-targets '((nil :maxlevel . 9)
@@ -369,6 +381,134 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
                                                    :with-toc nil)))
 
 (setq ob-mermaid-cli-path "/home/rafael/node_modules/.bin/mmdc")
+
+(use-package org-protocol
+  :ensure nil
+  :config
+  (setq org-protocol-default-template-key "q"))
+
+;; Org Clock Configuration
+(setq org-clock-persist t
+      org-clock-persist-file "~/.config/emacs/org-clock-save.el"
+      org-clock-in-resume t
+      org-clock-into-drawer t
+      org-clock-out-remove-zero-time-clocks t
+      org-clock-persist-query-resume nil
+      org-clock-report-include-clocking-task t
+      org-clock-idle-time 15)
+
+(org-clock-persistence-insinuate)
+
+;; Clock notification on start/stop
+(defun my/org-clock-notify (state)
+  "Send notification when clocking STATE changes."
+  (let ((task (org-get-heading t t t t)))
+    (pcase state
+      ('in (start-process "notify" nil "notify-send" "Org Clock"
+                          (format "Started: %s" task) "-i" "clock"))
+      ('out (start-process "notify" nil "notify-send" "Org Clock"
+                           (format "Stopped: %s" task) "-i" "clock")))))
+
+(add-hook 'org-clock-in-hook (lambda () (my/org-clock-notify 'in)))
+(add-hook 'org-clock-out-hook (lambda () (my/org-clock-notify 'out)))
+
+;; Helper functions
+(defun my/org-clock-in-last ()
+  "Resume last clocked task."
+  (interactive)
+  (org-clock-in-last))
+
+(defun my/org-clock-goto-current ()
+  "Jump to currently clocked task."
+  (interactive)
+  (org-clock-goto))
+
+(defun my/org-clock-report-today ()
+  "Show clock report for today."
+  (interactive)
+  (org-clock-report))
+
+;; Org Super Agenda
+(use-package org-super-agenda
+  :ensure nil
+  :after org-agenda
+  :config
+  (org-super-agenda-mode 1)
+  (setq org-super-agenda-groups
+        '((:name "Today"
+           :time-grid t
+           :scheduled today
+           :deadline today)
+          (:name "Overdue"
+           :deadline past
+           :scheduled past)
+          (:name "Due Soon"
+           :deadline future
+           :scheduled future)
+          (:name "In Progress"
+           :todo "DOING")
+          (:name "Waiting"
+           :todo "WAITING")
+          (:name "GitHub Issues"
+           :tag "github")
+          (:name "AI Tasks"
+           :and (:tag "ai" :not (:todo "DONE")))
+          (:name "Active Projects"
+           :and (:todo "PROJECT" :tag "active"))
+          (:name "Personal"
+           :tag "personal")
+          (:name "Work"
+           :tag "work")
+          (:name "Research"
+           :tag "research")
+          (:auto-category t))))
+
+;; Org Columns for Kanban-like view
+(setq org-columns-default-format "%50ITEM(Task) %TODO %3PRIORITY %10TAGS")
+
+(defun my/project-kanban ()
+  "Show column view for current project (kanban-like)."
+  (interactive)
+  (org-columns))
+
+(defun my/project-kanban-quit ()
+  "Quit column view."
+  (interactive)
+  (org-columns-quit))
+
+(defun my/create-project ()
+  "Create new project from template."
+  (interactive)
+  (find-file "~/org/projects.org")
+  (goto-char (point-max))
+  (insert "\n* PROJECT " (read-string "Project name: ") "\n")
+  (org-set-property "CREATED" (format-time-string "[%Y-%m-%d %a]"))
+  (org-set-property "STATUS" "active")
+  (org-set-property "PROJECT_ID" (org-id-new))
+  (insert "\n** Goals\n\n** Milestones\n\n*** TODO Backlog\n\n*** TODO In Progress\n\n*** TODO Review\n\n*** TODO Done\n\n** Notes\n\n"))
+
+(defun my/weekly-review ()
+  "Open weekly review layout."
+  (interactive)
+  (delete-other-windows)
+  (org-agenda nil "a")
+  (org-agenda-week-view)
+  (split-window-right)
+  (other-window 1)
+  (org-clock-report)
+  (split-window-below)
+  (other-window 1)
+  (find-file "~/org/weekly-review.org"))
+
+(setq org-agenda-custom-commands
+      '(("d" "Dashboard"
+         ((agenda "" ((org-agenda-span 'day)))
+          (tags-todo "+PRIORITY=\"A\""
+                     ((org-agenda-overriding-header "High Priority")))
+          (todo "DOING"
+                ((org-agenda-overriding-header "In Progress")))
+          (todo "PROJECT"
+                ((org-agenda-overriding-header "Active Projects")))))))
 
 ;; Enable Ivy for enhanced completion
 (use-package ivy
@@ -508,31 +648,24 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   :config
   (counsel-projectile-mode 1))
 
-;; Project management (Doom Emacs style)
+;; Project management
 (my/leader-keys
   "p"   '(:ignore t :which-key "Project")
-  "p!"  '(projectile-run-shell-command-in-root :which-key "Run shell command")
-  "p&"  '(projectile-run-async-shell-command-in-root :which-key "Async shell command")
-  "pa"  '(projectile-toggle-between-implementation-and-test :which-key "Toggle impl/test")
+  "pp"  '(counsel-projectile-switch-project :which-key "Switch project")
+  "pf"  '(counsel-projectile-find-file :which-key "Find file in project")
   "pb"  '(counsel-projectile-switch-to-buffer :which-key "Switch buffer in project")
+  "pd"  '(projectile-dired :which-key "Project Dired")
+  "ps"  '(counsel-projectile-rg :which-key "Search in project")
+  "pR"  '(projectile-replace :which-key "Replace in project")
+  "pD"  '(projectile-kill-buffers :which-key "Kill project buffers")
   "pc"  '(projectile-compile-project :which-key "Compile project")
   "pC"  '(projectile-configure-project :which-key "Configure project")
-  "pd"  '(projectile-dired :which-key "Project Dired")
-  "pD"  '(projectile-kill-buffers :which-key "Kill project buffers")
-  "pe"  '(projectile-edit-dir-locals :which-key "Edit dir-locals")
-  "pf"  '(counsel-projectile-find-file :which-key "Find file in project")
-  "pg"  '(projectile-find-tag :which-key "Find tag")
-  "pi"  '(projectile-invalidate-cache :which-key "Invalidate cache")
-  "pk"  '(projectile-kill-buffers :which-key "Kill project buffers")
-  "po"  '(projectile-find-other-file :which-key "Find other file")
-  "pp"  '(counsel-projectile-switch-project :which-key "Switch project")
-  "pr"  '(projectile-recentf :which-key "Recent files")
-  "pR"  '(projectile-replace :which-key "Replace in project")
-  "ps"  '(counsel-projectile-rg :which-key "Search in project")
-  "pS"  '(projectile-save-project-buffers :which-key "Save project buffers")
-  "pt"  '(projectile-test-project :which-key "Test project")
-  "pT"  '(projectile-run-project :which-key "Run project")
-  "px"  '(projectile-run-shell :which-key "Run shell"))
+  "pk"  '(my/project-kanban :which-key "Project Kanban")
+  "pn"  '(my/create-project :which-key "New project"))
+
+;; Notes and weekly review
+(my/leader-keys
+  "nw"  '(my/weekly-review :which-key "Weekly review"))
 
 ;; Window and buffer navigation
 (my/leader-keys
@@ -558,7 +691,13 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   "nn"  '(org-capture :which-key "Org Capture")
   "na"  '(org-agenda :which-key "Org Agenda")
   "nl"  '(org-store-link :which-key "Store org link")
-  "nb"  '(org-switchb :which-key "Switch Org buffer"))
+  "nb"  '(org-switchb :which-key "Switch Org buffer")
+  "nc"  '(:ignore t :which-key "Clock")
+  "nci" '(org-clock-in :which-key "Clock in")
+  "nco" '(org-clock-out :which-key "Clock out")
+  "ncr" '(my/org-clock-in-last :which-key "Resume last clock")
+  "ncg" '(my/org-clock-goto-current :which-key "Go to current clock")
+  "ncR" '(my/org-clock-report-today :which-key "Clock report today"))
 
 ;; Git keybindings
 (my/leader-keys
@@ -637,18 +776,10 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   (setq projectile-indexing-method 'alien)
 
   ;; Sort results by recent
-  (setq projectile-sort-order 'recentf)
+  (setq projectile-sort order 'recentf)
 
-  ;; Refresh project list after Emacs fully starts
-  (add-hook 'emacs-startup-hook
-            (lambda ()
-              (run-with-timer 0.5 nil #'projectile-discover-projects-in-search-path)))
-
-  ;; Also refresh when switching to dashboard
-  (with-eval-after-load 'dashboard
-    (advice-add 'dashboard-refresh-buffer :before
-                (lambda (&rest _)
-                  (projectile-load-known-projects)))))
+  ;; Refresh project list on startup
+  (projectile-discover-projects-in-search-path))
 
 (use-package counsel-projectile
   :after (counsel projectile)
@@ -800,6 +931,39 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   (interactive)
   (gptel-send "Fix this error:" :context 'buffer))
 
+;; AI Task Helpers
+(defun my/org-task-to-ai-context ()
+  "Export current task with properties and context to clipboard for AI."
+  (interactive)
+  (let* ((heading (org-get-heading t t t t))
+         (props (org-entry-properties))
+         (context (or (cdr (assoc "CONTEXT" props)) "No context provided"))
+         (expected (or (cdr (assoc "EXPECTED_OUTPUT" props)) "Not specified"))
+         (files (or (cdr (assoc "FILES" props)) "No files specified"))
+         (body (org-get-entry))
+         (ai-context (save-excursion
+                       (when (re-search-forward "#\\+BEGIN_AI_CONTEXT"
+                                                (org-entry-end-position) t)
+                         (buffer-substring-no-properties
+                          (point)
+                          (progn (re-search-forward "#\\+END_AI_CONTEXT")
+                                 (line-beginning-position)))))))
+    (kill-new
+     (format "# Task: %s\n\n## Context\n%s\n\n## Expected Output\n%s\n\n## Relevant Files\n%s\n\n## Details\n%s\n\n## Additional Context\n%s"
+             heading context expected files body (or ai-context "None")))))
+
+(defun my/ai-break-down-task ()
+  "Ask AI to break down current task into subtasks."
+  (interactive)
+  (my/org-task-to-ai-context)
+  (gptel-send "Break down the copied task into actionable subtasks in org-mode format (** subtask format)."))
+
+(defun my/ai-project-plan ()
+  "Ask AI to generate project plan from description."
+  (interactive)
+  (let ((desc (org-get-entry)))
+    (gptel-send (format "Create a project plan for:\n\n%s\n\nFormat as org-mode outline with milestones and tasks." desc))))
+
 ;; Keybindings
 (my/leader-keys
   "o"    '(:ignore t :which-key "AI models")
@@ -816,6 +980,15 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   "om"   '(gptel-menu :which-key "gptel-menu")
   "or"   '(gptel-rewrite :which-key "AI model rewrite")
   "ov"   '(aider-transient-menu :which-key "Vibe code w/ Aider"))
+
+;; Org task AI keybindings
+(general-define-key
+ :states 'normal
+ :keymaps 'org-mode-map
+ :prefix "SPC o t"
+ "x" 'my/org-task-to-ai-context
+ "b" 'my/ai-break-down-task
+ "p" 'my/ai-project-plan)
 
 (add-to-list 'auto-mode-alist '("CMakeLists\\.txt\\'" . cmake-mode))
 (add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))

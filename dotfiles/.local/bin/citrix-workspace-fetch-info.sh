@@ -37,8 +37,8 @@ echo >&2
 
 # Ask if user wants to download and compute hash
 if [ "$1" = "--download" ] || [ "$1" = "-d" ]; then
-    echo "Downloading package..." >&2
     TEMP_FILE=$(mktemp)
+    echo "Downloading package at $TEMP_FILE..." >&2
     trap "rm -f $TEMP_FILE" EXIT
 
     curl -L -o "$TEMP_FILE" "$DEB_URL"
