@@ -73,6 +73,7 @@
         emacs-org-mime
         emacs-org-modern
         emacs-org-reveal
+        emacs-org-super-agenda
         emacs-paredit
         emacs-perspective
         emacs-persp-projectile
