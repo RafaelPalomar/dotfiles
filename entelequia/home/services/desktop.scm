@@ -119,7 +119,10 @@
         (specification->package+output "bind" "utils")))
 
 (define (home-desktop-environment-variables config)
-  '(("_JAVA_AWT_WM_NONREPARENTING" . "1")))
+  '(("PATH" . "$HOME/.local/bin:$PATH")
+    ("LESSHISTFILE" . "$XDG_CACHE_HOME/.lesshst")
+    ("_JAVA_AWT_WM_NONREPARENTING" . "1")
+    ("TERMINAL" . "kitty")))
 
 (define (home-desktop-shepherd-service config)
   "Return shepherd services for desktop utilities."

@@ -91,10 +91,10 @@
 if [ -n \"$CONTAINER_ID\" ] && [ -f /etc/profile.d/zz-container-guix-isolation.sh ]; then
     . /etc/profile.d/zz-container-guix-isolation.sh
 fi")))))
+
    (simple-service 'slicer-env-vars
                    home-environment-variables-service-type
-                   `(("PATH" . "$HOME/.local/bin:$PATH")
-                     ("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")))
+                   `(("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")))
 
 
    ;; Start background jobs (service home-mcron-service-type
