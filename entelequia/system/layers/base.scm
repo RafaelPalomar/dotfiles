@@ -146,7 +146,7 @@
                                guix-service-type
                                (guix-extension
                                 (substitute-urls
-                                 (cons* "https://nonguix-proxy.digital.xyz"
+                                 (cons* "https://substitutes.nonguix.org"
                                         %default-substitute-urls))
                                 (authorized-keys
                                  (append (list (plain-file "nonguix.pub"
@@ -155,6 +155,7 @@
 
                ;; Set up Polkit to allow `wheel' users to run admin tasks
                polkit-wheel-service
+               networkmanager-polkit-service
 
                ;; Give certain programs super-user access
                (simple-service 'mount-setuid-helpers
@@ -172,6 +173,7 @@
                          (vpn-plugins
                           (list network-manager-openvpn
                                 network-manager-openconnect))))
+               gnutls-tls-config-service  ;; Configure GnuTLS for NTNU VPN compatibility
                (service wpa-supplicant-service-type) ;; Needed by NetworkManager
                (service modem-manager-service-type)  ;; For cellular modems
                (service bluetooth-service-type

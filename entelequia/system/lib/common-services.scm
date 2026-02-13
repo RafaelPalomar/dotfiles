@@ -13,12 +13,15 @@
   #:use-module (gnu packages virtualization)
   #:use-module (gnu packages audio)
   #:use-module (gnu packages admin)  ; For aide
+  #:use-module (gnu packages polkit)
   #:use-module (guix gexp)
   #:export (aide-service
             file-permissions-service
             desktop-udev-rules-services
             blueman-dbus-service
-            zram-service))
+            zram-service
+            networkmanager-polkit-service
+            gnutls-tls-config-service))
 
 ;;; Common service definitions shared between desktop systems
 ;;;
@@ -138,6 +141,43 @@ PERMS = p+i+n+u+g+s+b+m+c+md5+sha256
 ;;;
 ;;; Note: bluetooth-service-type and libvirt-service-type are already
 ;;; configured in base.scm - no need for separate definitions here
+
+;;; GnuTLS TLS version configuration service
+;;; Disables TLSv1.0, TLSv1.1, and TLSv1.3 for OpenConnect compatibility with NTNU VPN
+
+(define gnutls-config
+  (plain-file "config"
+              "[overrides]
+disabled-version = tls1.0
+disabled-version = tls1.1
+disabled-version = tls1.3
+"))
+
+(define gnutls-tls-config-service
+  (simple-service 'gnutls-config
+                  etc-service-type
+                  (list `("gnutls/config" ,gnutls-config))))
+
+;;; NetworkManager PolicyKit service
+;;; Allows wheel group users to manage network connections, create VPNs, etc.
+
+(define networkmanager-polkit-rules
+  (file-union
+   "networkmanager-polkit"
+   `(("share/polkit-1/rules.d/60-networkmanager.rules"
+      ,(plain-file "60-networkmanager.rules"
+                   "polkit.addRule(function(action, subject) {
+    if (action.id.indexOf(\"org.freedesktop.NetworkManager.\") == 0 &&
+        subject.isInGroup(\"wheel\")) {
+        return polkit.Result.YES;
+    }
+});
+")))))
+
+(define networkmanager-polkit-service
+  (simple-service 'networkmanager-polkit
+                  polkit-service-type
+                  (list networkmanager-polkit-rules)))
 
 ;;; zram compressed swap service
 

@@ -3,6 +3,7 @@
   #:use-module (gnu services)
   #:use-module (gnu services base)
   #:use-module (gnu services networking)
+  #:use-module (gnu services security)
   #:use-module (gnu services ssh)
   #:use-module (gnu services security-token)
   #:use-module (gnu services shepherd)
@@ -133,61 +134,23 @@ vm.mmap_min_addr = 65536
 
 ;;; Fail2Ban service for SSH protection
 ;;; Provides brute-force protection for SSH by banning IPs after failed attempts.
-
-(define fail2ban-config
-  (plain-file "jail.local"
-              "[DEFAULT]
-# Ban hosts for 1 hour
-bantime = 3600
-# Find time window: 10 minutes
-findtime = 600
-# Max retries before ban
-maxretry = 5
-
-[sshd]
-enabled = true
-port = 2222
-filter = sshd
-logpath = /var/log/secure
-maxretry = 3
-bantime = 7200
-"))
+;;; Uses Guix's built-in fail2ban-service-type for proper integration.
 
 (define fail2ban-service
-  (list
-   ;; Install fail2ban configuration
-   (simple-service 'fail2ban-config
-                   etc-service-type
-                   (list `("fail2ban/jail.local" ,fail2ban-config)))
-
-   ;; Fail2Ban shepherd service
-   (simple-service 'fail2ban-daemon
-                   shepherd-root-service-type
-                   (list
-                    (shepherd-service
-                     (documentation "Fail2Ban intrusion prevention service")
-                     (provision '(fail2ban))
-                     (requirement '(networking syslogd))
-                     (start #~(make-forkexec-constructor
-                               (list #$(file-append fail2ban "/bin/fail2ban-client")
-                                     "start")
-                               #:log-file "/var/log/fail2ban.log"))
-                     (stop #~(make-forkexec-constructor
-                              (list #$(file-append fail2ban "/bin/fail2ban-client")
-                                    "stop")))
-                     (actions
-                      (list
-                       (shepherd-action
-                        (name 'status)
-                        (documentation "Show Fail2Ban status")
-                        (procedure
-                         #~(lambda (pid)
-                             (invoke #$(file-append fail2ban "/bin/fail2ban-client")
-                                     "status"))))))
-                     (respawn? #t))))))
+  (service fail2ban-service-type
+           (fail2ban-configuration
+            (extra-jails
+             (list
+              (fail2ban-jail-configuration
+               (name "sshd")
+               (enabled? #t)
+               (max-retry 3)
+               (find-time "10m")
+               (ban-time "2h")))))))
 
 ;;; nftables firewall service
 ;;; Provides stateful firewall with secure defaults using nftables.
+;;; Uses Guix's built-in nftables-service-type for proper integration.
 
 (define* (make-nftables-ruleset #:key (extra-tcp-ports '()) (extra-udp-ports '()))
   "Create nftables ruleset with optional extra TCP/UDP ports.
@@ -228,7 +191,7 @@ table inet filter {
     ct state established,related accept
 
     # Allow loopback traffic
-    iface lo accept
+    iifname \"lo\" accept
 
     # Drop invalid packets
     ct state invalid drop
@@ -279,44 +242,12 @@ table inet filter {
 (define* (nftables-firewall-service #:key (extra-tcp-ports '()) (extra-udp-ports '()))
   "Create nftables firewall service with optional extra ports.
    EXTRA-TCP-PORTS: List of TCP port numbers to allow
-   EXTRA-UDP-PORTS: List of UDP port numbers to allow"
-  (let ((ruleset (make-nftables-ruleset #:extra-tcp-ports extra-tcp-ports
-                                        #:extra-udp-ports extra-udp-ports)))
-    (list
-     ;; Install nftables ruleset
-     (simple-service 'nftables-config
-                     etc-service-type
-                     (list `("nftables.conf" ,ruleset)))
-
-   ;; nftables shepherd service
-   (simple-service 'nftables-daemon
-                   shepherd-root-service-type
-                   (list
-                    (shepherd-service
-                     (documentation "nftables firewall service")
-                     (provision '(nftables firewall))
-                     (requirement '(networking))
-                     (start #~(make-system-constructor
-                               "nft -f /etc/nftables.conf"))
-                     (stop #~(make-system-destructor
-                              "nft flush ruleset"))
-                     (actions
-                      (list
-                       (shepherd-action
-                        (name 'reload)
-                        (documentation "Reload nftables rules")
-                        (procedure
-                         #~(lambda (pid)
-                             (invoke #$(file-append nftables "/sbin/nft")
-                                     "-f" "/etc/nftables.conf"))))
-                       (shepherd-action
-                        (name 'status)
-                        (documentation "Show nftables rules")
-                        (procedure
-                         #~(lambda (pid)
-                             (invoke #$(file-append nftables "/sbin/nft")
-                                     "list" "ruleset"))))))
-                     (respawn? #f))))))) ; Close let and function
+   EXTRA-UDP-PORTS: List of UDP port numbers to allow
+   Uses Guix's nftables-service-type for proper integration."
+  (service nftables-service-type
+           (nftables-configuration
+            (ruleset (make-nftables-ruleset #:extra-tcp-ports extra-tcp-ports
+                                            #:extra-udp-ports extra-udp-ports)))))
 
 ;;; Hardened SSH service configuration
 
@@ -468,11 +399,11 @@ UseDNS no
    ;; Always enable kernel hardening
    kernel-hardening-service
 
-   ;; Optional services
-   (if enable-fail2ban? fail2ban-service '())
+   ;; Optional services (wrap single services in lists for append)
+   (if enable-fail2ban? (list fail2ban-service) '())
    (if enable-firewall?
-       (nftables-firewall-service #:extra-tcp-ports firewall-extra-tcp-ports
-                                  #:extra-udp-ports firewall-extra-udp-ports)
+       (list (nftables-firewall-service #:extra-tcp-ports firewall-extra-tcp-ports
+                                        #:extra-udp-ports firewall-extra-udp-ports))
        '())
    (if enable-audit? auditd-service '())
 
