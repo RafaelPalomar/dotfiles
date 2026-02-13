@@ -15,7 +15,7 @@
 
 (use-package-modules audio video nfs certs shells ssh linux bash emacs gnome
                      networking wm fonts libusb cups freedesktop file-systems
-                     version-control package-management vim shellutils vpn)
+                     version-control package-management vim shellutils vpn suckless)
 
 (use-service-modules dns guix admin sysctl pm nix avahi dbus cups desktop linux
                      mcron networking xorg ssh docker audio virtualization)
@@ -165,7 +165,8 @@
                                        (program program)
                                        (setuid? #t)))
                                     (list (file-append nfs-utils "/sbin/mount.nfs")
-                                          (file-append ntfs-3g "/sbin/mount.ntfs-3g"))))
+                                          (file-append ntfs-3g "/sbin/mount.ntfs-3g")
+                                          (file-append slock "/bin/slock"))))
 
                ;; Networking services
                (service network-manager-service-type

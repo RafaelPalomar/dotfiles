@@ -14,12 +14,9 @@
   (package
     (name "entelequia-docs")
     (version "1.0.0")
-    (source (local-file "../.."
-                        "entelequia-docs-checkout"
-                        #:recursive? #t
-                        #:select? (lambda (file stat)
-                                    (or (string-contains file "/docs/")
-                                        (string-suffix? "/Makefile" file)))))
+    (source (local-file "../../docs"
+                        "entelequia-docs-source"
+                        #:recursive? #t))
     (build-system gnu-build-system)
     (arguments
      (list
@@ -29,13 +26,12 @@
           (delete 'configure)  ; No configure script needed
           (replace 'build
             (lambda* (#:key inputs #:allow-other-keys)
-              (with-directory-excursion "docs"
-                ;; Build Texinfo sources first
-                (invoke "make" "texinfo")
-                ;; Build Info manual from Texinfo
-                (invoke "make" "info")
-                ;; Build HTML documentation
-                (invoke "make" "html"))))
+              ;; Build Texinfo sources first
+              (invoke "make" "texinfo")
+              ;; Build Info manual from Texinfo
+              (invoke "make" "info")
+              ;; Build HTML documentation
+              (invoke "make" "html")))
           (replace 'install
             (lambda* (#:key outputs #:allow-other-keys)
               (let* ((out (assoc-ref outputs "out"))
@@ -43,14 +39,14 @@
                      (html-dir (string-append out "/share/doc/entelequia/html")))
                 ;; Install Info manual
                 (mkdir-p info-dir)
-                (install-file "docs/build/texinfo/entelequia.info" info-dir)
+                (install-file "build/texinfo/entelequia.info" info-dir)
                 ;; Register with Info directory
                 (invoke "install-info"
                         "--info-dir" info-dir
                         (string-append info-dir "/entelequia.info"))
                 ;; Install HTML documentation
                 (mkdir-p html-dir)
-                (copy-recursively "docs/build/html" html-dir)))))))
+                (copy-recursively "build/html" html-dir)))))))
     (native-inputs
      (list python-sphinx
            texinfo))

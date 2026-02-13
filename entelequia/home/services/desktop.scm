@@ -122,7 +122,8 @@
   '(("PATH" . "$HOME/.local/bin:$PATH")
     ("LESSHISTFILE" . "$XDG_CACHE_HOME/.lesshst")
     ("_JAVA_AWT_WM_NONREPARENTING" . "1")
-    ("TERMINAL" . "kitty")))
+    ("TERMINAL" . "kitty")
+    ("INFOPATH" . "$HOME/.guix-home/profile/share/info:$INFOPATH")))
 
 (define (home-desktop-shepherd-service config)
   "Return shepherd services for desktop utilities."
@@ -169,7 +170,7 @@
     (start #~(make-forkexec-constructor
               (list #$(file-append xautolock "/bin/xautolock")
                     "-time" "10"        ; Lock after 10 minutes
-                    "-locker" #$(file-append slock "/bin/slock")
+                    "-locker" "/run/setuid-programs/slock"
                     "-detectsleep")     ; Don't lock on suspend
               #:log-file (string-append
                          (or (getenv "XDG_STATE_HOME")

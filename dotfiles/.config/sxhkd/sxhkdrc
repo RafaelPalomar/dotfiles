@@ -107,7 +107,7 @@ super + w
 
 # Screen locker
 super + l
-    slock
+    /run/setuid-programs/slock
 
 # DataLocker - Lock encrypted USB
 super + shift + l

@@ -9,6 +9,7 @@
   #:use-module (entelequia home profiles base)
   #:use-module (entelequia home profiles development)
   #:use-module (entelequia home profiles email)
+  #:use-module (entelequia home profiles documentation)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -81,7 +82,8 @@
       ;; Include profile packages
       (packages (append base-home-packages
                         development-home-packages
-                        email-home-packages))
+                        email-home-packages
+                        documentation-home-packages))
       ;; desktop-home-services includes DataLocker service
       (services desktop-home-services)))
 
