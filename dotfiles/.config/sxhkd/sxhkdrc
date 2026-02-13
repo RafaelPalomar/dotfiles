@@ -63,7 +63,7 @@ super + {_,shift + }q
     bspc node -{c,k}
 
 super + n
-      $TERMINAL --class TermApp,TermApp --title nmtui --command nmtui
+      $TERMINAL --class TermApp,TermApp --title nmtui -- nmtui
 
 # Multimedia keys
 XF86AudioRaiseVolume
@@ -88,7 +88,7 @@ XF86MonBrightnessDown
   light -U 10
 
 super + a
-	$TERMINAL --class TermApp,TermApp --title pulsemixer --command pulsemixer
+	$TERMINAL --class TermApp,TermApp --title pulsemixer -- pulsemixer
 
 # Screenshot
 Print
