@@ -10,21 +10,21 @@ case "$CHOICE" in
         ~/.local/bin/org-quick-capture.sh
         ;;
     "Detailed Task")
-        emacsclient -c -e '(org-capture nil "tt")'
+        emacsclient -c -F '((name . "org-capture") (window-system . x))' -e '(org-capture nil "tt")'
         ;;
     "Project Idea")
-        emacsclient -c -e '(org-capture nil "p")'
+        emacsclient -c -F '((name . "org-capture") (window-system . x))' -e '(org-capture nil "p")'
         ;;
     "Meeting Note")
-        emacsclient -c -e '(org-capture nil "n")'
+        emacsclient -c -F '((name . "org-capture") (window-system . x))' -e '(org-capture nil "n")'
         ;;
     "AI Task")
-        emacsclient -c -e '(org-capture nil "a")'
+        emacsclient -c -F '((name . "org-capture") (window-system . x))' -e '(org-capture nil "a")'
         ;;
     "GitHub Issue")
         ~/.local/bin/org-github-capture.sh
         ;;
     "Quick Note")
-        emacsclient -c -e '(denote-create-note)'
+        emacsclient -c -F '((name . "denote") (window-system . x))' -e '(denote-create-note)'
         ;;
 esac

@@ -130,11 +130,15 @@ super + shift + c
 
 # Org agenda
 super + shift + a
-    emacsclient -c -e '(org-agenda nil "a")'
+    emacsclient -c -F '((name . "org-agenda") (window-system . x))' -e '(progn (org-agenda nil "a") (delete-other-windows))'
+
+# Dired file manager
+super + shift + e
+    ~/.local/bin/dired-file-manager.sh
 
 # Denote quick note
 super + shift + n
-    emacsclient -c -e '(denote-create-note)'
+    emacsclient -c -F '((name . "denote") (window-system . x))' -e '(denote-create-note)'
 
 # Org clock control
 super + shift + i

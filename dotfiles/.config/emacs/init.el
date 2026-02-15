@@ -398,6 +398,55 @@ Waiting for response from %:fromname
 (setq org-outline-path-complete-in-steps nil)
 (setq org-refile-use-outline-path t)
 
+;; Helper function to make current frame floating in bspwm
+(defun my/make-frame-floating ()
+  "Make the current frame floating in bspwm."
+  (when (and (display-graphic-p)
+             (executable-find "bspc"))
+    (call-process "bspc" nil 0 nil "node" "-t" "floating")))
+
+;; Helper function to setup special frames (capture, dired, agenda)
+(defun my/setup-special-frame ()
+  "Setup the current frame as a special floating frame.
+Deletes other windows and makes the frame floating."
+  (delete-other-windows)
+  (my/make-frame-floating))
+
+;; Function to check if current frame is a special frame based on name
+(defun my/is-special-frame-p ()
+  "Check if the current frame is a special frame (capture, dired, agenda, denote)."
+  (let ((frame-name (frame-parameter nil 'name)))
+    (and frame-name
+         (or (string-match-p "org-capture" frame-name)
+             (string-match-p "dired-manager" frame-name)
+             (string-match-p "org-agenda" frame-name)
+             (string-match-p "denote" frame-name)))))
+
+;; Hook for org-capture to setup special frame
+(add-hook 'org-capture-mode-hook
+          (lambda ()
+            (when (my/is-special-frame-p)
+              (my/setup-special-frame))))
+
+;; Hook for dired to setup special frame
+(add-hook 'dired-mode-hook
+          (lambda ()
+            (when (and (my/is-special-frame-p)
+                       (= (length (window-list)) 1))
+              (my/make-frame-floating))))
+
+;; Hook for org-agenda to setup special frame
+(add-hook 'org-agenda-mode-hook
+          (lambda ()
+            (when (my/is-special-frame-p)
+              (my/setup-special-frame))))
+
+;; Hook for denote to setup special frame
+(add-hook 'denote-create-note-hook
+          (lambda ()
+            (when (my/is-special-frame-p)
+              (my/setup-special-frame))))
+
 (use-package org-mime
   :ensure nil
   :after (mu4e org)
