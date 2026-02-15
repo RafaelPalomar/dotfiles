@@ -539,6 +539,16 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
         ("n" "Meeting Note" entry (file+olp "~/org/inbox.org" "Meetings")
          "* Meeting: %?\n:PROPERTIES:\n:CREATED: %U\n:ATTENDEES: \n:END:\n\n** Agenda\n\n** Notes\n\n** Action Items\n")
         ("m" "Email Workflow")
+        ("me" "Email Task" entry (file+olp "~/org/inbox.org" "E-Mail")
+         "* TODO %:subject
+:PROPERTIES:
+:FROM: %:fromname <%:fromaddress>
+:DATE: %:date
+:END:
+
+[[%:link][View Email]]
+
+%i")
         ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
          "* TODO Follow up with %:fromname on [[%:link][%:subject]]
 SCHEDULED: %t
@@ -550,7 +560,36 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 SCHEDULED: %t
 DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 
-%i" :immediate-finish nil)))
+%i" :immediate-finish nil)
+        ("ma" "Action Item" entry (file+olp "~/org/inbox.org" "E-Mail")
+         "* TODO [#B] %?
+:PROPERTIES:
+:EMAIL: [[%:link][%:subject]]
+:FROM: %:fromname
+:DATE: %:date
+:END:
+
+Context:
+%i")
+        ("md" "Defer Email" entry (file+olp "~/org/inbox.org" "E-Mail")
+         "* TODO Read: %:subject
+SCHEDULED: %(org-insert-time-stamp (org-read-date nil t \"+1d\"))
+
+[[%:link][Open Email]]
+
+From: %:fromname
+
+%i")
+        ("mw" "Waiting For" entry (file+olp "~/org/inbox.org" "E-Mail")
+         "* WAITING %:subject
+:PROPERTIES:
+:FROM: %:fromname
+:EMAIL: [[%:link][View Email]]
+:END:
+
+Waiting for response from %:fromname
+
+%i")))
 #+end_src
 
 ** Org-agenda files
@@ -1377,6 +1416,13 @@ This setup is inspired by [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
         mu4e-headers-from-or-to-prefix '("" . "To ")
         mu4e-headers-include-related t
         mu4e-headers-skip-duplicates t
+        mu4e-headers-show-threads t
+        mu4e-headers-thread-connection-prefix '("├─" "│ ")
+        mu4e-headers-thread-blank-prefix '("  " "  ")
+        mu4e-headers-thread-single-orphan-prefix '("─>" "  ")
+        mu4e-headers-thread-orphan-prefix '("┬>" "│ ")
+        mu4e-headers-thread-last-child-prefix '("└>" "  ")
+        mu4e-headers-thread-child-prefix '("├>" "│ ")
         sendmail-program "msmtp"
         send-mail-function 'smtpmail-send-it
         message-sendmail-f-is-evil t
@@ -1389,12 +1435,51 @@ This setup is inspired by [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
   (define-key mu4e-headers-mode-map (kbd "C-c c") 'mu4e-org-store-and-capture)
   (define-key mu4e-view-mode-map    (kbd "C-c c") 'mu4e-org-store-and-capture)
 
+  ;; Quick actions
+  (define-key mu4e-headers-mode-map (kbd "C-c u") 'mu4e-update-mail-and-index)
+  (define-key mu4e-view-mode-map (kbd "C-c u") 'mu4e-update-mail-and-index)
+
   ;; Custom keybindings with Evil
   (with-eval-after-load 'evil
     ;; Ensure 'a' is available in visual state in mu4e-view-mode
     (evil-define-key 'visual mu4e-view-mode-map (kbd "a") 'mu4e-view-action)
     ;; Similarly, for mu4e-headers-mode if needed
     (evil-define-key 'visual mu4e-headers-mode-map (kbd "a") 'mu4e-headers-mark-for-*))
+
+  ;; Helper functions for quick email-to-task capture
+  (defun my/mu4e-capture-email-task ()
+    "Capture email as a quick task."
+    (interactive)
+    (org-store-link nil)
+    (org-capture nil "me"))
+
+  (defun my/mu4e-capture-action-item ()
+    "Capture email as an action item."
+    (interactive)
+    (org-store-link nil)
+    (org-capture nil "ma"))
+
+  (defun my/mu4e-capture-defer ()
+    "Defer email to read later."
+    (interactive)
+    (org-store-link nil)
+    (org-capture nil "md"))
+
+  (defun my/mu4e-capture-waiting ()
+    "Mark email as waiting for response."
+    (interactive)
+    (org-store-link nil)
+    (org-capture nil "mw"))
+
+  ;; Quick capture keybindings for mu4e
+  (define-key mu4e-headers-mode-map (kbd "C-c t") 'my/mu4e-capture-email-task)
+  (define-key mu4e-view-mode-map (kbd "C-c t") 'my/mu4e-capture-email-task)
+  (define-key mu4e-headers-mode-map (kbd "C-c a") 'my/mu4e-capture-action-item)
+  (define-key mu4e-view-mode-map (kbd "C-c a") 'my/mu4e-capture-action-item)
+  (define-key mu4e-headers-mode-map (kbd "C-c d") 'my/mu4e-capture-defer)
+  (define-key mu4e-view-mode-map (kbd "C-c d") 'my/mu4e-capture-defer)
+  (define-key mu4e-headers-mode-map (kbd "C-c w") 'my/mu4e-capture-waiting)
+  (define-key mu4e-view-mode-map (kbd "C-c w") 'my/mu4e-capture-waiting)
 
   ;; Reset variables, as our configuration is based on contexts
   (setq mu4e-contexts nil
@@ -1437,12 +1522,7 @@ https://ntnu.no
                   (mu4e-drafts-folder     . "/rafael.palomar@ntnu.no/Drafts")
                   (mu4e-sent-folder       . "/rafael.palomar@ntnu.no/Sent")
                   (mu4e-trash-folder      . "/rafael.palomar@ntnu.no/Trash")
-                  (mu4e-refile-folder     . "/rafael.palomar@ntnu.no/Archive")
-                  ;; Configure SMTP
-                  (smtpmail-smtp-user     . "rafael.palomar@ntnu.no")
-                  (smtpmail-smtp-server   . "smtp.office365.com")
-                  (smtpmail-smtp-service  . 587)
-                  (smtpmail-stream-type   . starttls)))
+                  (mu4e-refile-folder     . "/rafael.palomar@ntnu.no/Archive")))
          ;; OUS-Research Account
          (make-mu4e-context
           :name "OUS-Research"
@@ -1455,12 +1535,7 @@ https://ntnu.no
                   (mu4e-drafts-folder     . "/rafael.palomar@ous-research.no/Drafts")
                   (mu4e-sent-folder       . "/rafael.palomar@ous-research.no/Sent")
                   (mu4e-trash-folder      . "/rafael.palomar@ous-research.no/Trash")
-                  (mu4e-refile-folder     . "/rafael.palomar@ous-research.no/Archive")
-                  ;; Configure SMTP
-                  (smtpmail-smtp-user     . "rafaelpa@uio.no")
-                  (smtpmail-smtp-server   . "smtp.office365.com")
-                  (smtpmail-smtp-service  . 587)
-                  (smtpmail-stream-type   . starttls))))))
+                  (mu4e-refile-folder     . "/rafael.palomar@ous-research.no/Archive"))))))
 
 (use-package mu4e-dashboard
   :ensure nil
@@ -1490,6 +1565,40 @@ https://ntnu.no
       (push 'display font-lock-extra-managed-props)
       (font-lock-add-keywords nil svg-font-lock-keywords)
       (font-lock-flush (point-min) (point-max)))))
+
+;; mu4e-alert for desktop notifications
+(use-package mu4e-alert
+  :ensure nil
+  :after mu4e
+  :config
+  (mu4e-alert-set-default-style 'libnotify)
+  (mu4e-alert-enable-notifications)
+  (mu4e-alert-enable-mode-line-display))
+
+;; Helper functions for org-mode email composition
+(defun my-mu4e-compose-new-with-org-mode ()
+  "Compose a new email with org-mode formatting."
+  (interactive)
+  (mu4e-compose-new)
+  (org-mu4e-compose-org-mode))
+
+(defun my-mu4e-compose-reply-with-org-mode ()
+  "Reply to an email with org-mode formatting."
+  (interactive)
+  (mu4e-compose-reply)
+  (org-mu4e-compose-org-mode))
+
+;; Add mu4e bookmarks for quick navigation
+(with-eval-after-load 'mu4e
+  (setq mu4e-bookmarks
+        '((:name "Unread messages" :query "flag:unread AND NOT flag:trashed" :key ?u)
+          (:name "Today's messages" :query "date:today..now" :key ?t)
+          (:name "Last 7 days" :query "date:7d..now" :hide-unread t :key ?w)
+          (:name "Messages with images" :query "mime:image/*" :key ?p)
+          (:name "Flagged messages" :query "flag:flagged" :key ?f)
+          (:name "All NTNU" :query "maildir:/rafael.palomar@ntnu.no/*" :key ?n)
+          (:name "All OUS" :query "maildir:/rafael.palomar@ous-research.no/*" :key ?o)
+          (:name "Large messages (>5MB)" :query "size:5M..500M" :key ?l))))
 
 (my/leader-keys
   "m"    '(:ignore t :which-key "Mail")
@@ -1645,12 +1754,47 @@ We exclude dired from evil-collection and define Evil-aware keybindings for dirv
         (dired-find-file))))
 
   ;; Define Evil keybindings for dirvish (normal state)
-  ;; TODO Regular dired commands should probably be redefined here
   (evil-define-key 'normal dirvish-mode-map
+    ;; Navigation
     (kbd "l") 'my/dired-open-file              ; Open file/directory (with external apps)
     (kbd "h") 'dired-up-directory              ; Go to parent
     (kbd "q") 'dirvish-quit                    ; Quit
     (kbd "RET") 'my/dired-open-file            ; Also bind RET for consistency
+    (kbd "j") 'dired-next-line                 ; Move down
+    (kbd "k") 'dired-previous-line             ; Move up
+    (kbd "gg") 'evil-goto-first-line           ; Go to top
+    (kbd "G") 'evil-goto-line                  ; Go to bottom
+
+    ;; File operations
+    (kbd "C") 'dired-do-copy                   ; Copy
+    (kbd "R") 'dired-do-rename                 ; Rename/move
+    (kbd "D") 'dired-do-delete                 ; Delete
+    (kbd "d") 'dired-flag-file-deletion        ; Flag for deletion
+    (kbd "x") 'dired-do-flagged-delete         ; Execute deletions
+    (kbd "+") 'dired-create-directory          ; Create directory
+    (kbd "Z") 'dired-do-compress               ; Compress/uncompress
+    (kbd "c") 'dired-do-compress-to            ; Compress to specific file
+
+    ;; Marking
+    (kbd "m") 'dired-mark                      ; Mark file
+    (kbd "u") 'dired-unmark                    ; Unmark file
+    (kbd "U") 'dired-unmark-all-marks          ; Unmark all
+    (kbd "t") 'dired-toggle-marks              ; Toggle marks
+    (kbd "*") 'dired-mark-executables          ; Mark executables
+    (kbd "%") 'dired-mark-files-regexp         ; Mark by regexp
+
+    ;; View/Edit
+    (kbd "o") 'dired-find-file-other-window    ; Open in other window
+    (kbd "gr") 'revert-buffer                  ; Refresh
+    (kbd "i") 'dired-maybe-insert-subdir       ; Insert subdir
+    (kbd ".") 'dired-omit-mode                 ; Toggle hidden files
+
+    ;; Permissions & ownership
+    (kbd "M") 'dired-do-chmod                  ; Change mode
+    (kbd "O") 'dired-do-chown                  ; Change owner
+    (kbd "gG") 'dired-do-chgrp                 ; Change group
+
+    ;; Dirvish-specific features
     (kbd "?") 'dirvish-dispatch                ; Command menu
     (kbd "f") 'dirvish-file-info-menu          ; File info
     (kbd "y") 'dirvish-yank-menu               ; Yank/copy menu

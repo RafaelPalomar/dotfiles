@@ -64,6 +64,7 @@
         emacs-markdown-preview-mode
         emacs-mixed-pitch
         emacs-modus-themes
+        emacs-mu4e-alert
         emacs-mu4e-dashboard
         emacs-nano-theme
         emacs-nano-modeline
