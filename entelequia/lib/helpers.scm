@@ -44,7 +44,9 @@
             '("modprobe.blacklist=nouveau"
               "nvidia-drm.modeset=1"))
            ((amd)
-            '("amd_pstate=active"))
+            '("amd_pstate=active"
+              "amdgpu.dc=1"
+              "amdgpu.dpm=1"))
            ((intel)
             '())
            (else
