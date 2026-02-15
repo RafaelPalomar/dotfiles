@@ -96,6 +96,22 @@ fi")))))
                    home-environment-variables-service-type
                    `(("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")))
 
+   ;; User environment variables
+   (simple-service 'user-env-vars
+                   home-environment-variables-service-type
+                   `( ;; Sort hidden (dot) files first in `ls` listings
+                     ("LC_COLLATE" . "C")
+
+                     ;; Emacs is our editor
+                     ("VISUAL" . "emacsclient")
+                     ("EDITOR" . "emacsclient")
+
+                     ;; Add user scripts to PATH
+                     ("PATH" . "$HOME/.bin:$HOME/.npm-global/bin:$PATH")
+
+                     ;; Make Flatpak apps visible (both system-wide and user)
+                     ("XDG_DATA_DIRS" . "/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS")))
+
 
    ;; Start background jobs (service home-mcron-service-type
    ;;          (home-mcron-configuration

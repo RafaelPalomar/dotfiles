@@ -74,7 +74,7 @@
 
         ;; Browsers
         librewolf
-        ungoogled-chromium
+        ;;ungoogled-chromium ;; Quite unstable on Guix, maybe better to use the flatpak
 
         ;; Authentication
         password-store

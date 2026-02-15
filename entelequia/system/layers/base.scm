@@ -237,22 +237,6 @@
                (udev-rules-service 'pipewire-add-udev-rules pipewire)
                (udev-rules-service 'brightnessctl-udev-rules brightnessctl)
 
-               (simple-service 'profile-env-vars-service
-                               home-environment-variables-service-type
-                               '( ;; Sort hidden (dot) files first in `ls` listings
-                                 ("LC_COLLATE" . "C")
-
-                                 ;; Emacs is our editor
-                                 ("VISUAL" . "emacsclient")
-                                 ("EDITOR" . "emacsclient")
-
-                                 ;; Add some things to $PATH (maybe integrate into other services?)
-                                 ("PATH" . "$HOME/.bin:$HOME/.npm-global/bin:$PATH")
-
-                                 ;; Make sure Flatpak apps are visible
-                                 ;; TODO: Maybe move to a desktop layer
-                                 ("XDG_DATA_DIRS" . "$XDG_DATA_DIRS:$HOME/.local/share/flatpak/exports/share")))
-
                ;; Schedule cron jobs for system tasks
                (simple-service 'system-cron-jobs
                                mcron-service-type
