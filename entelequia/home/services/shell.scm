@@ -41,12 +41,20 @@ if hash direnv 2> /dev/null; then
     tmp_shell=\"$(basename \"$SHELL\")\"
     # add the hook
     eval \"$(direnv hook ${tmp_shell})\"
-fi"))))))
+fi")
+                                    (plain-file "bashrc-gpg-agent"
+                                                "# Launch GPG agent for SSH authentication
+export GPG_TTY=$(tty)
+export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+gpgconf --launch gpg-agent 2>/dev/null")))))))
 
-                  ;; Environment variables for Slicer and PATH
+                  ;; Environment variables for Slicer, PATH, and GPG/SSH
                   (service-extension
                    home-environment-variables-service-type
                    (lambda (config)
                      '(("PATH" . "$HOME/.local/bin:$PATH")
-                       ("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-qt6"))))))
+                       ("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-qt6")
+                       ;; GPG and SSH authentication via GPG agent
+                       ("GPG_TTY" . "$(tty)")
+                       ("SSH_AUTH_SOCK" . "$(gpgconf --list-dirs agent-ssh-socket)"))))))
                 (default-value #f)))

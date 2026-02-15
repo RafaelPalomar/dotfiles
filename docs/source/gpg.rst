@@ -10,10 +10,36 @@ Architecture Overview
 Master Key + Subkeys Model
 ---------------------------
 
-- **Master Key** (``[C]`` - Certification only): Kept offline, used only for key management
+- **Master Key** (``[C]`` - Certification only): Kept offline on **IronKey**, used only for key management
 - **Signing Subkey** (``[S]``): Git commits, documents, package signatures
 - **Encryption Subkey** (``[E]``): Email, file encryption
 - **Authentication Subkey** (``[A]``): SSH authentication via GPG agent
+
+Multi-Machine Architecture
+---------------------------
+
+**Key Distribution Across Machines:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 20 20 40
+
+   * - Machine
+     - Master Key
+     - Subkeys
+     - Purpose
+   * - **einstein** (desktop)
+     - ❌ (stub only)
+     - ✅ All subkeys
+     - Daily development, git signing, SSH
+   * - **curie** (laptop)
+     - ❌ (stub only)
+     - ✅ All subkeys
+     - Mobile work, presentations
+   * - **IronKey**
+     - ✅ Full master
+     - ✅ All keys
+     - Key management, offline operations
 
 Key Benefits
 ------------
@@ -27,26 +53,45 @@ Key Benefits
 Directory Structure
 ===================
 
+Local Machine (einstein/curie)
+-------------------------------
+
 .. code-block:: text
 
     ~/.keys/
     ├── gpg/
-    │   ├── master/                          # OFFLINE storage (encrypted USB/separate disk)
-    │   │   ├── master-key.asc.gpg          # Master key encrypted with strong passphrase
-    │   │   ├── master-key-backup.tar.gpg   # Full GNUPGHOME backup
-    │   │   ├── revocation-cert.asc         # CRITICAL: print and store securely
-    │   │   └── README.md                   # Key generation metadata (date, fingerprint)
+    │   ├── master/                          # Empty (master key on IronKey only)
     │   ├── public/                          # Can be version controlled in dotfiles
     │   │   ├── public-key.asc              # Public key (all subkeys)
     │   │   └── fingerprint.txt             # Key fingerprint for verification
     │   └── subkeys-backup/                  # Encrypted subkey backups
-    │       ├── subkeys.tar.gpg             # Periodic encrypted backups
-    │       └── restore-instructions.md      # Recovery procedures
+    │       └── subkeys-YYYYMMDD.tar.gpg    # Periodic encrypted backups
     ├── ssh/
-    │   ├── id_ed25519_github               # GitHub-specific key (if not using GPG auth)
-    │   ├── id_ed25519_servers              # Server access keys
-    │   └── config                          # SSH config (can be in dotfiles)
-    └── README.md                           # Key management procedures
+    │   ├── gpg-auth-key.pub                # SSH public key extracted from GPG
+    │   └── config                          # SSH config (via Guix home)
+    ├── procedures/                          # Quick reference procedures
+    │   ├── pre-generation-checklist.md
+    │   └── post-generation-tasks.md
+    └── README.md                           # Key management quick reference
+
+IronKey Directory Structure
+----------------------------
+
+.. code-block:: text
+
+    /media/ironkey/
+    ├── gpg/
+    │   ├── master-key.asc.gpg              # Master key (GPG encrypted)
+    │   ├── master-key-backup-YYYYMMDD.tar.gpg  # Full GNUPGHOME backup
+    │   ├── revocation-cert.asc.gpg         # CRITICAL: also print and store in safe
+    │   ├── fingerprint.txt                 # Key fingerprint (plaintext OK)
+    │   └── README.md                       # Key metadata (creation date, etc.)
+    ├── ssh/
+    │   └── infrastructure-backup/          # Backup of SSH auth subkey
+    └── procedures/
+        ├── key-rotation-procedure.md       # Step-by-step rotation guide
+        ├── emergency-revocation.md         # Emergency procedures
+        └── restore-instructions.md         # Disaster recovery
 
 Initial Master Key Generation
 ==============================
@@ -223,18 +268,74 @@ Authentication Subkey (for SSH)
     gpg --list-secret-keys
     # Look for: sec#  rsa4096/KEYID [C] (pound sign indicates offline)
 
+IronKey Integration
+===================
+
+The **IronKey** serves as the primary offline storage for the master key with hardware-level encryption.
+
+Security Model
+--------------
+
+**Triple-Layer Encryption:**
+
+1. **Hardware Layer**: IronKey's AES-256 hardware encryption
+2. **GPG Layer**: Master key files encrypted with ``--symmetric --cipher-algo AES256``
+3. **Key Passphrase**: Master key itself protected by strong passphrase
+
+IronKey Setup Procedure
+-----------------------
+
+.. code-block:: bash
+
+    # 1. Mount IronKey (will prompt for hardware password)
+    # IronKey typically automounts to /media/username/IRONKEY_NAME
+
+    # 2. Create directory structure
+    mkdir -p /media/ironkey/{gpg,ssh,procedures}
+
+    # 3. Set restrictive permissions
+    chmod 700 /media/ironkey/gpg
+
+    # 4. Create README
+    cat > /media/ironkey/README.md <<'EOF'
+    # IronKey - GPG Master Key Storage
+
+    This IronKey contains the GPG master certification key.
+
+    **CRITICAL**: Store in safe when not in use.
+
+    Creation Date: YYYY-MM-DD
+    Key Fingerprint: [TO BE FILLED]
+
+    See: /home/rafael/.dotfiles/docs/source/gpg.rst
+    EOF
+
+Physical Security Protocol
+--------------------------
+
+1. **Storage**: Keep IronKey in safe/lockbox when not in use
+2. **Usage**: Only connect for key management operations (subkey rotation, signing)
+3. **Network**: Disconnect network when performing key operations
+4. **Logging**: Record each use in IronKey's procedures/access-log.md
+
 Key Storage Strategy
 ====================
 
 Master Key Storage
 ------------------
 
-Choose one or multiple:
+**Primary Storage** (IronKey):
 
-1. **Encrypted USB drive**: Keep in safe/lockbox, preferably off-site
-2. **Encrypted external disk**: Secondary location (parent's house, bank vault)
-3. **Paper backup**: QR code or printed ASCII-armored key (fire-proof safe)
-4. **Encrypted cloud backup**: As last resort, triple-encrypted (GPG + VeraCrypt + provider encryption)
+- Triple-encrypted master key
+- Hardware encryption enabled
+- Stored in safe when not in use
+- Used only for key management
+
+**Secondary Backup** (Optional):
+
+1. **Encrypted external disk**: Secondary location (off-site: parent's house, bank vault)
+2. **Paper backup**: QR code or printed ASCII-armored key (fire-proof safe)
+3. **Encrypted cloud backup**: As last resort, triple-encrypted (GPG + VeraCrypt + provider encryption)
 
 DO NOT
 ------

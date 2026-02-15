@@ -1,0 +1,69 @@
+# SSH Configuration for Entelequia Multi-Machine Setup
+#
+# This template should be deployed via Guix home configuration
+# Location: dotfiles/.ssh/config (managed by Guix home)
+
+# Global settings
+Host *
+    # Use GPG agent for SSH authentication
+    # (SSH_AUTH_SOCK already set to GPG agent via shell config)
+
+    # Security settings
+    AddKeysToAgent yes
+    IdentitiesOnly yes
+
+    # Connection settings
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+    TCPKeepAlive yes
+
+    # Performance
+    Compression yes
+    ControlMaster auto
+    ControlPath ~/.ssh/sockets/%r@%h:%p
+    ControlPersist 10m
+
+# Einstein (desktop) - via Tailscale or local network
+Host einstein einstein.local
+    HostName einstein.local  # or Tailscale IP: 100.x.x.x
+    User rafael
+    Port 2222
+
+# Curie (laptop) - via Tailscale or local network
+Host curie curie.local
+    HostName curie.local  # or Tailscale IP: 100.x.x.x
+    User rafael
+    Port 2222
+
+# GitHub
+Host github.com
+    HostName github.com
+    User git
+    # GPG authentication subkey will be used automatically
+    IdentitiesOnly yes
+    PreferredAuthentications publickey
+
+# GitLab (if used)
+Host gitlab.com
+    HostName gitlab.com
+    User git
+    IdentitiesOnly yes
+    PreferredAuthentications publickey
+
+# Infrastructure servers (for guix deploy)
+# Uncomment and configure as needed
+# Host infra-*
+#     User admin
+#     Port 2222
+#     IdentitiesOnly yes
+#     # Use GPG auth subkey for infrastructure access
+
+# Work servers (NTNU/OUS)
+# Uncomment and configure as needed
+# Host ntnu-* ous-*
+#     User rafael.palomar
+#     Port 2222
+#     IdentitiesOnly yes
+
+# Ensure socket directory exists
+# Run once: mkdir -p ~/.ssh/sockets

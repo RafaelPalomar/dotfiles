@@ -1,0 +1,99 @@
+# Git Configuration for Entelequia System
+#
+# GPG-signed commits with multi-machine support
+#
+# After generating GPG key, copy this to ~/.gitconfig and fill in:
+#   - user.signingkey with your GPG key ID
+#   - user.email with your primary email
+#
+# For work repositories, use per-repo overrides:
+#   cd ~/work/project
+#   git config user.email "rafael.palomar@ntnu.no"
+
+[user]
+    name = Rafael Palomar
+    # FILL THIS: email = your-primary-email@example.com
+    # FILL THIS: signingkey = 0xYOURKEYID
+
+[commit]
+    # Automatically sign all commits
+    # gpgsign = true  # Uncomment after key generation
+
+[tag]
+    # Automatically sign all tags
+    # gpgSign = true  # Uncomment after key generation
+
+[gpg]
+    # Use GPG2 (default on Guix)
+    program = gpg
+
+[github]
+    user = RafaelPalomar
+
+[gitlab]
+    # user = RafaelPalomar  # Uncomment if using GitLab
+
+[core]
+    editor = emacsclient -t
+    pager = less
+    autocrlf = input
+    # Improve performance on large repos
+    preloadindex = true
+    fscache = true
+
+[init]
+    defaultBranch = master
+
+[pull]
+    rebase = false
+
+[push]
+    default = simple
+    # Automatically push annotated tags with commits
+    followTags = true
+
+[fetch]
+    prune = true
+    pruneTag = true
+
+[merge]
+    tool = vimdiff
+    conflictstyle = diff3
+
+[diff]
+    tool = vimdiff
+    algorithm = histogram
+    colorMoved = default
+
+[color]
+    ui = auto
+    branch = auto
+    diff = auto
+    status = auto
+
+[alias]
+    # Short aliases
+    st = status
+    co = checkout
+    br = branch
+    ci = commit
+    df = diff
+    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+
+    # Show commit signature
+    show-sig = log --show-signature
+
+    # List GPG-signed commits
+    signed = log --show-signature --pretty=format:'%h %G? %aN  %s'
+
+    # Verify signatures in current branch
+    verify-sigs = log --pretty="format:%h %G? %aN  %s" --show-signature
+
+[log]
+    # Show GPG signature status in git log
+    showSignature = false  # Set to true if you want to always see signatures
+
+# Per-repository configuration examples:
+# For work projects, run in the project directory:
+#   git config user.email "rafael.palomar@ntnu.no"
+#   git config user.signingkey 0xWORK_SUBKEY_ID  # If using separate work subkey
