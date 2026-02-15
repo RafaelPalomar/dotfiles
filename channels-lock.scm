@@ -2,6 +2,8 @@
         (name 'guix)
         (url "https://codeberg.org/guix/guix.git")
         (branch "master")
+        (commit
+          "14ec8ebc004fff831a639b529d2d9e532173fc2c")
         (introduction
           (make-channel-introduction
             "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -11,6 +13,8 @@
         (name 'nonguix)
         (url "https://gitlab.com/nonguix/nonguix")
         (branch "master")
+        (commit
+          "bbbc850e8a94833c9958625eb4c78a206fbacc1d")
         (introduction
           (make-channel-introduction
             "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -19,16 +23,24 @@
       (channel
         (name 'guix-xlibre)
         (url "https://codeberg.org/rafaelpalomar/guix-xlibre.git")
-        (branch "master"))
+        (branch "master")
+        (commit
+          "02b15dba1951803649c95bdc17feca2b544fc4ee"))
       (channel
         (name 'tailscale)
         (url "https://github.com/umanwizard/guix-tailscale")
-        (branch "main"))
+        (branch "main")
+        (commit
+          "58bc8b05520b8565a3230e21388e97f00b886e4b"))
       (channel
         (name 'guix-systole)
         (url "https://github.com/systoleos/guix-systole")
-        (branch "main"))
+        (branch "main")
+        (commit
+          "c1bf0d4b739caf5d1b6bc1036c4d87319bff90b5"))
       (channel
         (name 'systole-artwork)
         (url "https://github.com/systoleos/guix-systole-artwork")
-        (branch "main")))
+        (branch "main")
+        (commit
+          "26e4f71bf518a03c646d42d7c65ec8529f3c63a6")))
