@@ -2,7 +2,7 @@ IMAPStore rafael.palomar@ntnu.no-remote
 Host outlook.office365.com
 Port 993
 User rafael.palomar@ntnu.no
-PassCmd "mutt_oauth2.py ~/.password-store/email/ntnu.no"
+PassCmd "mutt_oauth2.py ~/.password-store/email/ntnu.no.gpg"
 AuthMechs XOAUTH2
 SSLType IMAPS
 CertificateFile /etc/ssl/certs/ca-certificates.crt
@@ -28,7 +28,7 @@ IMAPStore rafael.palomar@ous-research.no-remote
 Host outlook.office365.com
 Port 993
 User rafaelpa@uio.no
-PassCmd "mutt_oauth2.py ~/.password-store/email/uio.no"
+PassCmd "mutt_oauth2.py ~/.password-store/email/uio.no.gpg"
 AuthMechs XOAUTH2
 SSLType IMAPS
 CertificateFile /etc/ssl/certs/ca-certificates.crt
@@ -53,7 +53,7 @@ IMAPStore rafaelpalomaravalos@gmail.com-remote
 Host imap.gmail.com
 Port 993
 User rafaelpalomaravalos@gmail.com
-PassCmd "mutt_oauth2.py ~/.password-store/email/rafaelpalomaravalos_gmail.com"
+PassCmd "mutt_oauth2.py ~/.password-store/email/rafaelpalomaravalos_gmail.com.gpg"
 AuthMechs XOAUTH2
 SSLType IMAPS
 CertificateFile /etc/ssl/certs/ca-certificates.crt

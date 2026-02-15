@@ -75,9 +75,9 @@
                                        "~/.local/bin/setup-guix-slicer-profile.sh ~/.slicer-guix-profile-6 6")))))
    (service home-bash-service-type
             (home-bash-configuration
-             (aliases '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/ntnu.no --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
-                        ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id 08162f7c-0fd2-4200-a84a-f25a4db0b584 --client-secret  TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82 ~/.password-store/email/uio.no --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no")
-                        ("mbsync-all" . "guix shell cyrus-sasl-xoauth2 -L ~/dotfiles -- mbsync -a")))
+             (aliases '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id $OAUTH_CLIENT_ID --client-secret $OAUTH_CLIENT_SECRET ~/.password-store/email/ntnu.no.gpg --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
+                        ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id $OAUTH_CLIENT_ID --client-secret $OAUTH_CLIENT_SECRET ~/.password-store/email/uio.no.gpg --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no")
+                        ("mbsync-all" . "mbsync -a")))
              (bashrc (list (plain-file "bashrc-direnv"
                                        "# if direnv is installed, run the hook
                                                                    if hash direnv 2> /dev/null; then
@@ -90,11 +90,19 @@
                                        "# Source container isolation script if in a distrobox container
 if [ -n \"$CONTAINER_ID\" ] && [ -f /etc/profile.d/zz-container-guix-isolation.sh ]; then
     . /etc/profile.d/zz-container-guix-isolation.sh
-fi")))))
+fi")
+                           (plain-file "bashrc-gpg-agent"
+                                       "# GPG TTY setup for GPG agent
+export GPG_TTY=$(tty)
+export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+gpgconf --launch gpg-agent 2>/dev/null")))))
 
    (simple-service 'slicer-env-vars
                    home-environment-variables-service-type
-                   `(("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")))
+                   `(("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")
+                     ;; OAuth2 credentials for email authentication
+                     ("OAUTH_CLIENT_ID" . "08162f7c-0fd2-4200-a84a-f25a4db0b584")
+                     ("OAUTH_CLIENT_SECRET" . "TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82")))
 
    ;; User environment variables
    (simple-service 'user-env-vars

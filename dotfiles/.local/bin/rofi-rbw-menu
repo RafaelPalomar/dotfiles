@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# rofi-rbw wrapper with action menu
+# Presents a menu of actions after selecting a password entry
+
+set -e
+
+# Step 1: Select entry from Bitwarden vault
+ENTRY=$(rbw list | rofi -dmenu -i -p "Bitwarden")
+
+if [ -z "$ENTRY" ]; then
+    exit 0
+fi
+
+# Step 2: Present action menu
+ACTION=$(echo -e "Type username and password\nType username only\nType password only\nType OTP code\nCopy username to clipboard\nCopy password to clipboard\nCopy OTP to clipboard" | rofi -dmenu -i -p "Action")
+
+if [ -z "$ACTION" ]; then
+    exit 0
+fi
+
+# Step 3: Execute selected action using rbw and xdotool/xclip
+case "$ACTION" in
+    "Type username and password")
+        USERNAME=$(rbw get "$ENTRY" --field username 2>/dev/null || echo "")
+        PASSWORD=$(rbw get "$ENTRY" 2>/dev/null || echo "")
+        if [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
+            sleep 0.1
+            xdotool type --clearmodifiers "$USERNAME"
+            xdotool key Tab
+            xdotool type --clearmodifiers "$PASSWORD"
+        fi
+        ;;
+    "Type username only")
+        USERNAME=$(rbw get "$ENTRY" --field username 2>/dev/null || echo "")
+        if [ -n "$USERNAME" ]; then
+            sleep 0.1
+            xdotool type --clearmodifiers "$USERNAME"
+        fi
+        ;;
+    "Type password only")
+        PASSWORD=$(rbw get "$ENTRY" 2>/dev/null || echo "")
+        if [ -n "$PASSWORD" ]; then
+            sleep 0.1
+            xdotool type --clearmodifiers "$PASSWORD"
+        fi
+        ;;
+    "Type OTP code")
+        TOTP=$(rbw code "$ENTRY" 2>/dev/null || echo "")
+        if [ -n "$TOTP" ]; then
+            sleep 0.1
+            xdotool type --clearmodifiers "$TOTP"
+        fi
+        ;;
+    "Copy username to clipboard")
+        USERNAME=$(rbw get "$ENTRY" --field username 2>/dev/null || echo "")
+        if [ -n "$USERNAME" ]; then
+            echo -n "$USERNAME" | xclip -selection clipboard
+            notify-send "Bitwarden" "Username copied (auto-clear in 15s)"
+            # Clear clipboard after 15 seconds
+            (sleep 15 && echo -n "" | xclip -selection clipboard) &
+        fi
+        ;;
+    "Copy password to clipboard")
+        PASSWORD=$(rbw get "$ENTRY" 2>/dev/null || echo "")
+        if [ -n "$PASSWORD" ]; then
+            echo -n "$PASSWORD" | xclip -selection clipboard
+            notify-send "Bitwarden" "Password copied (auto-clear in 15s)"
+            # Clear clipboard after 15 seconds
+            (sleep 15 && echo -n "" | xclip -selection clipboard) &
+        fi
+        ;;
+    "Copy OTP to clipboard")
+        TOTP=$(rbw code "$ENTRY" 2>/dev/null || echo "")
+        if [ -n "$TOTP" ]; then
+            echo -n "$TOTP" | xclip -selection clipboard
+            notify-send "Bitwarden" "OTP copied (auto-clear in 15s)"
+            # Clear clipboard after 15 seconds
+            (sleep 15 && echo -n "" | xclip -selection clipboard) &
+        fi
+        ;;
+    *)
+        # User cancelled
+        exit 0
+        ;;
+esac

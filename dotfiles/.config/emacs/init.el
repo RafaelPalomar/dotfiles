@@ -986,14 +986,13 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 
 (use-package mu4e
   :ensure nil
-  :load-path "/usr/share/emacs/site-lisp/mu4e"
   :commands (mu4e)
   :defer t
   :init
   ;; General mu4e settings that need to be set before mu4e loads
   (setq mu4e-maildir "~/.local/share/mail"
         mu4e-attachment-dir "~/Downloads"
-        mu4e-get-mail-command  "guix shell -L ~/.dotfiles cyrus-sasl-xoauth2 -- mbsync -a"
+        mu4e-get-mail-command  "mbsync -a"
         mu4e-update-interval 300
         mu4e-index-cleanup t
         mu4e-index-update-error-warning t
@@ -1084,10 +1083,10 @@ https://ntnu.no
               (string-prefix-p "/rafael.palomar@ous-research.no" (mu4e-message-field msg :maildir))))
           :vars '((user-mail-address      . "rafael.palomar@ous-research.no")
                   (user-full-name         . "Rafael Palomar")
-                  (mu4e-drafts-folder     . "/rafaelpa@ous-research.no/Drafts")
-                  (mu4e-sent-folder       . "/rafaelpa@ous-research.no/Sent")
-                  (mu4e-trash-folder      . "/rafaelpa@ous-research.no/Trash")
-                  (mu4e-refile-folder     . "/rafaelpa@ous-research.no/Archive")
+                  (mu4e-drafts-folder     . "/rafael.palomar@ous-research.no/Drafts")
+                  (mu4e-sent-folder       . "/rafael.palomar@ous-research.no/Sent")
+                  (mu4e-trash-folder      . "/rafael.palomar@ous-research.no/Trash")
+                  (mu4e-refile-folder     . "/rafael.palomar@ous-research.no/Archive")
                   ;; Configure SMTP
                   (smtpmail-smtp-user     . "rafaelpa@uio.no")
                   (smtpmail-smtp-server   . "smtp.office365.com")
@@ -1221,7 +1220,6 @@ https://ntnu.no
   ;; Enable dirvish globally (overrides default dired)
   (dirvish-override-dired-mode)
 
-  :custom
   ;; Show file attributes in the header line
   (dirvish-attributes '(file-size file-time))
 
@@ -1263,6 +1261,7 @@ https://ntnu.no
         (dired-find-file))))
 
   ;; Define Evil keybindings for dirvish (normal state)
+  ;; TODO Regular dired commands should probably be redefined here
   (evil-define-key 'normal dirvish-mode-map
     (kbd "l") 'my/dired-open-file              ; Open file/directory (with external apps)
     (kbd "h") 'dired-up-directory              ; Go to parent

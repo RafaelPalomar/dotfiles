@@ -113,9 +113,9 @@ super + l
 super + shift + l
     ~/.local/bin/datalocker-lock
 
-# Bitwarden password manager
+# Bitwarden password manager (with action menu)
 super + p
-    rofi-rbw
+    ~/.local/bin/rofi-rbw-menu
 
 # Bitwarden - Quick TOTP copy
 super + shift + p
