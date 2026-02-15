@@ -32,6 +32,8 @@
         emacs-dashboard
         emacs-denote
         emacs-denote-silo
+        emacs-diredfl
+        emacs-dirvish
         emacs-dockerfile-mode
         emacs-doom-themes
         emacs-embark
@@ -53,7 +55,6 @@
         emacs-guix
         emacs-helpful
         emacs-nerd-icons
-        emacs-diredfl
         emacs-hl-todo
         emacs-ivy
         emacs-ivy-rich

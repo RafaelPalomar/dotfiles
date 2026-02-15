@@ -198,7 +198,9 @@
   :after evil
   :ensure nil
   :config
-  ;; Initialize Evil Collection for all supported modes
+  ;; Exclude dired from evil-collection (dirvish provides custom keybindings)
+  (setq evil-collection-mode-list (delq 'dired evil-collection-mode-list))
+  ;; Initialize Evil Collection for all supported modes (except dired)
   (evil-collection-init))
 
 (use-package evil-escape
@@ -250,17 +252,6 @@
 (setq evil-normal-state-cursor 'box      ;; Normal mode cursor is a box
       evil-insert-state-cursor 'bar      ;; Insert mode cursor is a bar
       evil-visual-state-cursor 'hollow)  ;; Visual mode cursor is hollow
-
-;; Evil Org Mode Integration
-(use-package evil-org
-  :ensure nil
-  :after (evil org)
-  :hook (org-mode . evil-org-mode)
-  :config
-  (add-hook 'org-mode-hook #'evil-org-mode)
-  (require 'evil-org-agenda)
-  (evil-org-set-key-theme '(navigation insert textobjects additional))
-  (evil-org-agenda-set-keys))
 
 ;; Org Mode base configuration (Doom defaults)
 (use-package org
@@ -776,7 +767,7 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
   (setq projectile-indexing-method 'alien)
 
   ;; Sort results by recent
-  (setq projectile-sort order 'recentf)
+  (setq projectile-sort-order 'recentf)
 
   ;; Refresh project list on startup
   (projectile-discover-projects-in-search-path))
@@ -1210,6 +1201,98 @@ https://ntnu.no
   :config
   (setq dired-create-destination-dirs 'ask
         dired-vc-rename-file t))
+
+;; Image-dired - Thumbnail support for image files
+(use-package image-dired
+  :ensure nil
+  :custom
+  ;; Use ImageMagick for thumbnail generation (instead of vipsthumbnail)
+  (image-dired-cmd-create-thumbnail-program "convert")
+  (image-dired-cmd-create-thumbnail-options
+   '("-size" "%wx%h" "%f[0]" "-resize" "%wx%h>" "-strip" "jpeg:%t"))
+  ;; Thumbnail storage location
+  (image-dired-dir (expand-file-name "image-dired" user-emacs-directory))
+  (image-dired-thumbnail-storage 'standard))
+
+;; Dirvish - Modern file manager with previews and Miller columns
+(use-package dirvish
+  :ensure nil
+  :init
+  ;; Enable dirvish globally (overrides default dired)
+  (dirvish-override-dired-mode)
+
+  :custom
+  ;; Show file attributes in the header line
+  (dirvish-attributes '(file-size file-time))
+
+  ;; Enable previews for various file types (excluding 'image since vipsthumbnail is not available)
+  (dirvish-preview-dispatchers '(gif video audio epub archive pdf))
+
+  ;; Cache preview images for better performance
+  (dirvish-cache-dir (expand-file-name "dirvish-cache" user-emacs-directory))
+
+  ;; Use header and mode lines for better UI
+  (dirvish-use-header-line 'global)
+  (dirvish-use-mode-line 'global)
+
+  :config
+  ;; Miller columns layout (3-pane view)
+  (setq dirvish-default-layout '(0 0.4 0.6))  ; Parent:Current:Preview ratio
+
+  ;; Configure external applications for specific file types
+  ;; Use xdg-open for media files instead of opening in Emacs
+  (setq dired-guess-shell-alist-user
+        '(("\\.\\(mp4\\|mkv\\|avi\\|mov\\|wmv\\|flv\\|webm\\)\\'" "xdg-open")
+          ("\\.\\(mp3\\|flac\\|wav\\|ogg\\|m4a\\)\\'" "xdg-open")
+          ("\\.\\(jpg\\|jpeg\\|png\\|gif\\|bmp\\|svg\\)\\'" "xdg-open")
+          ("\\.\\(pdf\\|djvu\\)\\'" "xdg-open")
+          ("\\.\\(xlsx?\\|docx?\\|pptx?\\)\\'" "xdg-open")))
+
+  ;; Make dired-find-file use external apps for media files
+  (defun my/dired-open-file ()
+    "In dired, open the file at point with external application if appropriate."
+    (interactive)
+    (let* ((file (dired-get-filename nil t))
+           (ext (when file (file-name-extension file))))
+      (if (and ext
+               (member (downcase ext)
+                       '("mp4" "mkv" "avi" "mov" "wmv" "flv" "webm"
+                         "mp3" "flac" "wav" "ogg" "m4a"
+                         "jpg" "jpeg" "png" "gif" "bmp")))
+          (call-process "xdg-open" nil 0 nil file)
+        (dired-find-file))))
+
+  ;; Define Evil keybindings for dirvish (normal state)
+  (evil-define-key 'normal dirvish-mode-map
+    (kbd "l") 'my/dired-open-file              ; Open file/directory (with external apps)
+    (kbd "h") 'dired-up-directory              ; Go to parent
+    (kbd "q") 'dirvish-quit                    ; Quit
+    (kbd "RET") 'my/dired-open-file            ; Also bind RET for consistency
+    (kbd "?") 'dirvish-dispatch                ; Command menu
+    (kbd "f") 'dirvish-file-info-menu          ; File info
+    (kbd "y") 'dirvish-yank-menu               ; Yank/copy menu
+    (kbd "s") 'dirvish-quicksort               ; Sort menu
+    (kbd "TAB") 'dirvish-subtree-toggle        ; Toggle subtree
+    (kbd "a") 'dirvish-quick-access            ; Quick access
+    (kbd "v") 'dirvish-vc-menu                 ; Version control
+    (kbd "M-l") 'dirvish-ls-switches-menu      ; Listing options
+    (kbd "M-e") 'dirvish-emerge-menu           ; Batch operations
+    (kbd "M-j") 'dirvish-fd-jump               ; Fast jump with fd
+    (kbd "M-s") 'dirvish-setup-menu            ; Setup/config menu
+    (kbd "M-n") 'dirvish-narrow                ; Narrow/filter
+    (kbd "M-m") 'dirvish-mark-menu             ; Mark operations
+    (kbd "M-t") 'dirvish-layout-toggle         ; Toggle layout
+    (kbd "M-b") 'dirvish-history-go-backward
+    (kbd "M-f") 'dirvish-history-go-forward))
+
+;; Global keybindings for dirvish (using SPC leader)
+(my/leader-keys
+  "d"   '(:ignore t :which-key "Dired/Dirvish")
+  "dd"  '(dirvish :which-key "Open dirvish")
+  "dj"  '(dirvish-fd-jump :which-key "Jump with fd")
+  "ds"  '(dirvish-side :which-key "Dirvish sidebar")
+  "dh"  '(dirvish-history-jump :which-key "Jump to history")
+  "da"  '(dirvish-quick-access :which-key "Quick access"))
 
 (use-package denote
   :ensure nil

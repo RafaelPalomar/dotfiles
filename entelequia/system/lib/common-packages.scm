@@ -161,4 +161,5 @@
     "cmake"
     "node"
     "light"
+    "book-sicp"
     "sakura"))

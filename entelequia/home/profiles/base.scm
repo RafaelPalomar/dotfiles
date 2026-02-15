@@ -30,4 +30,10 @@
 
          ;; Text processing
          "less"
-         "nano")))
+         "nano"
+
+         ;; Media/preview tools (for dirvish/file managers)
+         "ffmpegthumbnailer"  ;; Video thumbnails
+         "imagemagick"        ;; Image processing and previews
+         "poppler"            ;; PDF previews (includes pdftotext, pdftocairo)
+         )))
