@@ -148,6 +148,7 @@
     "cmake"
     "node"
     "light"
+    "jq"
     "nextcloud-client"))
 
 (define curie-specific-packages
@@ -161,5 +162,6 @@
     "cmake"
     "node"
     "light"
+    "jq"
     "book-sicp"
     "sakura"))

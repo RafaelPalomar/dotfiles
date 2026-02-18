@@ -3,6 +3,7 @@
   #:use-module (entelequia home services desktop)
   #:use-module (entelequia home services encrypted-usb)
   #:use-module (entelequia home services containers)
+  #:use-module (entelequia home services github-sync)
   #:use-module (entelequia packages polybar-themes)
   #:use-module (gnu packages package-management)
   #:use-module (entelequia packages fonts)
@@ -51,6 +52,9 @@
 
    ;; Container configuration (podman and distrobox)
    (service home-containers-service-type)
+
+   ;; GitHub to org-mode synchronization (every 60 minutes)
+   (service home-github-sync-service-type)
 
    (service home-pipewire-service-type
             (home-pipewire-configuration (enable-pulseaudio? #t)))
