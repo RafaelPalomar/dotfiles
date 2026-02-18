@@ -268,7 +268,9 @@
         org-fontify-quote-and-verse-blocks t
         org-hide-emphasis-markers t
         org-pretty-entities t
-        org-ellipsis "⤵"))
+        org-ellipsis "⤵")
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "IN-PROGRESS(p)" "FOLLOW-UP(f)" "|" "DONE(d)" "CANCELLED(c)"))))
 
 ;; Enhance Org Mode appearance with org-modern
 (use-package org-modern
