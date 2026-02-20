@@ -13,6 +13,7 @@
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
+  #:use-module (gnu services base)     ; guix-extension, guix-service-type
   #:use-module (gnu services xorg)
   #:use-module (gnu services containers)
   #:use-module (gnu system accounts)
@@ -95,7 +96,41 @@
               (xorg-configuration amd-xlibre-config))))
 
    ;; zram compressed swap (8GB, zstd compression)
-   (zram-service #:size-mb 8192)))
+   (zram-service #:size-mb 8192)
+
+   ;; -----------------------------------------------------------------------
+   ;; ccache for Slicer development
+   ;; -----------------------------------------------------------------------
+   ;; Expose /var/cache/slicer-ccache inside the Guix build sandbox so that
+   ;; slicer-5.8 (and its loadable-module packages) can use a persistent
+   ;; compiler cache across derivation rebuilds.  Without this the daemon
+   ;; sandbox would hide the directory and every patch-tweak rebuild starts
+   ;; cold.
+   ;;
+   ;; The directory is created by activation (runs during 'guix system
+   ;; reconfigure') as a world-writable sticky directory (like /tmp) so that
+   ;; any guixbuilder* UID can write to it.
+   ;;
+   ;; Usage after reconfigure:
+   ;;   - Guix builds: automatic (slicer.scm detects /var/cache/slicer-ccache)
+   ;;   - Personal builds:
+   ;;       CCACHE_DIR=/var/cache/slicer-ccache \
+   ;;       CCACHE_BASEDIR=$(pwd) \
+   ;;       cmake -DCMAKE_C_COMPILER_LAUNCHER=ccache ...
+
+   (simple-service 'slicer-ccache-dir
+                   activation-service-type
+                   #~(let ((dir "/var/cache/slicer-ccache"))
+                       (unless (file-exists? dir)
+                         (mkdir dir))
+                       ;; World-writable + sticky: guixbuilder* UIDs can write;
+                       ;; sticky bit prevents one builder from removing another's files.
+                       (chmod dir #o1777)))
+
+   (simple-service 'guix-daemon-slicer-ccache
+                   guix-service-type
+                   (guix-extension
+                    (chroot-directories '("/var/cache/slicer-ccache"))))))
 
 (define curie-system
   (operating-system
