@@ -118,19 +118,20 @@
    ;;       CCACHE_BASEDIR=$(pwd) \
    ;;       cmake -DCMAKE_C_COMPILER_LAUNCHER=ccache ...
 
-   (simple-service 'slicer-ccache-dir
-                   activation-service-type
-                   #~(let ((dir "/var/cache/slicer-ccache"))
-                       (unless (file-exists? dir)
-                         (mkdir dir))
-                       ;; World-writable + sticky: guixbuilder* UIDs can write;
-                       ;; sticky bit prevents one builder from removing another's files.
-                       (chmod dir #o1777)))
+   (list
+    (simple-service 'slicer-ccache-dir
+                    activation-service-type
+                    #~(let ((dir "/var/cache/slicer-ccache"))
+                        (unless (file-exists? dir)
+                          (mkdir dir))
+                        ;; World-writable + sticky: guixbuilder* UIDs can write;
+                        ;; sticky bit prevents one builder from removing another's files.
+                        (chmod dir #o1777)))
 
-   (simple-service 'guix-daemon-slicer-ccache
-                   guix-service-type
-                   (guix-extension
-                    (chroot-directories '("/var/cache/slicer-ccache"))))))
+    (simple-service 'guix-daemon-slicer-ccache
+                    guix-service-type
+                    (guix-extension
+                     (chroot-directories '("/var/cache/slicer-ccache")))))))
 
 (define curie-system
   (operating-system
