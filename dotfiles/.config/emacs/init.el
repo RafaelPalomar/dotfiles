@@ -1292,7 +1292,8 @@ https://ntnu.no
   "mcC" '(my-mu4e-compose-new-with-org-mode :which-key "Compose new email with Org-mode")
   "mr"  '(:ignore t :which-key "Reply")
   "mrr" '(mu4e-compose-reply :which-key "Reply (plain text)")
-  "mrR" '(my-mu4e-compose-reply-with-org-mode :which-key "Reply with Org-mode"))
+  "mrR" '(my-mu4e-compose-reply-with-org-mode :which-key "Reply with Org-mode")
+  "mra" '(mu4e-compose-wide-reply :which-key "Reply all"))
 
 (with-eval-after-load 'tramp
   (require 'tramp-container)
@@ -1455,6 +1456,7 @@ https://ntnu.no
     (kbd "gr") 'revert-buffer                  ; Refresh
     (kbd "i") 'dired-maybe-insert-subdir       ; Insert subdir
     (kbd ".") 'dired-omit-mode                 ; Toggle hidden files
+    (kbd "e") 'wdired-change-to-wdired-mode    ; Edit filenames inline (wdired)
 
     ;; Permissions & ownership
     (kbd "M") 'dired-do-chmod                  ; Change mode
