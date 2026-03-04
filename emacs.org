@@ -2309,10 +2309,10 @@ machine irc.libera.chat login yournick password yourpass"
 
 (use-package aider
   :config
-  (setq aider-program (expand-file-name "~/.local/bin/aider-wrapper.sh"))
+  (setq aider-program "aider")
 
   (setq aider-args
-        (list "--model" "claude-sonnet-4-5-20250929"
+        (list "--model" "claude-sonnet-4-6"
               "--no-auto-commits"
               "--no-stream"))  ;; Disable streaming to prevent repetition
 
