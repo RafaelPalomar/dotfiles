@@ -2278,7 +2278,7 @@ machine irc.libera.chat login yournick password yourpass"
   "aib" '(erc-switch-to-buffer :which-key "Switch IRC buffer"))
 #+end_src
 
-* Copilot
+* COMMENT Copilot
 
 #+begin_src emacs-lisp :tangle dotfiles/.config/emacs/init.el
 ;; GitHub Copilot - best for vibe coding

@@ -1835,32 +1835,12 @@ machine irc.libera.chat login yournick password yourpass"
   "aiq" '(erc-quit-server :which-key "Quit IRC server")
   "aib" '(erc-switch-to-buffer :which-key "Switch IRC buffer"))
 
-;; GitHub Copilot - best for vibe coding
-(use-package copilot
-  :hook (prog-mode . copilot-mode)
-  :bind (:map copilot-completion-map
-              ("<tab>" . copilot-accept-completion)
-              ("TAB" . copilot-accept-completion))
-  :config
-  ;; Set default indentation offset
-  (setq copilot-indent-offset-alist
-        '((prog-mode . 2)
-          (c-mode . 2)
-          (c++-mode . 2)
-          (python-mode . 4)
-          (emacs-lisp-mode . 2)
-          (scheme-mode . 2)
-          (org-mode . 2)))
-
-  ;; Suppress the warning
-  (setq warning-suppress-types '((copilot copilot-no-mode-indent))))
-
 (use-package aider
   :config
-  (setq aider-program (expand-file-name "~/.local/bin/aider-wrapper.sh"))
+  (setq aider-program "aider")
 
   (setq aider-args
-        (list "--model" "claude-sonnet-4-5-20250929"
+        (list "--model" "claude-sonnet-4-6"
               "--no-auto-commits"
               "--no-stream"))  ;; Disable streaming to prevent repetition
 
