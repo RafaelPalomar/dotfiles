@@ -1840,9 +1840,10 @@ machine irc.libera.chat login yournick password yourpass"
   (setq aider-program "aider")
 
   (setq aider-args
-        (list "--model" "claude-sonnet-4-6"
+        (list "--model" "openrouter/anthropic/claude-sonnet-4-6"
               "--no-auto-commits"
-              "--no-stream"))  ;; Disable streaming to prevent repetition
+              "--no-stream"          ;; Disable streaming to prevent repetition
+              "--no-check-update"))  ;; Skip pip upgrade prompt on startup
 
   ;; Better buffer configuration
   (setq aider-buffer-window-setup 'split-window-below)
@@ -1862,14 +1863,24 @@ machine irc.libera.chat login yournick password yourpass"
         comint-scroll-to-bottom-on-output t
         comint-move-point-for-output t))
 
-(defun my/aider-setup-api-key ()
-  "Set Anthropic API key before running aider."
-  (unless (getenv "ANTHROPIC_API_KEY")
-    (setenv "ANTHROPIC_API_KEY"
-            (auth-source-pick-first-password :host "api.anthropic.com" :user "aider"))))
+(defun my/aider-setup-env ()
+  "Set up environment for aider: set OpenRouter API key from authinfo."
+  (unless (getenv "OPENROUTER_API_KEY")
+    (when-let ((key (auth-source-pick-first-password :host "openrouter.ai")))
+      (setenv "OPENROUTER_API_KEY" key))))
 
-(advice-add 'aider-transient-menu :before #'my/aider-setup-api-key)
-(advice-add 'aider :before #'my/aider-setup-api-key)
+(advice-add 'aider-transient-menu :before #'my/aider-setup-env)
+(advice-add 'aider :before #'my/aider-setup-env)
+
+(defun my/aider-pretty-terminal (orig-fn &rest args)
+  "Override aider-core's hardcoded TERM=dumb to get pretty output.
+aider-run-aider binds comint-terminfo-terminal to \"dumb\" before calling
+aider--create-aider-buffer. This around advice rebinds it to xterm-256color
+at the point of process creation, taking precedence via dynamic scoping."
+  (let ((comint-terminfo-terminal "xterm-256color"))
+    (apply orig-fn args)))
+
+(advice-add 'aider--create-aider-buffer :around #'my/aider-pretty-terminal)
 
 (defun my/ai-commit-message ()
   "Generate a commit message from staged changes."

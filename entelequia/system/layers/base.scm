@@ -92,10 +92,9 @@
 
                 %base-user-accounts))
 
-   ;; Add the 'realtime' and 'cgroup' groups
-   (groups (cons* (user-group (system? #t) (name "realtime"))
-                  (user-group (system? #t) (name "cgroup"))
-                  %base-groups))
+   ;; Add the 'realtime' group ('cgroup' is already in %base-groups)
+   (groups (cons (user-group (system? #t) (name "realtime"))
+                 %base-groups))
 
    ;; Install bare-minimum system packages
    (packages (cons* exfat-utils
@@ -150,7 +149,9 @@
                                         %default-substitute-urls))
                                 (authorized-keys
                                  (append (list (plain-file "nonguix.pub"
-                                                           "(public-key (ecc (curve Ed25519) (q #C1FD53E5D4CE971933EC50C9F307AE2171A2D3B52C804642A7A35F84F3A4EA98#)))"))
+                                                           "(public-key (ecc (curve Ed25519) (q #C1FD53E5D4CE971933EC50C9F307AE2171A2D3B52C804642A7A35F84F3A4EA98#)))")
+                                               (plain-file "systole.pub"
+                                                           "(public-key (ecc (curve Ed25519) (q #4EB06D3040B7AC87026B998030225A9E14DE383FFAD6FAAA87F0B9267321E7BC#)))"))
                                          %default-authorized-guix-keys))))
 
                ;; Set up Polkit to allow `wheel' users to run admin tasks

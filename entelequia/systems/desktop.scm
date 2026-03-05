@@ -119,7 +119,7 @@ gpgconf --launch gpg-agent 2>/dev/null")))))
                      ("EDITOR" . "emacsclient")
 
                      ;; Add user scripts to PATH
-                     ("PATH" . "$HOME/.bin:$HOME/.npm-global/bin:$PATH")
+                     ("PATH" . "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH")
 
                      ;; Make Flatpak apps visible (both system-wide and user)
                      ("XDG_DATA_DIRS" . "/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS")))

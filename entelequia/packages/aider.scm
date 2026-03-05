@@ -24,6 +24,48 @@
 
 
 ;;;
+;;; Pinned tree-sitter 0.24 — aider 0.86.x requires exactly tree-sitter==0.24.0.
+;;; Guix ships 0.25.x which removed Query.captures(); 0.24.0 still has it.
+;;; 0.24.0 uses Rust/PyO3 so we install from the pre-built cp311 manylinux wheel.
+;;;
+
+(define python-tree-sitter-0.24
+  (package
+    (name "python-tree-sitter")
+    (version "0.24.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://files.pythonhosted.org/packages/4c/aa/"
+             "2fb4d81886df958e6ec7e370895f7106d46d0bbdcc531768326124dc8972/"
+             "tree_sitter-" version
+             "-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"))
+       (sha256
+        (base32 "02b4xv8fq3iwa0ndj6xvhh61wx2xknxacpc7gwpvk21v02kh3sh1"))))
+    (build-system trivial-build-system)
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils))
+         (let* ((out  (assoc-ref %outputs "out"))
+                (site (string-append out "/lib/python3.11/site-packages"))
+                (src  (assoc-ref %build-inputs "source"))
+                (unzip (string-append (assoc-ref %build-inputs "unzip") "/bin/unzip")))
+           (mkdir-p site)
+           (invoke unzip "-d" site src)))))
+    (native-inputs (list unzip))
+    (supported-systems '("x86_64-linux"))
+    (home-page "https://github.com/tree-sitter/py-tree-sitter")
+    (synopsis "Python bindings for tree-sitter (0.24.x)")
+    (description
+     "Python bindings for tree-sitter, pinned to 0.24.0 for compatibility
+with aider-chat 0.86.x (tree-sitter 0.25.x removed Query.captures()).")
+    (license license:expat)))
+
+
+;;;
 ;;; Simple utility packages (pure Python)
 ;;;
 
@@ -241,7 +283,7 @@ logic as JSON.")
            (mkdir-p site)
            (invoke unzip "-d" site src)))))
     (native-inputs (list unzip))
-    (propagated-inputs (list python-tree-sitter))
+    (propagated-inputs (list python-tree-sitter-0.24))
     (supported-systems '("x86_64-linux"))
     (home-page "https://github.com/tree-sitter/tree-sitter-c-sharp")
     (synopsis "C# grammar for tree-sitter")
@@ -276,7 +318,7 @@ logic as JSON.")
            (mkdir-p site)
            (invoke unzip "-d" site src)))))
     (native-inputs (list unzip))
-    (propagated-inputs (list python-tree-sitter))
+    (propagated-inputs (list python-tree-sitter-0.24))
     (supported-systems '("x86_64-linux"))
     (home-page "https://github.com/tree-sitter-grammars/tree-sitter-yaml")
     (synopsis "YAML grammar for tree-sitter")
@@ -311,7 +353,7 @@ logic as JSON.")
            (mkdir-p site)
            (invoke unzip "-d" site src)))))
     (native-inputs (list unzip))
-    (propagated-inputs (list python-tree-sitter))
+    (propagated-inputs (list python-tree-sitter-0.24))
     (supported-systems '("x86_64-linux"))
     (home-page "https://github.com/tree-sitter/tree-sitter-embedded-template")
     (synopsis "Embedded template grammar for tree-sitter")
@@ -322,17 +364,17 @@ logic as JSON.")
 (define-public python-tree-sitter-language-pack
   (package
     (name "python-tree-sitter-language-pack")
-    (version "0.13.0")
+    (version "0.9.0")
     (source
      (origin
        (method url-fetch)
        (uri (string-append
-             "https://files.pythonhosted.org/packages/72/9d/"
-             "644db031047ab1a70fc5cb6a79a4d4067080fac628375b2320752d2d7b58/"
+             "https://files.pythonhosted.org/packages/da/a0/"
+             "485128abc18bbb7d78a2dd0c6487315a71b609877778a9796968f43f36d9/"
              "tree_sitter_language_pack-" version
-             "-cp310-abi3-manylinux2014_x86_64.whl"))
+             "-cp39-abi3-manylinux2014_x86_64.whl"))
        (sha256
-        (base32 "0xw3pv0bw8y1c44wrbr0hg488gd6mk0x3r77v90f0yiqrqgjckqd"))))
+        (base32 "09qv65yhsz2xkrghqqvhxl6d0zq1ns10kwcsqv235rm2qbbsy8jr"))))
     (build-system trivial-build-system)
     (arguments
      `(#:modules ((guix build utils))
@@ -347,7 +389,7 @@ logic as JSON.")
            (invoke unzip "-d" site src)))))
     (native-inputs (list unzip))
     (propagated-inputs
-     (list python-tree-sitter
+     (list python-tree-sitter-0.24
            python-tree-sitter-c-sharp
            python-tree-sitter-embedded-template
            python-tree-sitter-yaml))
@@ -539,13 +581,13 @@ providing access to Claude models.")
 (define-public python-litellm
   (package
     (name "python-litellm")
-    (version "1.82.0")
+    (version "1.75.0")
     (source
      (origin
        (method url-fetch)
        (uri (pypi-uri "litellm" version))
        (sha256
-        (base32 "08hdwn3cvqb51mldwb5znms16pxp2y6yd8qrzambrk6s8wjgb26k"))))
+        (base32 "0qqx1ldfvb2pybjj5ch56g28z7cmf4gfgabcnfid970vkvkvyzzc"))))
     (build-system pyproject-build-system)
     (native-inputs (list python-poetry-core))
     (propagated-inputs
@@ -611,6 +653,7 @@ OpenAI, Anthropic, Azure, Cohere, and 100+ other providers.")
            python-litellm
            python-lox
            python-markdown-it-py
+           python-networkx
            python-mixpanel
            python-openai
            python-oslex
@@ -635,7 +678,7 @@ OpenAI, Anthropic, Azure, Cohere, and 100+ other providers.")
            python-tiktoken
            python-tokenizers
            python-tqdm
-           python-tree-sitter
+           python-tree-sitter-0.24
            python-tree-sitter-language-pack
            python-typer
            python-uvicorn))

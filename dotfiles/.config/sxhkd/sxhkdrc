@@ -151,3 +151,7 @@ super + shift + g
 # GitHub agenda view
 super + shift + h
     emacsclient -c -e '(org-agenda nil "h")'
+
+# Move window to prev/next monitor
+super + shift + {comma,period}
+    bspc node -m {prev,next} --follow

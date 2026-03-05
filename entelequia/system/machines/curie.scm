@@ -81,8 +81,8 @@
      curie-config
      (home-environment
       ;; Include profile packages
-      (packages (append base-home-packages
-                        development-home-packages
+      (packages (append (base-home-packages)
+                        (development-home-packages)
                         email-home-packages
                         documentation-home-packages))
       ;; desktop-home-services includes DataLocker service

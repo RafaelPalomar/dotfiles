@@ -11,7 +11,8 @@
             nvidia-specific-packages
             amd-specific-packages
             curie-specific-packages
-            einstein-specific-packages))
+            einstein-specific-packages
+            alucard-specific-packages))
 
 ;;; Common package lists shared between desktop systems
 ;;;
@@ -165,3 +166,16 @@
     "jq"
     "book-sicp"
     "sakura"))
+
+;;; Alucard-specific packages (shared NVIDIA desktop, multi-user)
+
+(define alucard-specific-packages
+  '("feh"
+    "python-pywal"
+    "imagemagick"
+    "nextcloud-client"
+    "light"
+    "jq"
+    "fuse-overlayfs"
+    "uid-wrapper"
+    "slirp4netns"))

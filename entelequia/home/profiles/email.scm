@@ -14,5 +14,4 @@
   (list cyrus-sasl-xoauth2
         mutt-oauth2
         isync
-        msmtp
-        mu))
+        msmtp))

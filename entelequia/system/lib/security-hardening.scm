@@ -251,16 +251,18 @@ table inet filter {
 
 ;;; Hardened SSH service configuration
 
-(define (hardened-ssh-service port-number)
+(define* (hardened-ssh-service port-number #:key (authorized-keys '()))
   "Create a hardened SSH service configuration.
-   PORT-NUMBER: SSH port to listen on (default 2222)."
+   PORT-NUMBER: SSH port to listen on (default 2222).
+   AUTHORIZED-KEYS: list of (user key-file) pairs for declarative key management."
   (service openssh-service-type
            (openssh-configuration
             (openssh openssh-sans-x)
             (port-number port-number)
             ;; Security hardening
-            (permit-root-login #f)           ; Disable root login
+            (permit-root-login 'prohibit-password) ; Key-only root login (needed for guix deploy)
             (password-authentication? #f)    ; Key-only authentication
+            (authorized-keys authorized-keys)
             (challenge-response-authentication? #f)
             (public-key-authentication? #t)
             ;; Strong crypto settings

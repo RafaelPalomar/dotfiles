@@ -7,7 +7,7 @@
 ;;; Minimal set of packages for any home environment.
 ;;; These are the essentials needed for a functional user environment.
 
-(define base-home-packages
+(define (base-home-packages)
   (map specification->package
        '(;; Shell utilities
          "bash-completion"

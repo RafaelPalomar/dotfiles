@@ -124,8 +124,7 @@
         (specification->package+output "bind" "utils")))
 
 (define (home-desktop-environment-variables config)
-  '(("PATH" . "$HOME/.local/bin:$PATH")
-    ("LESSHISTFILE" . "$XDG_CACHE_HOME/.lesshst")
+  '(("LESSHISTFILE" . "$XDG_CACHE_HOME/.lesshst")
     ("_JAVA_AWT_WM_NONREPARENTING" . "1")
     ("TERMINAL" . "kitty")
     ("INFOPATH" . "$HOME/.guix-home/profile/share/info:$INFOPATH")))

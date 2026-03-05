@@ -1,3 +1,5 @@
+(define-module (channels-lock))
+
 (use-modules (guix channels))
 
 (list (channel

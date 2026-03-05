@@ -9,7 +9,7 @@
 ;;; Development tools and programming environments.
 ;;; Includes compilers, build tools, and language-specific toolchains.
 
-(define development-home-packages
+(define (development-home-packages)
   (append
    (map specification->package
         '(;; C/C++ development
