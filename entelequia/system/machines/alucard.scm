@@ -15,8 +15,6 @@
   #:use-module (gnu services xorg)
   #:use-module (gnu services containers)
   #:use-module (gnu system accounts)
-  #:use-module (gnu home services)
-  #:use-module (gnu home services shells)
   #:use-module (gnu services guix)
   #:use-module (nongnu packages nvidia)
   #:use-module (nongnu services nvidia)
@@ -24,12 +22,12 @@
   #:use-module (xlibre)
   #:export (alucard-os))
 
-(use-service-modules desktop xorg containers)
+(use-service-modules xorg containers)
 
 ;;; Alucard system configuration
 ;;;
 ;;; Shared desktop system with NVIDIA GPU. Inherits from desktop-base.
-;;; Rafael uses bspwm (tiling); Leandro uses GNOME.
+;;; Both users (rafael, leandro) run bspwm via .xsession from dotfiles.
 ;;; SLiM display manager — sessions determined by each user's ~/.xsession.
 
 ;;; Machine configuration
@@ -70,20 +68,11 @@
                      documentation-home-packages))
    (services desktop-home-services)))
 
-;; Leandro's home: minimal setup with GNOME session xsession
+;; Leandro's home: same bspwm desktop setup as rafael
 (define leandro-home-env
   (home-environment
    (packages (base-home-packages))
-   (services
-    (list
-     (service home-bash-service-type
-              (home-bash-configuration))
-     ;; Launch gnome-session when SLiM starts a session for leandro
-     (simple-service 'leandro-xsession
-                     home-files-service-type
-                     (list (list ".xsession"
-                                 (plain-file "xsession"
-                                             "#!/bin/sh\nexec gnome-session\n"))))))))
+   (services desktop-home-services)))
 
 ;;; Alucard-specific services
 
@@ -95,17 +84,13 @@
              (subuids (list (subid-range (name "rafael"))))
              (subgids (list (subid-range (name "rafael"))))))
 
-   ;; GNOME desktop environment (for leandro)
-   (service gnome-desktop-service-type)
-
    ;; Guix Home for both users
    (service guix-home-service-type
             `(("rafael" ,rafael-home-env)
               ("leandro" ,leandro-home-env)))
 
    ;; SLiM display manager with NVIDIA xorg (proven to work with xlibre + NVIDIA)
-   ;; Rafael logs in → bspwm (.xsession from dotfiles)
-   ;; Leandro logs in → gnome-session (.xsession from home environment)
+   ;; Both rafael and leandro use bspwm via .xsession from dotfiles
    (service slim-service-type
             (slim-configuration
              (auto-login? #f)
@@ -116,7 +101,10 @@
   (operating-system
    (inherit (make-desktop-base-os alucard-config
                                   #:extra-packages alucard-extra-packages
-                                  #:extra-services alucard-services))
+                                  #:extra-services alucard-services
+                                  #:ssh-authorized-keys
+                                  `(("root" ,(plain-file "monk-access.pub"
+                                                         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP1k6qoXg+tPB5tQjDu690RvaICgd8TJYWPCp+U9UJTi rafael@curie")))))
 
    ;; NVIDIA kernel arguments
    (kernel-arguments (gpu-kernel-arguments 'nvidia))
@@ -146,7 +134,7 @@
    ;; Swap
    (swap-devices (list (swap-space
                         (target (uuid
-                                 "5996dcf6-c77d-4a8f-8a98-90a9641f50b4")))))
+                                 "58922844-3a00-461d-be53-2c13db2eacbf")))))
 
    ;; File systems (UUIDs from installer)
    (file-systems (cons* (file-system
@@ -156,7 +144,7 @@
                         (file-system
                          (mount-point "/")
                          (device (uuid
-                                  "72722d80-07f2-428c-876e-a7b49be47908"
+                                  "fb977e55-9372-4f37-9637-686428fae36a"
                                   'ext4))
                          (type "ext4"))
                         %base-file-systems))))

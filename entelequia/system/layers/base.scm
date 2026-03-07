@@ -30,7 +30,8 @@
                                      #:key
                                      (extra-services '())
                                      (firewall-extra-tcp-ports '())
-                                     (firewall-extra-udp-ports '()))
+                                     (firewall-extra-udp-ports '())
+                                     (ssh-authorized-keys '()))
   "Create a base operating system from a machine-config record.
    CONFIG should be a <machine-config> record with all required fields.
    EXTRA-SERVICES can be provided to add machine-specific services.
@@ -141,18 +142,29 @@
                          (using-setuid? #f)))
 
                ;; Configure the Guix service and ensure we use Nonguix substitutes
-               (simple-service 'add-nonguix-substitutes
-                               guix-service-type
+               ;; (simple-service 'add-nonguix-substitutes guix-service-type
+               ;;                 (guix-extension
+               ;;                  (substitute-urls
+               ;;                   (cons* "https://substitutes.nonguix.org"
+               ;;                          %default-substitute-urls))
+               ;;                  (authorized-keys
+               ;;                   (append (list (plain-file "nonguix.pub"
+               ;;                                             "(public-key (ecc (curve Ed25519) (q #C1FD53E5D4CE971933EC50C9F307AE2171A2D3B52C804642A7A35F84F3A4EA98#)))")
+               ;;                                 (plain-file "systole.pub"
+               ;;                                             "(public-key (ecc (curve Ed25519) (q #4EB06D3040B7AC87026B998030225A9E14DE383FFAD6FAAA87F0B9267321E7BC#)))"))
+               ;;                           %default-authorized-guix-keys))))
+
+               (simple-service 'guix-moe guix-service-type
                                (guix-extension
-                                (substitute-urls
-                                 (cons* "https://substitutes.nonguix.org"
-                                        %default-substitute-urls))
                                 (authorized-keys
-                                 (append (list (plain-file "nonguix.pub"
-                                                           "(public-key (ecc (curve Ed25519) (q #C1FD53E5D4CE971933EC50C9F307AE2171A2D3B52C804642A7A35F84F3A4EA98#)))")
-                                               (plain-file "systole.pub"
-                                                           "(public-key (ecc (curve Ed25519) (q #4EB06D3040B7AC87026B998030225A9E14DE383FFAD6FAAA87F0B9267321E7BC#)))"))
-                                         %default-authorized-guix-keys))))
+                                 (list (plain-file "guix-moe.pub"
+                                                   "(public-key (ecc (curve Ed25519) (q #552F670D5005D7EB6ACF05284A1066E52156B51D75DE3EBD3030CD046675D543#)))")
+                                       (plain-file "systole.pub"
+                                                   "(public-key (ecc (curve Ed25519) (q #4EB06D3040B7AC87026B998030225A9E14DE383FFAD6FAAA87F0B9267321E7BC#)))")))
+                                (substitute-urls
+                                 '("https://cache-cdn.guix.moe"))))
+
+
 
                ;; Set up Polkit to allow `wheel' users to run admin tasks
                polkit-wheel-service
@@ -216,7 +228,8 @@
                          (tls-port "16555")))
 
                ;; Enable hardened SSH access
-               (hardened-ssh-service 2222))
+               (hardened-ssh-service 2222
+                                     #:authorized-keys ssh-authorized-keys))
 
               ;; Security hardening services (kernel, firewall, fail2ban, audit)
               (security-hardening-services #:ssh-port 2222

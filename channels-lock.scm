@@ -1,13 +1,9 @@
-(define-module (channels-lock))
-
-(use-modules (guix channels))
-
 (list (channel
         (name 'guix)
         (url "https://codeberg.org/guix/guix.git")
         (branch "master")
         (commit
-          "14ec8ebc004fff831a639b529d2d9e532173fc2c")
+          "ebe4cc6b3b7c02f691c4ce236a9a7c98746205a4")
         (introduction
           (make-channel-introduction
             "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -18,7 +14,7 @@
         (url "https://gitlab.com/nonguix/nonguix")
         (branch "master")
         (commit
-          "bbbc850e8a94833c9958625eb4c78a206fbacc1d")
+          "cbf5bd14cc0888caee8cf6e6abd9ec7c111307d7")
         (introduction
           (make-channel-introduction
             "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -41,7 +37,7 @@
         (url "https://github.com/systoleos/guix-systole")
         (branch "main")
         (commit
-          "c1bf0d4b739caf5d1b6bc1036c4d87319bff90b5"))
+          "3b428109bf9bbad116443bc5664dae3533d2ac4f"))
       (channel
         (name 'systole-artwork)
         (url "https://github.com/systoleos/guix-systole-artwork")

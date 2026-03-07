@@ -1,4 +1,4 @@
-(define (entelequia deploy alucard))
+(define-module (entelequia deploy alucard))
 
 ;; Ensure the dotfiles root is on the load path regardless of invocation CWD
 (eval-when (expand load eval)
@@ -28,12 +28,12 @@
     (environment managed-host-environment-type)
     (configuration
      (machine-ssh-configuration
-      (host-name "alucard.local")
+      (host-name "192.168.88.41")
       (system "x86_64-linux")
       (user "root")
-      (port 2222)
-      (identity "/home/rafael/.ssh/alucard")
-      (host-key "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO9d7eS/HXYjQDNIeX1nG9ncaszrZadcEcmUZlIlw+JW")
+      (port 2222)    ; change to 2222 after first deploy (entelequia moves SSH to port 2222)
+      (identity "/home/rafael/.ssh/monk-access")
+      (host-key "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFm8sUFl89D1klI8WViVpXCKjjEa35qudJkyLSo9gncG")
       (allow-downgrades? #f))))))
 
 alucard-deployment
