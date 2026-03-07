@@ -11,6 +11,7 @@
   #:use-module (entelequia home profiles development)
   #:use-module (entelequia home profiles email)
   #:use-module (entelequia home profiles documentation)
+  #:use-module (entelequia home profiles gaming)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -77,6 +78,7 @@
      ;; Include profile packages
      (packages (append (base-home-packages)
                        (development-home-packages)
+                       (gaming-home-packages)
                        email-home-packages
                        documentation-home-packages))
      ;; desktop-home-services already includes emacs service

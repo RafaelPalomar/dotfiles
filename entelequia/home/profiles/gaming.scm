@@ -1,0 +1,25 @@
+(define-module (entelequia home profiles gaming)
+  #:use-module (entelequia packages games)
+  #:export (gaming-home-packages))
+
+;;; Adding a new game:
+;;;   1. gog-install /path/to/game.sh
+;;;   2. patchelf --set-interpreter $(readlink -f /run/current-system/profile/lib/ld-linux-x86-64.so.2) GameBinary
+;;;   3. ldd GameBinary | grep "not found" → choose tier, add to games.scm
+;;;   4. Add to list below + guix home reconfigure
+
+;;; Gaming home profile
+;;;
+;;; GOG game launchers deployed as Guix packages.
+;;; Each launcher is a shell wrapper that sets LD_LIBRARY_PATH to
+;;; Guix store paths, refreshed automatically on 'guix home reconfigure'.
+;;;
+;;; Adding a new game:
+;;;   1. gog-install /path/to/game.sh          (one-time)
+;;;   2. Add entry to entelequia/packages/games.scm
+;;;   3. Add to gaming-home-packages below
+;;;   4. guix home reconfigure
+
+(define (gaming-home-packages)
+  (list gog-crypt-of-the-necrodancer
+        gog-terraria))

@@ -1,0 +1,150 @@
+#!/bin/sh
+# gog-install — run a GOG Linux installer under Guix
+#
+# Usage:
+#   gog-install <path/to/game_installer.sh>
+#
+# What it does:
+#   1. Extracts the makeself archive (--noexec --target)
+#   2. Runs startmojo.sh inside 'guix shell --container --emulate-fhs'
+#      (no patchelf needed for mojosetup — FHS container provides /lib64/)
+#   3. After install, optionally patchelf's the game binary for Tier 1/2 use
+#   4. Prints next-steps reminder for games.scm
+#
+# Requirements: none beyond guix itself (FHS container is self-contained)
+# Optional: patchelf (for Tier 1/2 game binary patching after install)
+
+set -e
+
+die() { printf 'gog-install: %s\n' "$*" >&2; exit 1; }
+
+[ -n "$1" ] || die "Usage: gog-install <installer.sh>"
+
+INSTALLER="$(realpath "$1")"
+[ -f "$INSTALLER" ] || die "Installer not found: $INSTALLER"
+
+# ── Extract installer ──────────────────────────────────────────────────────
+TMPDIR="$(mktemp -d /tmp/gog-install-XXXXXX)"
+cleanup() { rm -rf "$TMPDIR"; }
+trap cleanup EXIT INT TERM
+
+printf 'Extracting %s ...\n' "$INSTALLER"
+sh "$INSTALLER" --noexec --target "$TMPDIR"
+
+[ -f "$TMPDIR/startmojo.sh" ] || die "startmojo.sh not found in extracted archive"
+
+# ── Run installer in FHS container ────────────────────────────────────────
+# The FHS container provides /lib64/ld-linux-x86-64.so.2 so mojosetup runs
+# without patching. gtk+ satisfies the GTK2 GUI plugin deps. The game is
+# installed directly into $HOME/GOG Games/ via --share=$HOME.
+printf '\nStarting GOG installer (FHS container)...\n'
+
+guix shell --container --emulate-fhs \
+  --preserve='^DISPLAY$' \
+  --preserve='^XAUTHORITY$' \
+  --preserve='^DBUS_SESSION_BUS_ADDRESS$' \
+  --share="$HOME" \
+  --share="$TMPDIR" \
+  --share=/tmp/.X11-unix \
+  --expose=/dev/dri \
+  bash coreutils grep 'gtk+@2' fontconfig -- \
+  bash -c '
+    set -e
+    cd "$1"
+    export MAKESELF_SHAR="$2"
+    export GTK2_RC_FILES="$1/gtk-2.0/gtkrc"
+    exec sh ./startmojo.sh
+  ' -- "$TMPDIR" "$INSTALLER"
+
+# ── Remove GOG's .desktop files ───────────────────────────────────────────
+# GOG installs .desktop files pointing to start.sh, which bypasses the Guix
+# launcher and breaks LD_LIBRARY_PATH. Remove them; the Guix package generates
+# correct .desktop files that are activated by 'guix home reconfigure'.
+printf '\nRemoving GOG-installed .desktop files from ~/.local/share/applications/...\n'
+find "${HOME}/.local/share/applications" -maxdepth 1 -name "gog_com-*.desktop" \
+    -newer "$INSTALLER" -print -delete 2>/dev/null || true
+
+# ── Optionally patchelf game binary (Tier 1/2 only) ───────────────────────
+printf '\n'
+printf 'Installation complete.\n'
+printf '\n'
+printf 'For Tier 1/2 launchers (LD_LIBRARY_PATH wrapper), patch the game binary:\n'
+printf '  patchelf --set-interpreter <glibc>/lib/ld-linux-x86-64.so.2 <GameBinary>\n'
+printf 'For Tier 3 launchers (FHS container), no patching needed.\n'
+printf '\n'
+
+printf 'Patch game binary now? Enter full path (or press Enter to skip): '
+read -r GAMEBINARY
+if [ -n "$GAMEBINARY" ]; then
+    if [ ! -f "$GAMEBINARY" ]; then
+        printf 'Warning: file not found: %s\n' "$GAMEBINARY"
+    else
+        # Resolve glibc interpreter from current system profile
+        LDSO=""
+        for candidate in \
+            /run/current-system/profile/lib/ld-linux-x86-64.so.2 \
+            /run/current-system/profile/lib64/ld-linux-x86-64.so.2; do
+            if [ -e "$candidate" ]; then
+                LDSO="$(readlink -f "$candidate")"
+                break
+            fi
+        done
+        if [ -z "$LDSO" ]; then
+            printf 'Resolving glibc via guix build...\n'
+            GLIBC_OUT="$(guix build glibc 2>&1 | grep '^/gnu/store' | head -1)" || true
+            [ -n "$GLIBC_OUT" ] && LDSO="${GLIBC_OUT}/lib/ld-linux-x86-64.so.2"
+        fi
+        [ -n "$LDSO" ] && [ -f "$LDSO" ] || { printf 'Warning: could not find ld-linux interpreter\n'; LDSO=""; }
+        if [ -n "$LDSO" ]; then
+            # Use patchelf from PATH or fall back to guix shell
+            if command -v patchelf >/dev/null 2>&1; then
+                patchelf --set-interpreter "$LDSO" "$GAMEBINARY" \
+                    && printf 'Patched: %s\n' "$GAMEBINARY" \
+                    || printf 'Warning: patchelf failed\n'
+            else
+                guix shell patchelf -- patchelf --set-interpreter "$LDSO" "$GAMEBINARY" \
+                    && printf 'Patched: %s\n' "$GAMEBINARY" \
+                    || printf 'Warning: patchelf failed\n'
+            fi
+        fi
+    fi
+fi
+
+# ── Next steps ────────────────────────────────────────────────────────────
+cat <<'EOF'
+
+─────────────────────────────────────────────────────────────────────────────
+ Next steps: add this game to Guix Home
+─────────────────────────────────────────────────────────────────────────────
+
+1. Find the installed game binary (typically under ~/GOG\ Games/)
+
+2. Check missing libs (Tier 1/2 only):
+     guix shell patchelf -- ldd /path/to/GameBinary | grep "not found"
+
+3. Add an entry in entelequia/packages/games.scm:
+
+   Tier 1 (current Guix lib versions are ABI-compatible):
+     (define-public gog-my-game
+       (make-gog-launcher "my-game"
+                          "GOG Games/My Game/game"
+                          "MyGame.x64"
+                          (list mesa openal ...)))
+
+   Tier 2 (needs pinned/older library versions):
+     (define sdl2-2.0.22 (package (inherit sdl2) (version "2.0.22") ...))
+     (define-public gog-my-game
+       (make-gog-launcher "my-game" ... (list sdl2-2.0.22 ...)))
+
+   Tier 3 (complex deps, FHS probing, or unknown requirements):
+     (define-public gog-my-game
+       (make-gog-fhs-launcher "my-game"
+                              "GOG Games/My Game/game"
+                              "MyGame.x64"
+                              '("sdl2" "mesa" "openal" ...)))
+
+4. Add to gaming-home-packages in entelequia/home/profiles/gaming.scm
+
+5. guix home reconfigure
+
+EOF
