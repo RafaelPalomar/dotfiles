@@ -22,4 +22,9 @@
 
 (define (gaming-home-packages)
   (list gog-crypt-of-the-necrodancer
-        gog-terraria))
+        gog-death-road-to-canada
+        gog-terraria
+        gog-wizard-of-legend
+        gog-slay-the-spire
+        coq-caves-of-qud
+        bay12-dwarf-fortress))

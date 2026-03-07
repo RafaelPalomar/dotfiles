@@ -10,24 +10,31 @@
   #:use-module (gnu packages xiph)       ; libogg
   #:use-module (gnu packages gcc)        ; gcc "lib"
   #:use-module (gnu packages sdl)        ; sdl2
-  #:use-module (gnu packages gtk)        ; gtk+ (GTK3)
+  #:use-module (gnu packages gtk)        ; gtk+ (GTK3), gtk+-2 (GTK2)
   #:use-module (gnu packages glib)       ; glib
-  #:export (make-gog-launcher
-            make-gog-fhs-launcher
+  #:export (make-game-launcher
+            make-game-fhs-launcher
+            ;; GOG games
             gog-crypt-of-the-necrodancer
-            gog-terraria))
+            gog-terraria
+            gog-wizard-of-legend
+            gog-slay-the-spire
+            gog-death-road-to-canada
+            ;; Direct-download games
+            coq-caves-of-qud
+            bay12-dwarf-fortress))
 
 ;;;
-;;; GOG game launcher helpers
+;;; Game launcher helpers
 ;;;
-;;; Three-tier architecture for running GOG games on Guix:
+;;; Three-tier architecture for running Linux games on Guix:
 ;;;
-;;;   Tier 1/2 — make-gog-launcher
+;;;   Tier 1/2 — make-game-launcher
 ;;;     Embeds Guix store lib paths in LD_LIBRARY_PATH at build time.
 ;;;     Paths are refreshed automatically on 'guix home reconfigure'.
-;;;     Tier 2 works the same way but accepts pinned/custom package inputs.
+;;;     Also generates a .desktop file so the game appears in app launchers.
 ;;;
-;;;   Tier 3 — make-gog-fhs-launcher
+;;;   Tier 3 — make-game-fhs-launcher
 ;;;     Wraps the game in 'guix shell --container --emulate-fhs'.
 ;;;     Slower startup (profile built on first run, cached after) but
 ;;;     handles complex library probing and unknown runtime deps.
@@ -35,19 +42,26 @@
 
 ;;; Tier 1/2 — LD_LIBRARY_PATH wrapper
 
-(define* (make-gog-launcher launcher-name game-subdir binary lib-inputs
-                             #:key (extra-env '())
-                                   (desktop-name launcher-name)
-                                   (desktop-icon "applications-games"))
+(define* (make-game-launcher launcher-name game-subdir binary lib-inputs
+                              #:key (extra-env '())
+                                    (extra-lib-dirs '())
+                                    (desktop-name launcher-name)
+                                    (desktop-icon "applications-games"))
   "Return a package that installs a shell wrapper under bin/LAUNCHER-NAME.
 
 The wrapper sets LD_LIBRARY_PATH to:
   $GAMEDIR/lib (bundled game libs, highest priority)
+  $GAMEDIR/lib64
+  EXTRA-LIB-DIRS (shell expressions evaluated at run time,
+                  e.g. \"${GAMEDIR}/jre/lib/amd64\")
   + /gnu/store paths for each package in LIB-INPUTS that has a /lib dir
 
-GAME-SUBDIR is relative to $HOME (e.g. \"GOG Games/Foo/game\").
+Also installs a .desktop file so the game appears in rofi/app menus.
+
+GAME-SUBDIR is relative to $HOME (e.g. \"GOG Games/Foo/game\" or \"Games/Bar\").
 BINARY is the executable name inside GAME-SUBDIR.
 EXTRA-ENV is an alist of (\"VAR\" . \"VALUE\") environment variables.
+EXTRA-LIB-DIRS is a list of shell path strings appended after lib64.
 
 Refresh store paths after 'guix pull' with: guix home reconfigure"
   (package
@@ -72,11 +86,12 @@ Refresh store paths after 'guix pull' with: guix home reconfigure"
            (call-with-output-file launcher
              (lambda (port)
                (format port "#!/bin/sh~%")
-               (format port "# GOG game launcher: ~a~%" ,launcher-name)
+               (format port "# Game launcher: ~a~%" ,launcher-name)
                (format port "# Store paths embedded at build time.~%")
                (format port "# Run 'guix home reconfigure' after 'guix pull' to refresh.~%")
                (format port "GAMEDIR=\"${HOME}/~a\"~%" ,game-subdir)
                (format port "export LD_LIBRARY_PATH=\"${GAMEDIR}/lib:${GAMEDIR}/lib64")
+               ,@(map (lambda (d) `(format port ":~a" ,d)) extra-lib-dirs)
                (for-each (lambda (p) (format port ":~a" p)) lib-dirs)
                (format port "\"~%")
                ,@(map (lambda (pair)
@@ -97,26 +112,25 @@ Refresh store paths after 'guix pull' with: guix home reconfigure"
                  (format port "Version=1.0~%")
                  (format port "Type=Application~%")
                  (format port "Name=~a~%" ,desktop-name)
-                 (format port "Comment=GOG game~%")
                  (format port "Exec=~a~%" ,launcher-name)
                  (format port "Icon=~a~%" ,desktop-icon)
                  (format port "Categories=Game;~%")
                  (format port "Terminal=false~%"))))))))
     (inputs lib-inputs)
     (supported-systems '("x86_64-linux"))
-    (synopsis (string-append "GOG game launcher for " launcher-name))
+    (synopsis (string-append "Game launcher for " launcher-name))
     (description
      (string-append
-      "Shell wrapper for the GOG game " launcher-name ".  "
+      "Shell wrapper for " launcher-name ".  "
       "Sets LD_LIBRARY_PATH to Guix store paths at build time.  "
       "Run 'guix home reconfigure' after 'guix pull' to refresh paths."))
-    (home-page "https://www.gog.com")
+    (home-page "https://www.gnu.org/software/guix/")
     (license license:expat)))
 
 ;;; Tier 3 — FHS container wrapper
 
-(define* (make-gog-fhs-launcher launcher-name game-subdir binary shell-pkgs
-                                 #:key (gpu 'amd) (extra-expose '()))
+(define* (make-game-fhs-launcher launcher-name game-subdir binary shell-pkgs
+                                  #:key (gpu 'amd) (extra-expose '()))
   "Return a package that installs a guix-shell FHS container launcher.
 
 SHELL-PKGS is a list of package-name strings to pass to 'guix shell'.
@@ -137,8 +151,8 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
            (call-with-output-file launcher
              (lambda (port)
                (display "#!/bin/sh\n" port)
-               (display "# GOG FHS container launcher\n" port)
-               (display "# Runs the game inside 'guix shell --container --emulate-fhs'.\n" port)
+               (display "# FHS container game launcher\n" port)
+               (display "# Runs inside 'guix shell --container --emulate-fhs'.\n" port)
                (format port "GAMEDIR=\"${HOME}/~a\"\n" ,game-subdir)
                (display "exec guix shell --container --emulate-fhs \\\n" port)
                (display "  --preserve='^DISPLAY$' \\\n" port)
@@ -168,18 +182,20 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
            (chmod launcher #o755)))))
     (inputs '())
     (supported-systems '("x86_64-linux"))
-    (synopsis (string-append "GOG FHS container launcher for " launcher-name))
+    (synopsis (string-append "FHS container launcher for " launcher-name))
     (description
      (string-append
-      "FHS container wrapper for the GOG game " launcher-name ".  "
+      "FHS container wrapper for " launcher-name ".  "
       "Runs inside 'guix shell --container --emulate-fhs' for maximum "
       "compatibility with games that probe /lib64, /usr, etc."))
-    (home-page "https://www.gog.com")
+    (home-page "https://www.gnu.org/software/guix/")
     (license license:expat)))
 
 ;;;
 ;;; Per-game package definitions
 ;;;
+
+;;; ── GOG games ────────────────────────────────────────────────────────────
 
 ;;; Crypt of the NecroDancer — Tier 1
 ;;;
@@ -187,7 +203,7 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
 ;;; All are current Guix versions; no pinning required.
 
 (define-public gog-crypt-of-the-necrodancer
-  (make-gog-launcher
+  (make-game-launcher
    "necrodancer"
    "GOG Games/Crypt of the NecroDancer/game/NecroDancer64"
    "NecroDancer.x64"
@@ -219,7 +235,7 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
 ;;; MONO_IOMAP=all required for case-insensitive asset paths (Windows→Linux).
 
 (define-public gog-terraria
-  (make-gog-launcher
+  (make-game-launcher
    "terraria"
    "GOG Games/Terraria/game"
    "Terraria.bin.x86_64"
@@ -231,3 +247,124 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
    #:extra-env '(("MONO_IOMAP" . "all"))
    #:desktop-name "Terraria"
    #:desktop-icon "~/GOG Games/Terraria/support/icon.png"))
+
+;;; Wizard of Legend — Tier 1
+;;;
+;;; Unity 5-era game (2017).  Binary dlopen()s X11/OpenGL at runtime;
+;;; ScreenSelector.so (GTK2 dialog) preloads before the game window opens.
+;;; No bundled graphics libs — all X11/Mesa must come from Guix store.
+
+(define-public gog-wizard-of-legend
+  (make-game-launcher
+   "wizard-of-legend"
+   "GOG Games/Wizard of Legend/game"
+   "WizardOfLegend.x86_64"
+   (list mesa
+         libx11
+         libxrandr
+         libxfixes
+         libxcursor
+         libxi
+         libxinerama
+         libxxf86vm
+         libxext
+         libxscrnsaver
+         openal
+         gtk+-2
+         `(,gcc "lib"))
+   #:desktop-name "Wizard of Legend"
+   #:desktop-icon "~/GOG Games/Wizard of Legend/support/icon.png"))
+
+;;; Slay the Spire — Tier 1
+;;;
+;;; packr-wrapped libGDX / LWJGL2 game with bundled JRE (Java 8).
+;;; GOG's start.sh is broken — it calls jre/bin/java with no arguments.
+;;; Correct binary is SlayTheSpire (packr launcher) which reads config.json,
+;;; dlopen()s jre/lib/amd64/server/libjvm.so, then runs the jar via JNI.
+;;; liblwjgl64.so (extracted from desktop-1.0.jar at runtime) links against
+;;; libjawt.so from the bundled JRE, so jre/lib/amd64 must be on LD_LIBRARY_PATH.
+;;; libopenal64.so is bundled and self-contained (only needs glibc).
+;;; Audio: pipewire (via libopenal64.so's internal PulseAudio/PipeWire backend).
+
+(define-public gog-slay-the-spire
+  (make-game-launcher
+   "slay-the-spire"
+   "GOG Games/Slay the Spire/game"
+   "SlayTheSpire"
+   (list mesa
+         libx11
+         libxext
+         libxcursor
+         libxrandr
+         libxxf86vm
+         libxtst
+         libxi
+         libxrender
+         pipewire
+         `(,gcc "lib"))
+   #:extra-lib-dirs '("${GAMEDIR}/jre/lib/amd64"
+                      "${GAMEDIR}/jre/lib/amd64/server")
+   #:desktop-name "Slay the Spire"
+   #:desktop-icon "~/GOG Games/Slay the Spire/support/icon.png"))
+
+;;; Death Road to Canada — Tier 1
+
+(define-public gog-death-road-to-canada
+  (make-game-launcher
+   "death-road-to-canada"
+   "GOG Games/Death Road to Canada/game"
+   "prog-linux-GOG"
+   (list glu
+         mesa
+         sdl2
+         sdl2-mixer
+         `(,gcc "lib"))
+   #:desktop-name "Death Road To Canada"
+   #:desktop-icon "~/GOG Games/Death Road to Canada/support/icon.png"))
+
+;;; ── Direct-download games ────────────────────────────────────────────────
+
+;;; Caves of Qud — Tier 1
+;;;
+;;; Modern Unity game (UnityPlayer.so separate shared lib, MonoBleedingEdge).
+;;; Installed at ~/Games/CavesOfQud (direct download, no GOG installer).
+;;; UnityPlayer.so dlopen()s X11/OpenGL/audio at runtime — no bundled libs.
+;;; libdecor-0.so.0 and libdecor-cairo.so are bundled in the game root and
+;;; found automatically via ${GAMEDIR}/lib-less GAMEDIR itself on the path.
+
+(define-public coq-caves-of-qud
+  (make-game-launcher
+   "caves-of-qud"
+   "Games/CavesOfQud"
+   "CoQ.x86_64"
+   (list mesa
+         libx11
+         libxrandr
+         libxfixes
+         libxcursor
+         libxi
+         libxext
+         pipewire
+         `(,gcc "lib"))
+   #:desktop-name "Caves of Qud"
+   #:desktop-icon "applications-games"))
+
+;;; Dwarf Fortress — Tier 1
+;;;
+;;; Bay 12 Games direct download (free version).  Installed at ~/Games/DwarfFortress.
+;;; Bundled libs (libg_src_lib.so, libfmod.so.13, libfmod_plugin.so,
+;;; libsdl_mixer_plugin.so) live in the game root, not a lib/ subdir.
+;;; run_df already shows the correct pattern: add game root to LD_LIBRARY_PATH.
+;;; System deps: sdl2, sdl2-image (for the graphics frontend), gcc:lib.
+
+(define-public bay12-dwarf-fortress
+  (make-game-launcher
+   "dwarf-fortress"
+   "Games/DwarfFortress"
+   "dwarfort"
+   (list sdl2
+         sdl2-image
+         `(,gcc "lib"))
+   #:extra-lib-dirs '("${GAMEDIR}")
+   #:desktop-name "Dwarf Fortress"
+   #:desktop-icon "applications-games"))
