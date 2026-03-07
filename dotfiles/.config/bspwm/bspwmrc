@@ -1,10 +1,16 @@
 #!/bin/sh
 
-# Restore pywal colors
-wal -R
+# Restore pywal colors, or initialize from default wallpaper on first run
+if ! wal -R 2>/dev/null; then
+    DEFAULT_WALLPAPER="${HOME}/Pictures/Wallpapers/wp5411657-minimal-landscape-wallpapers.jpg"
+    if [ -f "$DEFAULT_WALLPAPER" ]; then
+        wal -n -i "$DEFAULT_WALLPAPER"
+        feh --bg-scale "$DEFAULT_WALLPAPER"
+    fi
+fi
 
-# Source pywal colors
-. "${HOME}/.cache/wal/colors.sh"
+# Source pywal colors (only if cache exists)
+[ -f "${HOME}/.cache/wal/colors.sh" ] && . "${HOME}/.cache/wal/colors.sh"
 
 # Apply bspwm colors
 [ -f ~/.cache/wal/colors-bspwm.sh ] && . ~/.cache/wal/colors-bspwm.sh
