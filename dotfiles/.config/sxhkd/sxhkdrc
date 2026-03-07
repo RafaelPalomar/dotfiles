@@ -103,7 +103,7 @@ super + space
     ~/.local/bin/kb-layout-next.sh
 
 super + w
-    ~/.local/bin/set-wallpaper.sh $(find ~/Pictures/Wallpapers -type f | rofi -dmenu -p "Select wallpaper")
+    ~/.local/bin/set-wallpaper.sh $(find -L ~/Pictures/Wallpapers -type f | rofi -dmenu -p "Select wallpaper")
 
 # Screen locker
 super + l
