@@ -1,0 +1,62 @@
+#!/run/current-system/profile/bin/bash
+# nm-share-start - Enable internet sharing via NetworkManager shared connection
+#
+# This script enables IP forwarding and adds the necessary nftables rules
+# to allow a shared NM connection to forward traffic to the internet.
+#
+# It inserts rules BEFORE the drop rule in each chain (required for the
+# entelequia nftables setup which has a default-drop policy with a log rule).
+#
+# Usage: nm-share-start <uplink-iface> <share-iface>
+# Example: nm-share-start eth0 eth1
+#
+# Prerequisites:
+#   - NetworkManager shared connection already configured on <share-iface>
+#   - Run as root (sudo)
+
+set -euo pipefail
+
+UPLINK="${1:?Usage: $0 <uplink-iface> <share-iface>}"
+SHARE="${2:?Usage: $0 <uplink-iface> <share-iface>}"
+
+echo "Enabling internet sharing: $UPLINK (uplink) -> $SHARE (shared)"
+
+# Enable IP forwarding
+echo "  [1/3] Enabling IP forwarding..."
+sysctl -w net.ipv4.ip_forward=1
+
+# Add forward rules before the drop rule
+echo "  [2/3] Adding nftables forward rules..."
+FWD_DROP=$(nft -a list chain inet filter forward \
+    | grep -oP '.*log prefix.*Forward DROP.*# handle \K\d+')
+
+if [ -z "$FWD_DROP" ]; then
+    echo "ERROR: Could not find forward drop rule handle. Is the entelequia firewall running?"
+    exit 1
+fi
+
+nft insert rule inet filter forward handle "$FWD_DROP" \
+    iifname "$SHARE" oifname "$UPLINK" ct state new accept
+nft insert rule inet filter forward handle "$FWD_DROP" \
+    iifname "$UPLINK" oifname "$SHARE" ct state established,related accept
+
+# Add DNS rules to input chain before the drop rule
+echo "  [3/3] Adding nftables DNS input rules..."
+INPUT_DROP=$(nft -a list chain inet filter input \
+    | grep -oP '.*log prefix.*Input DROP.*# handle \K\d+')
+
+if [ -z "$INPUT_DROP" ]; then
+    echo "ERROR: Could not find input drop rule handle. Is the entelequia firewall running?"
+    exit 1
+fi
+
+nft insert rule inet filter input handle "$INPUT_DROP" \
+    iifname "$SHARE" udp dport 53 accept
+nft insert rule inet filter input handle "$INPUT_DROP" \
+    iifname "$SHARE" tcp dport 53 accept
+
+echo "Done. Internet sharing active."
+echo "  Uplink : $UPLINK"
+echo "  Shared : $SHARE (10.42.0.0/24)"
+echo ""
+echo "To stop: sudo nm-share-stop"

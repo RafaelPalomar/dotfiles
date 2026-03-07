@@ -1,0 +1,21 @@
+#!/run/current-system/profile/bin/bash
+# nm-share-stop - Disable internet sharing and restore firewall to original state
+#
+# Restores the nftables ruleset from the system config and disables IP forwarding.
+#
+# Usage: nm-share-stop
+# Run as root (sudo)
+
+set -euo pipefail
+
+echo "Disabling internet sharing..."
+
+# Disable IP forwarding
+echo "  [1/2] Disabling IP forwarding..."
+sysctl -w net.ipv4.ip_forward=0
+
+# Reload original nftables ruleset
+echo "  [2/2] Restoring nftables ruleset..."
+herd restart nftables
+
+echo "Done. Firewall restored to original state."
