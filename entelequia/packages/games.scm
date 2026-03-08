@@ -6,12 +6,18 @@
   #:use-module (gnu packages linux)      ; util-linux, eudev, libcap
   #:use-module (gnu packages xorg)       ; libx11, libxrandr, libxfixes, etc.
   #:use-module (gnu packages gl)         ; mesa
+  #:use-module (gnu packages luanti)         ; mesa
   #:use-module (gnu packages audio)      ; openal
   #:use-module (gnu packages xiph)       ; libogg
   #:use-module (gnu packages gcc)        ; gcc "lib"
   #:use-module (gnu packages sdl)        ; sdl2
   #:use-module (gnu packages gtk)        ; gtk+ (GTK3), gtk+-2 (GTK2)
   #:use-module (gnu packages glib)       ; glib
+  #:use-module (guix git-download)
+  #:use-module (guix utils)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system luanti)
   #:export (make-game-launcher
             make-game-fhs-launcher
             ;; GOG games
@@ -403,3 +409,42 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
    #:extra-lib-dirs '("${GAMEDIR}")
    #:desktop-name "Dwarf Fortress"
    #:desktop-icon "applications-games"))
+
+
+(define-public luanti-mobs-goblins
+  (package
+    (name "luanti-mobs-goblins")
+    ;; Upstream does not use version numbers, so use the release title
+    ;; from ContentDB instead;
+    (version "2021-11-14")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://gitlab.com/freelikegnu/goblins")
+             (commit "ce27b15f87452c9614b515b8a9b53af5d0e8e276")))
+       (sha256
+        (base32 "094mm9gid07xwb5da1anp5cnfq74sqrmbdl2mh8yl8pn0c5h9daj"))
+       (file-name (git-file-name name version))))
+    (build-system luanti-mod-build-system)
+    (arguments
+     '(#:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'fix-mineshaft-nil-check
+           ;; mcl_structures.registered_structures["mineshaft"] may be nil in
+           ;; some Mineclonia/VoxeLibre versions.  Guard the existing condition.
+           (lambda _
+             (substitute* "terrain.lua"
+               (("goblins\\.compat_mode == \"mc2\" and goblins_lair_rail_corridor_chance ~= 0 and goblins_lair_chance ~= 0")
+                "goblins.compat_mode == \"mc2\" and goblins_lair_rail_corridor_chance ~= 0 and goblins_lair_chance ~= 0 and mcl_structures.registered_structures[\"mineshaft\"]")))))))
+    ;; luanti-mobs (Mobs Redo) is only needed for the build-time check phase
+    ;; (which tests against Minetest Game).  At runtime with Mineclonia/VoxeLibre
+    ;; the mod uses mcl_mobs directly — no luanti-mobs in the user profile.
+    (inputs (list luanti-mobs))
+    (home-page "https://codeberg.org/freelikegnu/goblins")
+    (synopsis "Add goblins to Luanti")
+    (description
+     "(Respectfully) Destructive! Goblin NPCs burrow underground, build lairs, set traps and cultivate foodstuffs. They like to steal torches! ")
+    ;; CC0: some textures and sounds
+    (license (list license:cc0 license:expat))
+    (properties `((upstream-name . "freelikegnu/mobs_goblins")))))

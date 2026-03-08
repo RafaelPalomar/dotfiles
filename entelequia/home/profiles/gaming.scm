@@ -1,6 +1,7 @@
 (define-module (entelequia home profiles gaming)
   #:use-module (entelequia packages games)
   #:use-module (gnu packages linux)  ; For dualsensectl
+  #:use-module (gnu packages luanti)
   #:export (gaming-home-packages))
 
 ;;; Adding a new game:
@@ -29,4 +30,13 @@
         gog-slay-the-spire
         coq-caves-of-qud
         bay12-dwarf-fortress
+        luanti-mineclonia-csm
+        luanti-halon
+        luanti-mobs-goblins
+        ;; Minetest Game only (depend on 'default' mod, incompatible with Mineclonia/VoxeLibre):
+        ;; luanti-mobs
+        ;; luanti-mobs-animal
+        ;; luanti-mobs-monster
+        ;; luanti-moreores
+        ;; luanti-unifieddyes
         dualsensectl))
