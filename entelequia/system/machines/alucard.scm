@@ -73,7 +73,8 @@
 ;; Leandro's home: same bspwm desktop setup as rafael
 (define leandro-home-env
   (home-environment
-   (packages (base-home-packages))
+   (packages (append (base-home-packages)
+                     (gaming-home-packages)))
    (services desktop-home-services)))
 
 ;;; Alucard-specific services
@@ -106,7 +107,9 @@
                                   #:extra-services alucard-services
                                   #:ssh-authorized-keys
                                   `(("root" ,(plain-file "monk-access.pub"
-                                                         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP1k6qoXg+tPB5tQjDu690RvaICgd8TJYWPCp+U9UJTi rafael@curie")))))
+                                                         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP1k6qoXg+tPB5tQjDu690RvaICgd8TJYWPCp+U9UJTi rafael@curie"))
+                                    ("rafael" ,(plain-file "rafael-curie.pub"
+                                                           "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCMfBOPdeKIKGekKgBOxJSozJ/jCrnZas657mege/d7VuhXQ1nSvd4en2PjrYTNN0hRgUQ4ccrJpPpKOrLdS5UB3YyZbrTjdQFHjDeEhkaO9dyphfWL0OeVVj1VC4j0/PlIhBqOOdfgC1+Y+z2+6P8xFILWolH7d4yYNCKANz0sUVorPVRYc388S7PSiBZOf4ZVcdEFql6uqDiMVtWlkXtq/4DcXMDtTudvQvjh1BYAAzAM5TEoYwXL/LHCed010FELX96KdqTZXuBKtEdjW7WX85IYWhw05vaSYNyML0DA6trvD7qAOmQ5SDXXot/Vkyf8aX36Xwhu2yoVTKBxdVvklkSZSrvTigpvlPFphFRkF2j6B6A8uIalKLoHZecE+xyCfq+0aUaHz6/KDw2N6SkhFg3N4/f5HjlA2j00wLILj6/htI57TNGbffls/Ln9gXwuyq15v4+sIAYyY1LZyjA4WsB/AtO9IZjusJjkQYuu8Zg6SxSkFMaJ3mmNk6rNwhjyVPXbmpBg97+6CrApwQbF4As/h7dcQTbeTIbZdVJbv7TWxRHfqmaGZYzWKNkt+Njd/VmlLnY29D4DJ3zmC/NkXymTeOggt/YMGFr2UHFSYYtjtd8y/0z5bu0tRNXNt2gE0glQhozTuZMSAD4uzzXOC2YnJXqsvhZTPOH0iKJuCQ== rafael@curie")))))
 
    ;; NVIDIA kernel arguments
    (kernel-arguments (gpu-kernel-arguments 'nvidia))

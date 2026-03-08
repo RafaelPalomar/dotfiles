@@ -14,10 +14,13 @@
   #:use-module (gnu packages audio)
   #:use-module (gnu packages admin)  ; For aide
   #:use-module (gnu packages polkit)
+  #:use-module (gnu packages games)  ; For steam-devices-udev-rules
   #:use-module (guix gexp)
   #:export (aide-service
             file-permissions-service
             desktop-udev-rules-services
+            gamepad-udev-rules-service
+            bluetooth-input-config-service
             blueman-dbus-service
             zram-service
             networkmanager-polkit-service
@@ -130,6 +133,39 @@ PERMS = p+i+n+u+g+s+b+m+c+md5+sha256
                         (string-append
                          "SUBSYSTEM==\"usb\", ATTR{authorized}=\"1\"\n"))
                        #:groups '("plugdev"))))
+
+;;; Udev rules for game controllers (PS4, PS5, Xbox, etc.)
+
+(define gamepad-udev-rules-service
+  (udev-rules-service 'steam-devices steam-devices-udev-rules
+                      #:groups '("input")))
+
+;;; Bluetooth input.conf — allow non-bonded HID devices (e.g. PS5 DualSense)
+;;;
+;;; /etc/bluetooth is a symlink to a read-only store directory, so we cannot
+;;; use etc-service-type to add files to it.  Instead, create a writable
+;;; /run/bluetooth/ overlay during activation: symlink main.conf from the
+;;; existing store path and write input.conf as a real file, then redirect
+;;; the /etc/bluetooth symlink to /run/bluetooth/.
+
+(define bluetooth-input-config-service
+  (simple-service 'bluetooth-input-conf
+                  activation-service-type
+                  #~(let* ((bt-link  "/etc/bluetooth")
+                           (bt-store (readlink bt-link))
+                           (new-dir  "/run/bluetooth"))
+                      (mkdir-p new-dir)
+                      ;; Symlink main.conf from the store directory
+                      (let ((dst (string-append new-dir "/main.conf")))
+                        (unless (file-exists? dst)
+                          (symlink (string-append bt-store "/main.conf") dst)))
+                      ;; Write input.conf (overwrite on each activation)
+                      (call-with-output-file (string-append new-dir "/input.conf")
+                        (lambda (port)
+                          (display "[General]\nClassicBondedOnly = false\n" port)))
+                      ;; Redirect /etc/bluetooth to our overlay
+                      (false-if-exception (delete-file bt-link))
+                      (symlink new-dir bt-link))))
 
 ;;; Blueman D-Bus integration service
 

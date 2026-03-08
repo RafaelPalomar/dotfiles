@@ -1,5 +1,6 @@
 (define-module (entelequia home profiles gaming)
   #:use-module (entelequia packages games)
+  #:use-module (gnu packages linux)  ; For dualsensectl
   #:export (gaming-home-packages))
 
 ;;; Adding a new game:
@@ -27,4 +28,5 @@
         gog-wizard-of-legend
         gog-slay-the-spire
         coq-caves-of-qud
-        bay12-dwarf-fortress))
+        bay12-dwarf-fortress
+        dualsensectl))

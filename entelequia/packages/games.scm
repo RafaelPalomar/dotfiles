@@ -45,6 +45,9 @@
 (define* (make-game-launcher launcher-name game-subdir binary lib-inputs
                               #:key (extra-env '())
                                     (extra-lib-dirs '())
+                                    (default-args '())
+                                    (pre-launch '())
+                                    (post-launch '())
                                     (desktop-name launcher-name)
                                     (desktop-icon "applications-games"))
   "Return a package that installs a shell wrapper under bin/LAUNCHER-NAME.
@@ -62,6 +65,12 @@ GAME-SUBDIR is relative to $HOME (e.g. \"GOG Games/Foo/game\" or \"Games/Bar\").
 BINARY is the executable name inside GAME-SUBDIR.
 EXTRA-ENV is an alist of (\"VAR\" . \"VALUE\") environment variables.
 EXTRA-LIB-DIRS is a list of shell path strings appended after lib64.
+DEFAULT-ARGS is a list of strings prepended before \"$@\" in the exec line
+  and baked into the .desktop Exec= field (e.g. '(\"-screen-width\" \"1280\")).
+PRE-LAUNCH is a list of shell script lines emitted before the game launch.
+POST-LAUNCH is a list of shell script lines emitted after the game exits.
+  When POST-LAUNCH is non-empty, 'exec' is replaced by a direct call so that
+  post-launch code runs after the game process terminates.
 
 Refresh store paths after 'guix pull' with: guix home reconfigure"
   (package
@@ -99,7 +108,18 @@ Refresh store paths after 'guix pull' with: guix home reconfigure"
                                  ,(car pair) ,(cdr pair)))
                       extra-env)
                (format port "cd \"${GAMEDIR}\"~%")
-               (format port "exec \"${GAMEDIR}/~a\" \"$@\"~%" ,binary)))
+               ,@(map (lambda (line) `(format port "~a~%" ,line)) pre-launch)
+               ,(if (null? post-launch)
+                    `(begin
+                       (format port "exec \"${GAMEDIR}/~a\"" ,binary)
+                       ,@(map (lambda (a) `(format port " ~a" ,a)) default-args)
+                       (format port " \"$@\"~%"))
+                    `(begin
+                       (format port "\"${GAMEDIR}/~a\"" ,binary)
+                       ,@(map (lambda (a) `(format port " ~a" ,a)) default-args)
+                       (format port " \"$@\"~%")
+                       ,@(map (lambda (line) `(format port "~a~%" ,line)) post-launch)))
+               ))
            (chmod launcher #o755)
            ;; .desktop file — Exec calls the launcher by name (on PATH after
            ;; guix home reconfigure).  Icon uses ~ which most DEs expand.
@@ -112,7 +132,9 @@ Refresh store paths after 'guix pull' with: guix home reconfigure"
                  (format port "Version=1.0~%")
                  (format port "Type=Application~%")
                  (format port "Name=~a~%" ,desktop-name)
-                 (format port "Exec=~a~%" ,launcher-name)
+                 (format port "Exec=~a" ,launcher-name)
+                 ,@(map (lambda (a) `(format port " ~a" ,a)) default-args)
+                 (format port "~%")
                  (format port "Icon=~a~%" ,desktop-icon)
                  (format port "Categories=Game;~%")
                  (format port "Terminal=false~%"))))))))
@@ -346,6 +368,19 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
          libxext
          pipewire
          `(,gcc "lib"))
+   ;; Start at 1280x720 — at full 1920x1200 the console renderer hits
+   ;; Unity's 65000-vertex mesh limit and crashes on first frame.
+   ;; CoQ reads OptionDisplayResolution=Unset and calls Screen.SetResolution
+   ;; to native desktop size, overriding Unity PlayerPrefs and -screen-* args.
+   ;; Workaround: temporarily switch the X11 display to 1280x720 so CoQ
+   ;; detects that as native, then restore on exit.
+   #:default-args '("-screen-width" "1280" "-screen-height" "720")
+   #:pre-launch
+   '("_COQ_DISPLAY=$(xrandr | awk '/ connected/{print $1; exit}')"
+     "_COQ_PREV_MODE=$(xrandr | awk '/*/{print $1; exit}')"
+     "xrandr --output \"${_COQ_DISPLAY}\" --mode 1280x720")
+   #:post-launch
+   '("xrandr --output \"${_COQ_DISPLAY}\" --mode \"${_COQ_PREV_MODE}\"")
    #:desktop-name "Caves of Qud"
    #:desktop-icon "applications-games"))
 

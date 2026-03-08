@@ -4,6 +4,7 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
+  #:use-module (entelequia system lib common-services)
   #:use-module (entelequia system machines datalocker-udev-rules)
   #:use-module (entelequia systems desktop)  ; For desktop-home-services
   #:use-module (entelequia home services emacs)
@@ -67,6 +68,12 @@
             (rootless-podman-configuration
              (subuids (list (subid-range (name "rafael"))))
              (subgids (list (subid-range (name "rafael"))))))
+
+   ;; Game controller udev rules (PS4, PS5, Xbox, etc.)
+   gamepad-udev-rules-service
+
+   ;; Allow non-bonded Bluetooth HID devices (PS5 DualSense, etc.)
+   bluetooth-input-config-service
 
    ;; DataLocker Sentry ONE auto-unlock udev rule
    datalocker-udev-rules-service

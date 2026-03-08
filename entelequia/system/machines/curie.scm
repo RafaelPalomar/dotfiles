@@ -71,6 +71,12 @@
 (define curie-services
   (append
    (list
+    ;; Game controller udev rules (PS4, PS5, Xbox, etc.)
+    gamepad-udev-rules-service
+
+    ;; Allow non-bonded Bluetooth HID devices (PS5 DualSense, etc.)
+    bluetooth-input-config-service
+
     ;; Rootless podman for containerization
     (service rootless-podman-service-type
              (rootless-podman-configuration
