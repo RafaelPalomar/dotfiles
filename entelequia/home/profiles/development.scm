@@ -2,6 +2,7 @@
   #:use-module (gnu packages)
   #:use-module (entelequia packages aider)
   #:use-module (entelequia packages claude-code)
+  #:use-module (guix-openclaw packages openclaw)
   #:export (development-home-packages))
 
 ;;; Development home profile
@@ -34,7 +35,13 @@
           "pkg-config"
           "autoconf"
           "automake"
-          "libtool"))
+          "libtool"
+
+          ;; LaTeX / document authoring
+          "texlive-scheme-basic"  ;; pdflatex engine + basic LaTeX
+          "texlive-pgfgantt"      ;; Gantt charts (pulls in pgf/tikz)
+          "texlive-standalone"))  ;; standalone class for org-babel latex blocks
    ;; AI coding assistants (local packages)
    (list claude-code
-         python-aider-chat)))
+         python-aider-chat
+         openclaw)))
