@@ -85,7 +85,6 @@
      ;; Include profile packages
      (packages (append (base-home-packages)
                        (development-home-packages)
-                       (gaming-home-packages)
                        email-home-packages
                        documentation-home-packages))
      ;; desktop-home-services already includes emacs service
