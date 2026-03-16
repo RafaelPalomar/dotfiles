@@ -521,6 +521,15 @@ Configure Org Mode to use =minted= for syntax highlighting in LaTeX exports.
         ("linenos" "true")))
 #+end_src
 
+** Setting Up org-babel LaTeX SVG export
+
+Use =pdftocairo= (from poppler) to convert LaTeX-compiled PDFs to SVG when a
+=latex= source block specifies a =.svg= output file.
+
+#+begin_src emacs-lisp :tangle dotfiles/.config/emacs/init.el
+(setq org-babel-latex-pdf-svg-process "pdftocairo -svg %f %o")
+#+end_src
+
 ** Setting Up org-capture templates
 
 #+begin_src emacs-lisp :tangle dotfiles/.config/emacs/init.el

@@ -30,6 +30,14 @@
    ;; Place other files (simple-service 'profile-files-service
    ;;                 home-files-service-type (list `(".inputrc" ,(local-file "../files/inputrc"))))
 
+   ;; Ensure ~/.gnupg/ has strict permissions required by GPG.
+   ;; home-dotfiles-service-type creates the directory but may not set 700.
+   (simple-service 'gnupg-directory-permissions
+                   home-activation-service-type
+                   #~(let ((gnupg-dir (string-append (getenv "HOME") "/.gnupg")))
+                       (mkdir-p gnupg-dir)
+                       (chmod gnupg-dir #o700)))
+
    ;; GnuPG configuration
    (service home-gpg-agent-service-type
             (home-gpg-agent-configuration

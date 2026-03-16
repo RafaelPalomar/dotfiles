@@ -132,7 +132,9 @@ cmd_add() {
 
     cat <<EOF
 Next steps:
-  1. Add the SSH public key above to the target machine's authorized_keys
+  1. Update the target machine's system config with the SSH public key above,
+     then deploy it:
+       guix deploy machines/$name/deployment.scm   # or equivalent
 
   2. Back up master key to IronKey NOW (includes the new subkey):
        gpg --armor --export-secret-keys $MASTER_KEY_FP \\
@@ -144,6 +146,9 @@ Next steps:
        gpg --import /tmp/subkeys.gpg
        rm /tmp/subkeys.gpg
        gpg --list-secret-keys   # verify sec# and all ssb (no #)
+
+  4. Commit the dotfiles changes (sshcontrol and deploy-keys.conf were updated):
+       cd ~/.dotfiles && git add dotfiles/.gnupg/ && git commit
 
   WARNING: Do not strip before backing up to IronKey — the new subkey
            secret will be lost and cannot be recovered.
@@ -206,7 +211,7 @@ cmd_enable() {
 
     # Remove any disabled (!grip) entry, then add bare grip
     touch "$SSHCONTROL"
-    sed -i "/^!${grip}/d" "$SSHCONTROL"
+    sed -i --follow-symlinks "/^!${grip}/d" "$SSHCONTROL"
     echo "$grip" >> "$SSHCONTROL"
     gpg-connect-agent reloadagent /bye >/dev/null 2>&1
     info "enabled: $grip"
@@ -221,7 +226,7 @@ cmd_disable() {
 
     touch "$SSHCONTROL"
     if grep -qE "^${grip}([[:space:]]|$)" "$SSHCONTROL"; then
-        sed -i "s|^${grip}|!${grip}|" "$SSHCONTROL"
+        sed -i --follow-symlinks "s|^${grip}|!${grip}|" "$SSHCONTROL"
     elif ! grep -q "^!${grip}" "$SSHCONTROL"; then
         echo "!${grip}" >> "$SSHCONTROL"
     fi

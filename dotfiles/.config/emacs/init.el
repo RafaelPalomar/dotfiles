@@ -319,6 +319,8 @@
         ("fontsize" "\\scriptsize")
         ("linenos" "true")))
 
+(setq org-babel-latex-pdf-svg-process "pdftocairo -svg %f %o")
+
 (setq org-capture-templates
       '(("t" "TODO workflow")
         ("tt" "Work Todo" entry (file+olp "~/org/inbox.org" "Inbox")

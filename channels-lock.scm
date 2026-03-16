@@ -3,7 +3,7 @@
         (url "https://codeberg.org/guix/guix.git")
         (branch "master")
         (commit
-          "ebe4cc6b3b7c02f691c4ce236a9a7c98746205a4")
+          "4ee924eff75e7bf35a7708c0a887977ff6afae3e")
         (introduction
           (make-channel-introduction
             "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -14,7 +14,7 @@
         (url "https://gitlab.com/nonguix/nonguix")
         (branch "master")
         (commit
-          "cbf5bd14cc0888caee8cf6e6abd9ec7c111307d7")
+          "7d14e819fc7b2681240023b9e4c001fc3f5cba04")
         (introduction
           (make-channel-introduction
             "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -25,7 +25,7 @@
         (url "https://codeberg.org/rafaelpalomar/guix-xlibre.git")
         (branch "master")
         (commit
-          "02b15dba1951803649c95bdc17feca2b544fc4ee"))
+          "f0f1edbc94f1f3f47103171f628ef88464afe560"))
       (channel
         (name 'tailscale)
         (url "https://github.com/umanwizard/guix-tailscale")
@@ -43,4 +43,10 @@
         (url "https://github.com/systoleos/guix-systole-artwork")
         (branch "main")
         (commit
-          "26e4f71bf518a03c646d42d7c65ec8529f3c63a6")))
+          "26e4f71bf518a03c646d42d7c65ec8529f3c63a6"))
+      (channel
+        (name 'guix-openclaw)
+        (url "https://github.com/OUH-MESHLab/guix-openclaw")
+        (branch "main")
+        (commit
+          "4b8f5ed7449b937d7f17d01706c575476fa72d13")))

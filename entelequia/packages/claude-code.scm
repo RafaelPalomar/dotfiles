@@ -9,7 +9,7 @@
 (define-public claude-code
   (package
     (name "claude-code")
-    (version "2.1.68")
+    (version "2.1.72")
     (source
      (origin
        (method url-fetch)
@@ -17,7 +17,7 @@
              "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-"
              version ".tgz"))
        (sha256
-        (base32 "1i2k8w67jmqzkcp6cqgm0pbsj53bn1fdf8dywnbkx0mgggm6ywr8"))))
+        (base32 "04ms2z1y8kslzknymjawphf1hwysbfr7kc120kz9ph3byrs8j7z1"))))
     (build-system binary-build-system)
     (arguments
      `(#:install-plan
@@ -25,18 +25,19 @@
        '(("cli.js" "lib/claude-code/cli.js")
          ("package.json" "lib/claude-code/package.json")
          ("resvg.wasm" "lib/claude-code/resvg.wasm")
-         ("vendor/ripgrep/x64-linux/" "lib/claude-code/vendor/ripgrep/x64-linux/"))
+         ("vendor/ripgrep/x64-linux/" "lib/claude-code/vendor/ripgrep/x64-linux/")
+         ("vendor/tree-sitter-bash/x64-linux/" "lib/claude-code/vendor/tree-sitter-bash/x64-linux/"))
        #:validate-runpath? #f        ; pre-built binaries, skip RUNPATH check
        #:phases
        (modify-phases %standard-phases
          (add-after 'install 'patchelf-binaries
            ;; The built-in patchelf phase runs before install, missing .node
-           ;; files. ripgrep.node is a shared object that explicitly links
-           ;; against ld-linux-x86-64.so.2; set its RPATH to glibc so it can
-           ;; be found at runtime. rg is statically linked and needs no patch.
+           ;; files. tree-sitter-bash.node is a shared object that links
+           ;; against libc/ld-linux; set its RPATH to glibc so it can be
+           ;; found at runtime. rg is statically linked and needs no patch.
            (lambda* (#:key outputs inputs #:allow-other-keys)
              (let* ((out (assoc-ref outputs "out"))
-                    (node-addon (string-append out "/lib/claude-code/vendor/ripgrep/x64-linux/ripgrep.node"))
+                    (node-addon (string-append out "/lib/claude-code/vendor/tree-sitter-bash/x64-linux/tree-sitter-bash.node"))
                     (rpath (string-append (assoc-ref inputs "glibc") "/lib")))
                (invoke "patchelf" "--set-rpath" rpath node-addon))))
          (add-after 'patchelf-binaries 'create-wrapper
