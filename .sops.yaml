@@ -1,0 +1,39 @@
+# SOPS creation rules
+# Each machine has a dedicated passwordless GPG key for automated decryption at boot.
+# Your personal key is added as secondary recipient so you can edit from curie/einstein.
+#
+# Setup instructions:
+#   1. Generate the lovelace sops key on the server:
+#        gpg --homedir /var/lib/sops --batch --generate-key <<EOF
+#        %no-protection
+#        Key-Type: EDDSA
+#        Key-Curve: ed25519
+#        Subkey-Type: ECDH
+#        Subkey-Curve: cv25519
+#        Name-Real: Lovelace SOPS
+#        Name-Email: lovelace-sops@entelequia
+#        Expire-Date: 0
+#        EOF
+#
+#   2. Get the fingerprint:
+#        gpg --homedir /var/lib/sops --list-keys
+#
+#   3. Update the pgp field below with the lovelace key fingerprint.
+#      Optionally add your personal key fingerprint as a second recipient:
+#        pgp: "LOVELACE_FP,PERSONAL_FP"
+#
+#   4. Export the lovelace public key so sops can encrypt for it from curie:
+#        gpg --homedir /var/lib/sops --export --armor lovelace-sops@entelequia \
+#            | gpg --import
+#
+#   5. Create and encrypt the secrets file:
+#        cp sops/lovelace.yaml.template sops/lovelace.yaml
+#        # Fill in the actual secret values
+#        sops --encrypt --in-place sops/lovelace.yaml
+#
+#   6. Commit sops/lovelace.yaml (encrypted) to git.
+
+creation_rules:
+  - path_regex: sops/lovelace\.yaml$
+    # TODO: replace with actual fingerprints after key generation
+    pgp: "LOVELACE_SOPS_KEY_FINGERPRINT"

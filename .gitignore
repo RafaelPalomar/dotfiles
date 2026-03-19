@@ -5,3 +5,8 @@ CLAUDE.md
 
 # Sphinx build artifacts
 docs/build/
+
+# sops: never commit plaintext secrets.
+# sops/lovelace.yaml should only be committed AFTER encrypting with:
+#   sops --encrypt --in-place sops/lovelace.yaml
+# The .sops.yaml creation rules enforce encryption on write.

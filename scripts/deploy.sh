@@ -17,10 +17,10 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 case "$MACHINE" in
     einstein|curie) ;;
-    alucard) ;;
+    alucard|lovelace) ;;
     *)
         echo "Error: Unknown machine '$MACHINE'"
-        echo "Usage: $0 [einstein|curie|alucard] [--dry-run]"
+        echo "Usage: $0 [einstein|curie|alucard|lovelace] [--dry-run]"
         exit 1
         ;;
 esac
@@ -53,6 +53,22 @@ if [[ "$MACHINE" == "alucard" ]]; then
 
     if [[ "$DRY_RUN" != "--dry-run" ]]; then
         echo "WARNING: This will reconfigure alucard.local!"
+        echo "Press Ctrl+C to cancel, or Enter to continue..."
+        read
+    fi
+
+    "${CMD[@]}"
+fi
+
+# ── Remote deployment (lovelace via guix deploy) ──────────────────────────────
+
+if [[ "$MACHINE" == "lovelace" ]]; then
+    CMD=(guix time-machine -C channels.scm --
+         deploy -L "$(realpath .)" entelequia/deploy/lovelace.scm)
+    [[ "$DRY_RUN" == "--dry-run" ]] && CMD+=(--dry-run)
+
+    if [[ "$DRY_RUN" != "--dry-run" ]]; then
+        echo "WARNING: This will reconfigure lovelace (192.168.88.46)!"
         echo "Press Ctrl+C to cancel, or Enter to continue..."
         read
     fi

@@ -39,4 +39,13 @@
       (channel
         (name 'guix-openclaw)
         (url "https://github.com/OUH-MESHLab/guix-openclaw")
-        (branch "main")))
+        (branch "main"))
+      (channel
+        (name 'sops-guix)
+        (url "https://github.com/fishinthecalculator/sops-guix.git")
+        (branch "main")
+        (introduction
+          (make-channel-introduction
+            "0bbaf1fdd25266c7df790f65640aaa01e6d2dbc9"
+            (openpgp-fingerprint
+              "8D10 60B9 6BB8 292E 829B  7249 AED4 1CC1 93B7 01E2")))))

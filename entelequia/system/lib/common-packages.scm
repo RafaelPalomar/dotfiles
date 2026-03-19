@@ -12,7 +12,8 @@
             amd-specific-packages
             curie-specific-packages
             einstein-specific-packages
-            alucard-specific-packages))
+            alucard-specific-packages
+            lovelace-specific-packages))
 
 ;;; Common package lists shared between desktop systems
 ;;;
@@ -179,3 +180,23 @@
     "fuse-overlayfs"
     "uid-wrapper"
     "slirp4netns"))
+
+;;; Lovelace-specific packages (headless server)
+
+(define lovelace-specific-packages
+  '(;; Container runtime support
+    "fuse-overlayfs"
+    "slirp4netns"
+    "crun"
+    ;; Filesystem
+    "btrfs-progs"
+    ;; Monitoring / diagnostics
+    "lm-sensors"
+    "ethtool"
+    "tcpdump"
+    ;; Backup
+    "borgmatic"
+    "openssh"    ; ssh client for borg to Hetzner
+    ;; Luanti game server + Mineclonia game (minetest-game is deprecated)
+    "luanti-server"
+    "luanti-mineclonia"))

@@ -16,6 +16,7 @@
   #:use-module (guix gexp)
   #:use-module (guix records)
   #:export (kernel-hardening-service
+            ip-forwarding-service
             fail2ban-service
             nftables-firewall-service
             hardened-ssh-service
@@ -132,6 +133,36 @@ vm.mmap_min_addr = 65536
                      (stop #~(const #f))
                      (one-shot? #t))))))
 
+;;; IP forwarding service for container networking
+;;; Applied as a separate higher-priority sysctl override, so it does not
+;;; affect machines that use the default kernel-hardening-service.
+
+(define ip-forwarding-sysctl-config
+  (plain-file "99-z-ip-forwarding.conf"
+              "# IP forwarding enabled for container networking (overrides security-hardening)
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
+"))
+
+(define ip-forwarding-service
+  (list
+   (simple-service 'sysctl-ip-forwarding-config
+                   etc-service-type
+                   (list `("sysctl.d/99-z-ip-forwarding.conf" ,ip-forwarding-sysctl-config)))
+   (simple-service 'sysctl-ip-forwarding-apply
+                   shepherd-root-service-type
+                   (list
+                    (shepherd-service
+                     (documentation "Enable IP forwarding for container networking")
+                     (provision '(sysctl-ip-forwarding))
+                     (requirement '(sysctl-hardening))
+                     (start #~(lambda ()
+                                (invoke #$(file-append procps "/sbin/sysctl")
+                                        "-p" "/etc/sysctl.d/99-z-ip-forwarding.conf")
+                                #t))
+                     (stop #~(const #f))
+                     (one-shot? #t))))))
+
 ;;; Fail2Ban service for SSH protection
 ;;; Provides brute-force protection for SSH by banning IPs after failed attempts.
 ;;; Uses Guix's built-in fail2ban-service-type for proper integration.
@@ -152,10 +183,12 @@ vm.mmap_min_addr = 65536
 ;;; Provides stateful firewall with secure defaults using nftables.
 ;;; Uses Guix's built-in nftables-service-type for proper integration.
 
-(define* (make-nftables-ruleset #:key (extra-tcp-ports '()) (extra-udp-ports '()))
+(define* (make-nftables-ruleset #:key (extra-tcp-ports '()) (extra-udp-ports '())
+                                      (enable-container-forwarding? #f))
   "Create nftables ruleset with optional extra TCP/UDP ports.
    EXTRA-TCP-PORTS: List of TCP port numbers to allow (e.g., 24800 for Synergy)
-   EXTRA-UDP-PORTS: List of UDP port numbers to allow"
+   EXTRA-UDP-PORTS: List of UDP port numbers to allow
+   ENABLE-CONTAINER-FORWARDING?: Allow forwarding for container networks (Podman)"
   (let ((tcp-rules (if (null? extra-tcp-ports)
                        ""
                        (string-append
@@ -224,7 +257,15 @@ table inet filter {
     type filter hook forward priority 0; policy drop;
 
     # Allow established/related connections
-    ct state established,related accept
+    ct state established,related accept"
+               (if enable-container-forwarding?
+                   "
+
+    # Allow forwarding for Podman container networks (private address space)
+    ip saddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } accept
+    ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } accept"
+                   "")
+               "
 
     # Log and drop everything else
     log prefix \"[nftables] Forward DROP: \" drop
@@ -239,15 +280,19 @@ table inet filter {
 }
 "))))
 
-(define* (nftables-firewall-service #:key (extra-tcp-ports '()) (extra-udp-ports '()))
+(define* (nftables-firewall-service #:key (extra-tcp-ports '()) (extra-udp-ports '())
+                                          (enable-container-forwarding? #f))
   "Create nftables firewall service with optional extra ports.
    EXTRA-TCP-PORTS: List of TCP port numbers to allow
    EXTRA-UDP-PORTS: List of UDP port numbers to allow
+   ENABLE-CONTAINER-FORWARDING?: Allow Podman container traffic in forward chain
    Uses Guix's nftables-service-type for proper integration."
   (service nftables-service-type
            (nftables-configuration
-            (ruleset (make-nftables-ruleset #:extra-tcp-ports extra-tcp-ports
-                                            #:extra-udp-ports extra-udp-ports)))))
+            (ruleset (make-nftables-ruleset
+                      #:extra-tcp-ports extra-tcp-ports
+                      #:extra-udp-ports extra-udp-ports
+                      #:enable-container-forwarding? enable-container-forwarding?)))))
 
 ;;; Hardened SSH service configuration
 
@@ -386,6 +431,7 @@ UseDNS no
 
 (define* (security-hardening-services #:key (ssh-port 2222) (enable-fail2ban? #t)
                                       (enable-firewall? #t) (enable-audit? #t)
+                                      (enable-ip-forwarding? #f)
                                       (firewall-extra-tcp-ports '())
                                       (firewall-extra-udp-ports '()))
   "Return a list of all security hardening services.
@@ -395,17 +441,23 @@ UseDNS no
    - enable-fail2ban?: Enable Fail2Ban (default #t)
    - enable-firewall?: Enable nftables firewall (default #t)
    - enable-audit?: Enable auditd (default #t)
+   - enable-ip-forwarding?: Enable IP forwarding sysctl + container nftables rules (default #f)
    - firewall-extra-tcp-ports: Extra TCP ports to allow through firewall (e.g., '(24800) for Synergy)
    - firewall-extra-udp-ports: Extra UDP ports to allow through firewall"
   (append
    ;; Always enable kernel hardening
    kernel-hardening-service
 
+   ;; IP forwarding (opt-in, for servers running containers)
+   (if enable-ip-forwarding? ip-forwarding-service '())
+
    ;; Optional services (wrap single services in lists for append)
    (if enable-fail2ban? (list fail2ban-service) '())
    (if enable-firewall?
-       (list (nftables-firewall-service #:extra-tcp-ports firewall-extra-tcp-ports
-                                        #:extra-udp-ports firewall-extra-udp-ports))
+       (list (nftables-firewall-service
+              #:extra-tcp-ports firewall-extra-tcp-ports
+              #:extra-udp-ports firewall-extra-udp-ports
+              #:enable-container-forwarding? enable-ip-forwarding?))
        '())
    (if enable-audit? auditd-service '())
 

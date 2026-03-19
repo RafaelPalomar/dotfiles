@@ -1,0 +1,42 @@
+# Lovelace secrets — TEMPLATE (plaintext)
+# DO NOT COMMIT THIS FILE BEFORE ENCRYPTING WITH sops.
+#
+# To encrypt:
+#   sops --encrypt --in-place sops/lovelace.yaml
+#
+# To edit (after encryption):
+#   sops sops/lovelace.yaml
+
+postgresql:
+    freshrss_password: CHANGE_ME
+    nextcloud_password: CHANGE_ME
+    wallabag_password: CHANGE_ME
+
+tailscale:
+    freshrss_authkey: CHANGE_ME
+    nextcloud_authkey: CHANGE_ME
+    wallabag_authkey: CHANGE_ME
+    rss_bridge_authkey: CHANGE_ME
+    searxng_authkey: CHANGE_ME
+    pihole_authkey: CHANGE_ME
+    qbt_authkey: CHANGE_ME
+    prometheus_authkey: CHANGE_ME
+    grafana_authkey: CHANGE_ME
+
+mullvad:
+    pihole_wg_private_key: CHANGE_ME
+    qbt_wg_private_key: CHANGE_ME
+
+pihole:
+    webpassword: CHANGE_ME
+
+searxng:
+    secret_key: CHANGE_ME
+
+grafana:
+    admin_password: CHANGE_ME
+
+borg:
+    passphrase: CHANGE_ME
+    # Paste the private key content (PEM format), replacing literal newlines with \n
+    ssh_private_key: CHANGE_ME

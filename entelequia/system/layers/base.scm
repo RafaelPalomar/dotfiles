@@ -31,11 +31,13 @@
                                      (extra-services '())
                                      (firewall-extra-tcp-ports '())
                                      (firewall-extra-udp-ports '())
+                                     (enable-ip-forwarding? #f)
                                      (ssh-authorized-keys '()))
   "Create a base operating system from a machine-config record.
    CONFIG should be a <machine-config> record with all required fields.
    EXTRA-SERVICES can be provided to add machine-specific services.
-   FIREWALL-EXTRA-TCP-PORTS and FIREWALL-EXTRA-UDP-PORTS can be provided for machine-specific firewall rules."
+   FIREWALL-EXTRA-TCP-PORTS and FIREWALL-EXTRA-UDP-PORTS can be provided for machine-specific firewall rules.
+   ENABLE-IP-FORWARDING? enables IP forwarding sysctl and container forwarding nftables rules."
   (operating-system
    (host-name (machine-config-hostname config))
    (timezone (machine-config-timezone config))
@@ -236,6 +238,7 @@
                                            #:enable-fail2ban? #t
                                            #:enable-firewall? #t
                                            #:enable-audit? #t
+                                           #:enable-ip-forwarding? enable-ip-forwarding?
                                            #:firewall-extra-tcp-ports firewall-extra-tcp-ports
                                            #:firewall-extra-udp-ports firewall-extra-udp-ports)
 

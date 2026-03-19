@@ -67,6 +67,18 @@ EOF
         fail "$system system configuration has errors"
     fi
 done
+
+# Test lovelace (server) — requires sops-guix channel in load path
+echo "   Testing lovelace (server)..."
+if guix repl -L . <<'EOF' 2>&1 | grep -q "operating-system"
+,use (entelequia system machines lovelace)
+(display (if (operating-system? lovelace-os) "operating-system" "not-found"))
+EOF
+then
+    pass "lovelace system configuration evaluates correctly"
+else
+    warn "lovelace system configuration has errors (may need sops-guix channel via guix time-machine)"
+fi
 echo
 
 # Test 3: VM configuration evaluation
@@ -109,9 +121,16 @@ required_files=(
     "entelequia/lib/helpers.scm"
     "entelequia/system/machines/einstein.scm"
     "entelequia/system/machines/curie.scm"
+    "entelequia/system/machines/lovelace.scm"
     "entelequia/system/layers/base.scm"
     "entelequia/system/layers/desktop-base.scm"
-    "entelequia/home/home-config.scm"
+    "entelequia/system/layers/server-base.scm"
+    "entelequia/system/lib/server-services.scm"
+    "entelequia/home/profiles/server.scm"
+    "entelequia/systems/server.scm"
+    "entelequia/deploy/lovelace.scm"
+    "sops/lovelace.yaml"
+    ".sops.yaml"
 )
 
 all_present=true

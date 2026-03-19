@@ -4,11 +4,12 @@
   #:use-module (entelequia system layers base)
   #:use-module (gnu)
   #:use-module (gnu services)
+  #:use-module (gnu services monitoring)
   #:use-module (gnu services networking)
   #:use-module (guix gexp)
   #:export (make-server-base-os))
 
-(use-service-modules networking security)
+(use-service-modules monitoring networking security)
 
 ;;; Server base operating system layer
 ;;;
@@ -19,15 +20,26 @@
 (define* (make-server-base-os config
                                #:key
                                (extra-packages '())
-                               (extra-services '()))
+                               (extra-services '())
+                               (ssh-authorized-keys '())
+                               (firewall-extra-tcp-ports '())
+                               (firewall-extra-udp-ports '())
+                               (enable-ip-forwarding? #f))
   "Create a server base operating system from a machine-config record.
    CONFIG should be a <machine-config> record.
-   EXTRA-PACKAGES and EXTRA-SERVICES can be provided for machine-specific additions."
-  (let ((base-os (make-base-operating-system config)))
+   EXTRA-PACKAGES and EXTRA-SERVICES can be provided for machine-specific additions.
+   SSH-AUTHORIZED-KEYS, FIREWALL-EXTRA-TCP-PORTS, FIREWALL-EXTRA-UDP-PORTS and
+   ENABLE-IP-FORWARDING? are forwarded to make-base-operating-system."
+  (let ((base-os (make-base-operating-system
+                  config
+                  #:ssh-authorized-keys ssh-authorized-keys
+                  #:firewall-extra-tcp-ports firewall-extra-tcp-ports
+                  #:firewall-extra-udp-ports firewall-extra-udp-ports
+                  #:enable-ip-forwarding? enable-ip-forwarding?)))
     (operating-system
      (inherit base-os)
 
-     ;; Add server-specific packages (monitoring, security, virtualization)
+     ;; Add server-specific packages (monitoring, security, filesystem)
      (packages (append
                 (specifications->packages
                  '(;; Monitoring and system tools
@@ -60,7 +72,8 @@
                    "parted"
                    "smartmontools"
                    "e2fsprogs"
-                   "xfsprogs"))
+                   "xfsprogs"
+                   "btrfs-progs"))
                 extra-packages
                 (operating-system-packages base-os)))
 
@@ -71,7 +84,12 @@
                  (service fail2ban-service-type)
 
                  ;; IPTables/NFTables
-                 (service iptables-service-type))
+                 (service iptables-service-type)
+
+                 ;; Prometheus node exporter for system metrics
+                 (service prometheus-node-exporter-service-type
+                          (prometheus-node-exporter-configuration
+                           (web-listen-address ":9100"))))
 
                 extra-services
                 (operating-system-services base-os))))))
