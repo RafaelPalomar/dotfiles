@@ -37,6 +37,9 @@
           "automake"
           "libtool"
 
+          ;; Secrets management
+          "sops"
+
           ;; LaTeX / document authoring
           "texlive-scheme-basic"  ;; pdflatex engine + basic LaTeX
           "texlive-pgfgantt"      ;; Gantt charts (pulls in pgf/tikz)
