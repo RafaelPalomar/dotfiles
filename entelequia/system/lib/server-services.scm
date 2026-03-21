@@ -189,6 +189,7 @@ source_directories:
 storage:
   ssh_command: ssh -p 23 -i /run/secrets/borg/ssh_private_key -o StrictHostKeyChecking=accept-new
   encryption_passcommand: cat /run/secrets/borg/passphrase
+  encryption: repokey-blake2
   compression: zstd,9
   archive_name_format: lovelace-{now:%Y-%m-%dT%H:%M:%S}
 
