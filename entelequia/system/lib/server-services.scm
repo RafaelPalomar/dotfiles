@@ -489,12 +489,17 @@ hooks:
 ;;;
 
 ;;; lovelace-container-services: one oci-service-type (runtime=podman) for all containers.
+;;; Note: rootless-podman-service-type MUST be in the system services list separately.
+;;; It provides: cgroup group creation, subids for rafael, and the shepherd services
+;;; (cgroups2-fs-owner, cgroups2-limits, rootless-podman-shared-root-fs) that oci
+;;; container services require. The oci-configuration uses the default global user
+;;; ("oci-container") to avoid duplicating the "rafael" system account — each container
+;;; specifies (user "rafael") directly.
 (define lovelace-container-services
   (list
    (service oci-service-type
             (oci-configuration
              (runtime 'podman)
-             (user "rafael")
              (containers (append %app-containers
                                  %vpn-containers
                                  %monitoring-containers))))))

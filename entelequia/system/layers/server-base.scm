@@ -80,16 +80,12 @@
      ;; Add server-specific services
      (services (append
                 (list
-                 ;; Fail2Ban for SSH protection
-                 (service fail2ban-service-type)
-
-                 ;; IPTables/NFTables
-                 (service iptables-service-type)
-
                  ;; Prometheus node exporter for system metrics
+                 ;; Note: fail2ban and nftables are already added by security-hardening
+                 ;; in make-base-operating-system — do not add them here again.
                  (service prometheus-node-exporter-service-type
                           (prometheus-node-exporter-configuration
                            (web-listen-address ":9100"))))
 
                 extra-services
-                (operating-system-services base-os))))))
+                (operating-system-user-services base-os))))))

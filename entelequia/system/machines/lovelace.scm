@@ -16,6 +16,7 @@
   #:use-module (gnu services guix)
   #:use-module (gnu services networking)
   #:use-module (gnu system accounts)
+  #:use-module (sops packages sops)
   #:use-module (sops secrets)
   #:use-module (sops services sops)
   #:use-module (guix gexp)
@@ -48,7 +49,7 @@
 ;;; SOPS encrypted secrets file (in git, encrypted)
 
 (define %sops-lovelace
-  (local-file "../../sops/lovelace.yaml"))
+  (local-file "../../../sops/lovelace.yaml"))
 
 ;;; Home environment — minimal server setup
 
@@ -62,11 +63,14 @@
 
 (define lovelace-services
   (list
-   ;; ── Rootless Podman setup (subuid/subgid for rafael) ──────────────────
-   (service rootless-podman-service-type
-            (rootless-podman-configuration
-             (subuids (list (subid-range (name "rafael"))))
-             (subgids (list (subid-range (name "rafael"))))))
+   ;; ── rootless Podman setup ─────────────────────────────────────────────
+   ;; rootless-podman-service-type MUST be present: it creates the 'cgroup' group,
+   ;; configures subids for rafael, and provides the shepherd services
+   ;; (cgroups2-fs-owner, cgroups2-limits, rootless-podman-shared-root-fs)
+   ;; that oci-service-type containers depend on.
+   ;; Note: oci-service-type also extends subids-service-type, which is fine —
+   ;; multiple extensions to the same service type are normal in Guix.
+   (service rootless-podman-service-type)
 
    ;; ── sops-guix: decrypt secrets to /run/secrets/ at boot ───────────────
    ;; GPG key must be pre-deployed to /var/lib/sops before first guix deploy.
