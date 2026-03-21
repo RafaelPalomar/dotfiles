@@ -35,8 +35,7 @@
       (system "x86_64-linux")
       (user "root")
       (port 22)      ; Change to 2222 after first deploy
-      (identity "/home/rafael/.ssh/monk-access")
-      (host-key "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH+u9y2eEEyHsP7ZM1egxlMcgZK5kVL6E88ktxe9c162")
+      (host-key "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICahlGcBi3OPsjli1x8qC4zYRBFKkKB20VMOkqTDeT4c")
       (allow-downgrades? #f))))))
 
 lovelace-deployment

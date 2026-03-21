@@ -145,10 +145,10 @@
               borgmatic-lovelace-service
               lovelace-container-services)
              #:ssh-authorized-keys
-             `(("root"   ,(plain-file "monk-access.pub"
-                                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP1k6qoXg+tPB5tQjDu690RvaICgd8TJYWPCp+U9UJTi rafael@curie"))
-               ("rafael" ,(plain-file "monk-access-rafael.pub"
-                                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP1k6qoXg+tPB5tQjDu690RvaICgd8TJYWPCp+U9UJTi rafael@curie")))
+             `(("root"   ,(plain-file "lovelace-deploy.pub"
+                                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJd+gIEzNyO8gp3FnZnvMI/OhKm0/Hkr0UaDKXx38h7V openpgp:0x96CFC574"))
+               ("rafael" ,(plain-file "lovelace-deploy-rafael.pub"
+                                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJd+gIEzNyO8gp3FnZnvMI/OhKm0/Hkr0UaDKXx38h7V openpgp:0x96CFC574")))
              #:firewall-extra-tcp-ports
              '(53)       ; DNS (Pi-hole)
              #:firewall-extra-udp-ports
@@ -174,15 +174,16 @@
 
    ;; Swap
    (swap-devices (list (swap-space
-                        (target (uuid "98cbd6d6-3a65-4fbf-93a5-ac71fd21ffe2")))))
+                        (target (uuid "ec6ac8dc-0499-48e9-b747-d06109bf922b")))))
 
    ;; File systems
-   ;; Root: /dev/sdd2 (ext4, 930GB)
-   ;; EFI:  /dev/sdd1 (vfat, 512MB)
-   ;; Data: /dev/sda+sdb+sdc+sde (btrfs RAID, 1.9TB) — UUID shared across members
+   ;; Root: /dev/sda3 (ext4, 927GB)
+   ;; EFI:  /dev/sda1 (vfat, 512MB)
+   ;; Swap: /dev/sda2 (3.7GB)
+   ;; Data: /dev/sdb+sdc+sdd+sde (btrfs RAID, 4×932GB) — UUID shared across members
    (file-systems (cons* (file-system
                           (mount-point "/")
-                          (device (uuid "63c644b6-99ae-4de5-a3ce-3c37b714bdba" 'ext4))
+                          (device (uuid "b6521ed9-e9e2-4713-9731-6bdcef096142" 'ext4))
                           (type "ext4"))
                         (file-system
                           (mount-point "/boot/efi")
