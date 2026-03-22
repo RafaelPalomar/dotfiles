@@ -586,11 +586,11 @@ scrape_configs:
 
   - job_name: node-exporter
     static_configs:
-      - targets: ['192.168.88.46:9100']
+      - targets: ['localhost:9100']
 
   - job_name: smartctl-exporter
     static_configs:
-      - targets: ['192.168.88.46:9633']
+      - targets: ['localhost:9633']
 "))
 
 ;;; Grafana datasource provisioning.
@@ -622,26 +622,35 @@ datasources:
     (extra-arguments (list "--privileged")))
 
    ;; ── Prometheus ────────────────────────────────────────────────────────
-   ;; ts-prometheus publishes :9090 to the host so grafana can reach it at
-   ;; http://192.168.88.46:9090 from its own network namespace.
-   (make-ts-sidecar "prometheus" #:serve-port 9090 #:ports '("9090:9090"))
-   (make-app-container
-    "prometheus" "prom/prometheus:latest"
-    #:volumes
-    (list "/data/prometheus:/prometheus"
-          (cons %prometheus-config "/etc/prometheus/prometheus.yml:ro"))
+   ;; Prometheus runs with host networking so it can scrape native services
+   ;; (node-exporter :9100, smartctl-exporter :9633) on the host directly.
+   ;; ts-prometheus is NOT used for prometheus itself — instead prometheus
+   ;; listens on the host at :9090, and grafana reaches it at 192.168.88.46:9090.
+   ;; ts-prometheus is kept as a no-op sidecar for potential future use.
+   (make-ts-sidecar "prometheus" #:serve-port 80)
+   (oci-container-configuration
+    (user "rafael")
+    (image "prom/prometheus:latest")
+    (provision "prometheus")
+    (requirement '(sops-secrets networking cgroups2-fs-owner cgroups2-limits
+                   rootless-podman-shared-root-fs user-processes))
+    (respawn? #t)
+    (network "host")
+    (volumes
+     (list "/data/prometheus:/prometheus"
+           (cons %prometheus-config "/etc/prometheus/prometheus.yml:ro")))
     ;; Run as container root (= host rafael uid 1000) so it can write to
     ;; /data/prometheus, which is owned by rafael.
-    #:extra-arguments '("--user=0")
-    #:command
-    (list "--config.file=/etc/prometheus/prometheus.yml"
-          "--storage.tsdb.path=/prometheus"
-          "--web.listen-address=:9090"))
+    (extra-arguments '("--user=0"))
+    (command
+     (list "--config.file=/etc/prometheus/prometheus.yml"
+           "--storage.tsdb.path=/prometheus"
+           "--web.listen-address=:9090")))
 
    ;; ── Grafana ───────────────────────────────────────────────────────────
    ;; Provisioned datasource points prometheus at 192.168.88.46:9090
    ;; (the port published by ts-prometheus above).
-   (make-ts-sidecar "grafana" #:serve-port 3000)
+   (make-ts-sidecar "grafana" #:serve-port 80)
    (make-app-container
     "grafana" "grafana/grafana:latest"
     #:volumes
@@ -652,7 +661,7 @@ datasources:
     #:environment
     (list "GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana-admin-pw"
           "GF_PATHS_DATA=/var/lib/grafana"
-          "GF_SERVER_HTTP_PORT=3000"))))
+          "GF_SERVER_HTTP_PORT=80"))))
 
 ;;;
 ;;; Single oci-service-type with all containers
