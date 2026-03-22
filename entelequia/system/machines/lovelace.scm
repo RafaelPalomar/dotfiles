@@ -82,31 +82,47 @@
              (secrets
               (list
                ;; PostgreSQL credentials
+               ;; #o444: world-readable so rootless Podman containers can read them.
                (sops-secret (key '("postgresql" "freshrss_password"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("postgresql" "nextcloud_password"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("postgresql" "wallabag_password"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                ;; Tailscale auth keys (one per sidecar)
+               ;; #o444: world-readable so rootless Podman containers can read them.
+               ;; In rootless Podman host uid 1000 (rafael) runs as root inside the
+               ;; container, but host root (uid 0) is unmapped — so "other" bits apply.
                (sops-secret (key '("tailscale" "freshrss_authkey"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("tailscale" "nextcloud_authkey"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("tailscale" "wallabag_authkey"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("tailscale" "rss_bridge_authkey"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("tailscale" "searxng_authkey"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("tailscale" "pihole_authkey"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("tailscale" "qbt_authkey"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("tailscale" "prometheus_authkey"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("tailscale" "grafana_authkey"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                ;; Mullvad VPN keys
                (sops-secret (key '("mullvad" "pihole_wg_private_key"))
                             (file %sops-lovelace)
@@ -114,16 +130,20 @@
                (sops-secret (key '("mullvad" "qbt_wg_private_key"))
                             (file %sops-lovelace)
                             (permissions #o400))
-               ;; Service credentials
+               ;; Service credentials — #o444 for container readability
                (sops-secret (key '("pihole" "webpassword"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("searxng" "secret_key"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("grafana" "admin_password"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                ;; Borg backup
                (sops-secret (key '("borg" "passphrase"))
-                            (file %sops-lovelace))
+                            (file %sops-lovelace)
+                            (permissions #o444))
                (sops-secret (key '("borg" "ssh_private_key"))
                             (file %sops-lovelace)
                             (permissions #o400))))))
@@ -143,6 +163,7 @@
              #:extra-services
              (append
               lovelace-services
+              lovelace-data-dir-service
               postgresql-lovelace-service
               smartd-lovelace-service
               luanti-lovelace-service
@@ -178,7 +199,7 @@
 
    ;; Swap
    (swap-devices (list (swap-space
-                        (target (uuid "ec6ac8dc-0499-48e9-b747-d06109bf922b")))))
+                        (target (uuid "258f095d-9a84-4c83-aade-12922ff0768b")))))
 
    ;; File systems
    ;; Root: /dev/sda3 (ext4, 927GB)
@@ -187,7 +208,7 @@
    ;; Data: /dev/sdb+sdc+sdd+sde (btrfs RAID, 4×932GB) — UUID shared across members
    (file-systems (cons* (file-system
                           (mount-point "/")
-                          (device (uuid "b6521ed9-e9e2-4713-9731-6bdcef096142" 'ext4))
+                          (device (uuid "6720085b-9e7b-4985-853c-5956b84edb39" 'ext4))
                           (type "ext4"))
                         (file-system
                           (mount-point "/boot/efi")
@@ -195,9 +216,15 @@
                           (type "vfat"))
                         (file-system
                           (mount-point "/data")
-                          (device (uuid "7d7f761a-3b76-498c-b5e2-b35cef0c32e4" 'btrfs))
+                          (device (uuid "5ede0c23-b59f-4f69-830b-27a333356c8d" 'btrfs))
                           (type "btrfs")
-                          (options "compress=zstd,space_cache=v2"))
+                          ;; Explicit device list: btrfs RAID10 needs all 4 members
+                          ;; registered with the kernel before open_ctree can succeed.
+                          ;; mount-may-fail? #t ensures boot proceeds even if /data
+                          ;; isn't ready yet (containers simply won't start).
+                          (options "compress=zstd,space_cache=v2,device=/dev/sdb,device=/dev/sdc,device=/dev/sdd,device=/dev/sde")
+                          (check? #f)
+                          (mount-may-fail? #t))
                         %base-file-systems))))
 
 ;;; Export

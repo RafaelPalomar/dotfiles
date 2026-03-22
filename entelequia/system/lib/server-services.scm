@@ -18,6 +18,7 @@
             smartd-lovelace-service
             luanti-lovelace-service
             borgmatic-lovelace-service
+            lovelace-data-dir-service
             lovelace-container-services))
 
 ;;; Server services for lovelace
@@ -25,6 +26,47 @@
 ;;; This module defines reusable service configurations for the lovelace server.
 ;;; Containers use oci-service-type with runtime=podman and user="rafael" for
 ;;; rootless Podman execution. Secrets are mounted from /run/secrets/ (sops-guix).
+
+;;;
+;;; /data directory structure — created at activation time
+;;;
+
+;;; lovelace-data-dir-service: creates all required /data subdirectories at boot.
+;;; Must run after file-system-/data is mounted. Idempotent (mkdir -p).
+(define lovelace-data-dir-service
+  (list
+   (simple-service 'lovelace-data-dirs
+                   activation-service-type
+                   #~(begin
+                       (use-modules (guix build utils))
+                       (for-each
+                        (lambda (dir)
+                          (mkdir-p dir)
+                          (let* ((pw  (getpwnam "rafael"))
+                                 (uid (passwd:uid pw))
+                                 (gid (passwd:gid pw)))
+                            (chown dir uid gid)))
+                        '("/data/tailscale/freshrss"
+                          "/data/tailscale/nextcloud"
+                          "/data/tailscale/wallabag"
+                          "/data/tailscale/rss-bridge"
+                          "/data/tailscale/searxng"
+                          "/data/tailscale/pihole"
+                          "/data/tailscale/qbt"
+                          "/data/tailscale/prometheus"
+                          "/data/tailscale/grafana"
+                          "/data/freshrss"
+                          "/data/nextcloud"
+                          "/data/wallabag"
+                          "/data/rss-bridge"
+                          "/data/searxng"
+                          "/data/pihole"
+                          "/data/qbittorrent"
+                          "/data/gluetun-pihole"
+                          "/data/gluetun-qbt"
+                          "/data/prometheus"
+                          "/data/grafana"
+                          "/data/borg"))))))
 
 ;;;
 ;;; PostgreSQL — shared database for FreshRSS, Nextcloud, Wallabag
@@ -41,18 +83,49 @@
 ;;;   CREATE DATABASE wallabag OWNER wallabag;
 (define postgresql-lovelace-service
   (list
+   ;; Create /data/postgresql with postgres:postgres ownership before the
+   ;; postgresql shepherd service starts. The standard postgresql-service-type
+   ;; activation expects the data directory to already exist when the data
+   ;; directory is on a separately mounted volume like /data (btrfs).
+   (simple-service 'postgresql-data-dir
+                   activation-service-type
+                   #~(begin
+                       (use-modules (guix build utils))
+                       (let* ((dir "/data/postgresql")
+                              (pw  (getpwnam "postgres"))
+                              (uid (passwd:uid pw))
+                              (gid (passwd:gid pw)))
+                         (mkdir-p dir)
+                         (chown dir uid gid)
+                         (chmod dir #o700))))
    (service postgresql-service-type
             (postgresql-configuration
              (postgresql postgresql-16)
              (data-directory "/data/postgresql")
              (config-file
               (postgresql-config-file
+               ;; listen on all interfaces so rootless Podman containers
+               ;; (pasta network, same IP as host) can connect via the LAN IP.
+               ;; pg_hba.conf restricts who can authenticate.
+               (hba-file
+                (plain-file "pg_hba.conf"
+                            "\
+# TYPE  DATABASE        USER            ADDRESS          METHOD
+# local connections via Unix socket
+local   all             postgres                         peer
+local   all             all                              peer
+# host connections from localhost
+host    all             all             127.0.0.1/32     md5
+host    all             all             ::1/128          md5
+# host connections from LAN (for rootless Podman containers via pasta)
+host    all             all             192.168.88.0/24  md5
+"))
                (extra-config
-                '(("listen_addresses" "'localhost'")
+                '(("listen_addresses" "*")
                   ("max_connections"  "100")
-                  ("shared_buffers"   "'256MB'")
-                  ("log_timezone"     "'UTC'")
-                  ("timezone"         "'UTC'")))))))))
+                  ("shared_buffers"   "256MB")
+                  ("log_timezone"     "UTC")
+                  ("timezone"         "UTC")))))))))
 
 ;;;
 ;;; smartd — disk health monitoring
@@ -70,11 +143,8 @@
                      (requirement '(file-systems))
                      (start #~(make-forkexec-constructor
                                (list #$(file-append smartmontools "/sbin/smartd")
-                                     ;; Foreground, never quit on errors
-                                     "-n" "standby"
-                                     "-q" "never"
-                                     ;; Log to syslog
-                                     "-l" "syslog")
+                                     "--no-fork"   ; shepherd manages the process
+                                     "-q" "never") ; never quit on errors
                                #:log-file "/var/log/smartd.log"))
                      (stop #~(make-kill-destructor))
                      (respawn? #t))))))
@@ -143,16 +213,17 @@
                                      "--config" "/data/luanti/luanti.conf"
                                      "--world" "/data/luanti/worlds/mineclonia"
                                      "--gameid" "mineclonia"
-                                     "--logfile" "/var/log/luanti.log")
+                                     "--logfile" "/data/luanti/luanti.log")
                                #:user "luanti"
                                #:group "nogroup"
                                #:directory "/data/luanti"
                                #:environment-variables
-                               (list (string-append
-                                      "MINETEST_GAME_PATH=/var/lib/luanti/games:"
+                               (list "HOME=/var/lib/luanti"
+                                     (string-append
+                                      "LUANTI_GAME_PATH=/var/lib/luanti/games:"
                                       #$(file-append luanti-server
                                                      "/share/luanti/games"))
-                                     "MINETEST_MOD_PATH=/var/lib/luanti/mods")))
+                                     "LUANTI_MOD_PATH=/var/lib/luanti/mods")))
                      (stop #~(make-kill-destructor))
                      (respawn? #t))))))
 
@@ -250,26 +321,45 @@ hooks:
 (define* (make-ts-sidecar name
                            #:key
                            (serve-port 8080)
-                           (ts-state-dir (string-append "/data/tailscale/" name)))
+                           (ts-state-dir (string-append "/data/tailscale/" name))
+                           ;; Secret file name defaults to NAME with hyphens→underscores.
+                           ;; Override when the sops key uses different naming.
+                           (secret-name (string-map (lambda (c) (if (char=? c #\-) #\_ c)) name))
+                           ;; Optional published ports (list of "host:container" strings).
+                           ;; Used to expose a container port to 192.168.88.46
+                           ;; so sibling containers can reach it.
+                           (ports '()))
   "Return an oci-container-configuration for a Tailscale sidecar.
    NAME is used for the provision name (ts-<name>).
-   TS_AUTHKEY is read from /run/secrets/tailscale/<name>_authkey."
+   TS_AUTHKEY is read from /run/secrets/tailscale/<secret-name>_authkey."
   (oci-container-configuration
    (user "rafael")
    (image "tailscale/tailscale:latest")
    (provision (string-append "ts-" name))
    (requirement '(sops-secrets networking))
    (respawn? #t)
+   (ports ports)
    (volumes
     (list (string-append ts-state-dir ":/var/lib/tailscale")
-          (string-append "/run/secrets/tailscale/" name "_authkey"
+          (string-append "/run/secrets/tailscale/" secret-name "_authkey"
                          ":/run/secrets/ts-authkey:ro")))
    (environment
     (list "TS_USERSPACE=true"
           "TS_STATE_DIR=/var/lib/tailscale"
+          ;; TS_AUTHKEY_FILE is read by the entrypoint wrapper below and
+          ;; re-exported as TS_AUTHKEY, which containerboot understands.
           "TS_AUTHKEY_FILE=/run/secrets/ts-authkey"
-          (string-append "TS_SERVE_PORT=" (number->string serve-port))))
-   (extra-arguments '("--cap-add=NET_ADMIN"))))
+          (string-append "TS_SERVE_PORT=" (number->string serve-port))
+          ;; Register with a clean hostname (no "ts-" prefix — that's only for
+          ;; shepherd service namespacing, not the Tailscale node name).
+          (string-append "TS_HOSTNAME=" name)))
+   (extra-arguments '("--cap-add=NET_ADMIN"))
+   ;; Wrapper: read TS_AUTHKEY_FILE and export as TS_AUTHKEY before
+   ;; execing containerboot.  Older image versions don't support
+   ;; TS_AUTHKEY_FILE natively; this shell wrapper bridges the gap.
+   (entrypoint "/bin/sh")
+   (command (list "-c"
+                  "export TS_AUTHKEY=$(cat \"$TS_AUTHKEY_FILE\"); exec /usr/local/bin/containerboot"))))
 
 (define* (make-app-container name image
                               #:key
@@ -277,21 +367,31 @@ hooks:
                               (volumes '())
                               (environment '())
                               (requirement '())
-                              (extra-arguments '()))
+                              (extra-arguments '())
+                              (entrypoint #f)
+                              (command '()))
   "Return an oci-container-configuration sharing a Tailscale sidecar's network.
-   NAME is the provision name.  TS-NAME is the sidecar to share network with."
-  (oci-container-configuration
-   (user "rafael")
-   (image image)
-   (provision name)
-   (requirement (cons* (string->symbol (string-append "ts-" ts-name))
-                       'sops-secrets
-                       requirement))
-   (respawn? #t)
-   (volumes volumes)
-   (environment environment)
-   (network (string-append "container:ts-" ts-name))
-   (extra-arguments extra-arguments)))
+   NAME is the provision name.  TS-NAME is the sidecar to share network with.
+   COMMAND overrides the image CMD (args passed to the container entrypoint).
+   ENTRYPOINT overrides the image ENTRYPOINT when non-#f."
+  (let ((base (oci-container-configuration
+               (user "rafael")
+               (image image)
+               (provision name)
+               (requirement (cons* (string->symbol (string-append "ts-" ts-name))
+                                   'sops-secrets
+                                   requirement))
+               (respawn? #t)
+               (volumes volumes)
+               (environment environment)
+               (network (string-append "container:ts-" ts-name))
+               (extra-arguments extra-arguments)
+               (command command))))
+    (if entrypoint
+        (oci-container-configuration
+         (inherit base)
+         (entrypoint entrypoint))
+        base)))
 
 ;;;
 ;;; Application container configurations (oci-container-configuration records)
@@ -311,11 +411,15 @@ hooks:
     (list "CRON_MIN=*/15"
           "TZ=Europe/Oslo"
           "DB_TYPE=pgsql"
-          "DB_HOST=host.containers.internal"
+          "DB_HOST=192.168.88.46"
           "DB_PORT=5432"
           "DB_BASE=freshrss"
-          "DB_USER=freshrss"
-          "DB_PASSWORD_FILE=/run/secrets/db_password"))
+          "DB_USER=freshrss")
+    ;; FreshRSS needs DB_PASSWORD as a plain env var (no native _FILE support).
+    ;; Read the secret file and exec the real entrypoint.
+    #:entrypoint "/bin/sh"
+    #:command (list "-c"
+                    "export DB_PASSWORD=$(cat /run/secrets/db_password); exec /entrypoint.sh"))
 
    ;; ── Nextcloud ─────────────────────────────────────────────────────────
    (make-ts-sidecar "nextcloud" #:serve-port 80)
@@ -328,11 +432,15 @@ hooks:
     #:environment
     (list "PUID=1000" "PGID=1000" "TZ=Europe/Oslo"
           "DB_TYPE=pgsql"
-          "DB_HOST=host.containers.internal"
+          "DB_HOST=192.168.88.46"
           "DB_PORT=5432"
           "DB_NAME=nextcloud"
-          "DB_USER=nextcloud"
-          "DB_PASSWORD_FILE=/run/secrets/db_password"))
+          "DB_USER=nextcloud")
+    ;; LinuxServer.io image uses /init (s6-overlay) as entrypoint; DB_PASSWORD_FILE
+    ;; is not natively supported, so read the file and export the plain var.
+    #:entrypoint "/bin/sh"
+    #:command (list "-c"
+                    "export DB_PASSWORD=$(cat /run/secrets/db_password); exec /init"))
 
    ;; ── Wallabag ──────────────────────────────────────────────────────────
    (make-ts-sidecar "wallabag" #:serve-port 80)
@@ -344,12 +452,17 @@ hooks:
           "/run/secrets/postgresql/wallabag_password:/run/secrets/db_password:ro")
     #:environment
     (list "SYMFONY__ENV__DATABASE_DRIVER=pdo_pgsql"
-          "SYMFONY__ENV__DATABASE_HOST=host.containers.internal"
+          "SYMFONY__ENV__DATABASE_HOST=192.168.88.46"
           "SYMFONY__ENV__DATABASE_PORT=5432"
           "SYMFONY__ENV__DATABASE_NAME=wallabag"
           "SYMFONY__ENV__DATABASE_USER=wallabag"
-          "SYMFONY__ENV__DATABASE_PASSWORD_FILE=/run/secrets/db_password"
-          "SYMFONY__ENV__DOMAIN_NAME=https://wallabag"))
+          "SYMFONY__ENV__DOMAIN_NAME=https://wallabag")
+    ;; Wrapper: read DB password file and export as the plain env var, then start
+    ;; wallabag.  The entrypoint script requires "wallabag" as its first arg to
+    ;; start the web server; without it exec "$@" exits immediately.
+    #:entrypoint "/bin/sh"
+    #:command (list "-c"
+                    "export SYMFONY__ENV__DATABASE_PASSWORD=$(cat /run/secrets/db_password); exec /entrypoint.sh wallabag"))
 
    ;; ── RSS-Bridge ────────────────────────────────────────────────────────
    (make-ts-sidecar "rss-bridge" #:serve-port 80)
@@ -389,8 +502,11 @@ hooks:
            "/run/secrets/mullvad/pihole_wg_private_key:/run/secrets/wg-key:ro"))
     (environment
      (list "VPN_SERVICE_PROVIDER=mullvad"
-           "VPN_TYPE=wireguard"
-           "WIREGUARD_PRIVATE_KEY_FILE=/run/secrets/wg-key"))
+           "VPN_TYPE=wireguard"))
+    ;; Gluetun does not support WIREGUARD_PRIVATE_KEY_FILE; read key from file.
+    (entrypoint "/bin/sh")
+    (command (list "-c"
+                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); exec /gluetun"))
     (ports (list "53:53/tcp" "53:53/udp" "127.0.0.1:8053:8053"))
     (extra-arguments (list "--cap-add=NET_ADMIN" "--device=/dev/net/tun")))
 
@@ -425,8 +541,11 @@ hooks:
            "/run/secrets/mullvad/qbt_wg_private_key:/run/secrets/wg-key:ro"))
     (environment
      (list "VPN_SERVICE_PROVIDER=mullvad"
-           "VPN_TYPE=wireguard"
-           "WIREGUARD_PRIVATE_KEY_FILE=/run/secrets/wg-key"))
+           "VPN_TYPE=wireguard"))
+    ;; Gluetun does not support WIREGUARD_PRIVATE_KEY_FILE; read key from file.
+    (entrypoint "/bin/sh")
+    (command (list "-c"
+                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); exec /gluetun"))
     (ports (list "127.0.0.1:8080:8080"))
     (extra-arguments (list "--cap-add=NET_ADMIN" "--device=/dev/net/tun")))
 
@@ -450,6 +569,46 @@ hooks:
 ;;; Monitoring containers (Prometheus + Grafana + smartctl-exporter)
 ;;;
 
+;;; Prometheus scrape config.
+;;;
+;;; Targets use 192.168.88.46 so prometheus (inside ts-prometheus's
+;;; network namespace) can reach natively-running exporters on the host.
+(define %prometheus-config
+  (plain-file "prometheus.yml"
+              "global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ['192.168.88.46:9100']
+
+  - job_name: smartctl-exporter
+    static_configs:
+      - targets: ['192.168.88.46:9633']
+"))
+
+;;; Grafana datasource provisioning.
+;;;
+;;; Points at ts-prometheus's published port 9090 (192.168.88.46
+;;; is accessible from ts-grafana's pasta network namespace).
+(define %grafana-prometheus-datasource
+  (plain-file "prometheus-datasource.yaml"
+              "apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    url: http://192.168.88.46:9090
+    isDefault: true
+    access: proxy
+    editable: false
+"))
+
 (define %monitoring-containers
   (list
    ;; ── smartctl-exporter ─────────────────────────────────────────────────
@@ -463,22 +622,33 @@ hooks:
     (extra-arguments (list "--privileged")))
 
    ;; ── Prometheus ────────────────────────────────────────────────────────
-   (make-ts-sidecar "prometheus" #:serve-port 9090)
+   ;; ts-prometheus publishes :9090 to the host so grafana can reach it at
+   ;; http://192.168.88.46:9090 from its own network namespace.
+   (make-ts-sidecar "prometheus" #:serve-port 9090 #:ports '("9090:9090"))
    (make-app-container
     "prometheus" "prom/prometheus:latest"
     #:volumes
     (list "/data/prometheus:/prometheus"
-          "/data/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro")
-    #:extra-arguments
-    (list "--storage.tsdb.path=/prometheus" "--web.listen-address=:9090"))
+          (cons %prometheus-config "/etc/prometheus/prometheus.yml:ro"))
+    ;; Run as container root (= host rafael uid 1000) so it can write to
+    ;; /data/prometheus, which is owned by rafael.
+    #:extra-arguments '("--user=0")
+    #:command
+    (list "--config.file=/etc/prometheus/prometheus.yml"
+          "--storage.tsdb.path=/prometheus"
+          "--web.listen-address=:9090"))
 
    ;; ── Grafana ───────────────────────────────────────────────────────────
+   ;; Provisioned datasource points prometheus at 192.168.88.46:9090
+   ;; (the port published by ts-prometheus above).
    (make-ts-sidecar "grafana" #:serve-port 3000)
    (make-app-container
     "grafana" "grafana/grafana:latest"
     #:volumes
     (list "/data/grafana:/var/lib/grafana"
-          "/run/secrets/grafana/admin_password:/run/secrets/grafana-admin-pw:ro")
+          "/run/secrets/grafana/admin_password:/run/secrets/grafana-admin-pw:ro"
+          (cons %grafana-prometheus-datasource
+                "/etc/grafana/provisioning/datasources/prometheus.yaml:ro"))
     #:environment
     (list "GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana-admin-pw"
           "GF_PATHS_DATA=/var/lib/grafana"
