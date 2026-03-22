@@ -21,8 +21,7 @@
 ;;;   3. Obtain host key with: ssh-keyscan -t ed25519 192.168.88.46
 ;;;      (update host-key below before first deploy)
 ;;;
-;;; First deploy uses SSH port 22 (Guix installer default).
-;;; After first deploy, SSH moves to port 2222 — update port below.
+;;; SSH port is 2222 (hardened by security-hardening layer).
 
 (define lovelace-deployment
   (list
@@ -34,8 +33,8 @@
       (host-name "192.168.88.46")
       (system "x86_64-linux")
       (user "root")
-      (port 22)      ; Change to 2222 after first deploy
-      (host-key "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICahlGcBi3OPsjli1x8qC4zYRBFKkKB20VMOkqTDeT4c")
+      (port 2222)
+      (host-key "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII+aryHkWazuE9/b3vaincnAU3w5Uow0q5rYe+Yyg/jQ")
       (allow-downgrades? #f))))))
 
 lovelace-deployment

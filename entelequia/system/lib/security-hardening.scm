@@ -142,6 +142,8 @@ vm.mmap_min_addr = 65536
               "# IP forwarding enabled for container networking (overrides security-hardening)
 net.ipv4.ip_forward = 1
 net.ipv6.conf.all.forwarding = 1
+# Allow rootless containers to bind privileged ports (needed for Pi-hole DNS on :53)
+net.ipv4.ip_unprivileged_port_start = 53
 "))
 
 (define ip-forwarding-service

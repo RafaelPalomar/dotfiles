@@ -186,6 +186,7 @@
 (define lovelace-specific-packages
   '(;; Container runtime support
     "fuse-overlayfs"
+    "passt"        ; pasta/passt — rootless Podman network backend (required for gluetun)
     "slirp4netns"
     "crun"
     ;; Filesystem

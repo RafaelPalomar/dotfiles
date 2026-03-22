@@ -27,6 +27,7 @@ Contents
    security
    gpg
    bitwarden-rofi
+   operational-guide
    testing
    troubleshooting
 

@@ -480,7 +480,8 @@ Deletes other windows and makes the frame floating."
       org-clock-report-include-clocking-task t
       org-clock-idle-time 15)
 
-(org-clock-persistence-insinuate)
+(unless (daemonp)
+  (org-clock-persistence-insinuate))
 
 ;; Clock notification on start/stop
 (defun my/org-clock-notify (state)
@@ -516,7 +517,8 @@ Deletes other windows and makes the frame floating."
   :ensure nil
   :after org-agenda
   :config
-  (org-super-agenda-mode 1)
+  (unless (daemonp)
+    (org-super-agenda-mode 1))
   (setq org-super-agenda-groups
         '((:name "Today"
            :time-grid t
@@ -1546,8 +1548,14 @@ agenda."
 (use-package dashboard
   :ensure nil
   :config
-  (dashboard-setup-startup-hook)
-  (setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*"))))
+  (setq dashboard-items '((recents . 5) (bookmarks . 5)))
+  (unless (daemonp)
+    (dashboard-setup-startup-hook)
+    (setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*"))))
+  (add-hook 'server-after-make-frame-hook
+            (lambda ()
+              (unless (active-minibuffer-window)
+                (dashboard-open)))))
 
 (use-package avy
   :ensure nil
