@@ -549,15 +549,16 @@ hooks:
     (respawn? #t)
     (volumes
      (list "/data/gluetun-pihole:/gluetun"
-           "/run/secrets/mullvad/pihole_wg_private_key:/run/secrets/wg-key:ro"))
+           "/run/secrets/mullvad/pihole_wg_private_key:/run/secrets/wg-key:ro"
+           "/run/secrets/mullvad/pihole_wg_address:/run/secrets/wg-address:ro"))
     (environment
      (list "VPN_SERVICE_PROVIDER=mullvad"
-           "VPN_TYPE=wireguard"
-           "WIREGUARD_ADDRESSES=10.65.117.74/32"))
-    ;; Gluetun does not support WIREGUARD_PRIVATE_KEY_FILE; read key from file.
+           "VPN_TYPE=wireguard"))
+    ;; Gluetun does not support WIREGUARD_PRIVATE_KEY_FILE or WIREGUARD_ADDRESSES_FILE;
+    ;; read both from sops-managed secret files so they can be updated without redeploying.
     (entrypoint "/bin/sh")
     (command (list "-c"
-                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); exec /gluetun-entrypoint"))
+                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); export WIREGUARD_ADDRESSES=$(cat /run/secrets/wg-address); exec /gluetun-entrypoint"))
     ;; Publish pihole's web UI (port 80) as host port 8053.
     ;; Port 8000 in this netns is gluetun's HTTP control API — not pihole.
     (ports (list "53:53/tcp" "53:53/udp" "0.0.0.0:8053:80"))
@@ -602,15 +603,15 @@ hooks:
     (respawn? #t)
     (volumes
      (list "/data/gluetun-qbt:/gluetun"
-           "/run/secrets/mullvad/qbt_wg_private_key:/run/secrets/wg-key:ro"))
+           "/run/secrets/mullvad/qbt_wg_private_key:/run/secrets/wg-key:ro"
+           "/run/secrets/mullvad/qbt_wg_address:/run/secrets/wg-address:ro"))
     (environment
      (list "VPN_SERVICE_PROVIDER=mullvad"
-           "VPN_TYPE=wireguard"
-           "WIREGUARD_ADDRESSES=10.65.117.74/32"))
-    ;; Gluetun does not support WIREGUARD_PRIVATE_KEY_FILE; read key from file.
+           "VPN_TYPE=wireguard"))
+    ;; Read both private key and address from sops secrets — updateable without redeploy.
     (entrypoint "/bin/sh")
     (command (list "-c"
-                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); exec /gluetun-entrypoint"))
+                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); export WIREGUARD_ADDRESSES=$(cat /run/secrets/wg-address); exec /gluetun-entrypoint"))
     ;; 0.0.0.0 so pasta (ts-qbt) can reach it via host.containers.internal.
     ;; 127.0.0.1 only would be unreachable from ts-qbt's pasta namespace.
     (ports (list "0.0.0.0:8080:8080"))
