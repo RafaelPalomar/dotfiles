@@ -66,7 +66,20 @@
                           "/data/gluetun-qbt"
                           "/data/prometheus"
                           "/data/grafana"
-                          "/data/borg"))))))
+                          "/data/borg")))
+                       ;; LinuxServer.io nextcloud uses abc user (PUID=1000 inside the
+                       ;; container). In rootless Podman with userns remapping, container
+                       ;; uid 1000 = host uid (first_subuid + 999).
+                       ;; rafael's first subuid range: 231072 → container uid 1 = 231072,
+                       ;; container uid 1000 = 231072 + 999 = 232071.
+                       ;; nextcloud/config and nextcloud/data must be pre-owned by this uid
+                       ;; so the LinuxServer.io s6-overlay can write to them on first start.
+                       (for-each
+                        (lambda (dir)
+                          (mkdir-p dir)
+                          (chown dir 232071 232071))
+                        '("/data/nextcloud/config"
+                          "/data/nextcloud/data"))))))
 
 ;;;
 ;;; PostgreSQL — shared database for FreshRSS, Nextcloud, Wallabag
