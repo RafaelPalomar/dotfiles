@@ -123,13 +123,17 @@
                (sops-secret (key '("tailscale" "grafana_authkey"))
                             (file %sops-lovelace)
                             (permissions #o444))
-               ;; Mullvad VPN keys
+               ;; Mullvad VPN keys — group=users so rootless containers (rafael) can read
                (sops-secret (key '("mullvad" "pihole_wg_private_key"))
                             (file %sops-lovelace)
-                            (permissions #o400))
+                            (user "root")
+                            (group "users")
+                            (permissions #o440))
                (sops-secret (key '("mullvad" "qbt_wg_private_key"))
                             (file %sops-lovelace)
-                            (permissions #o400))
+                            (user "root")
+                            (group "users")
+                            (permissions #o440))
                ;; Service credentials — #o444 for container readability
                (sops-secret (key '("pihole" "webpassword"))
                             (file %sops-lovelace)

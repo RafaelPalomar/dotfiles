@@ -321,6 +321,12 @@ hooks:
 (define* (make-ts-sidecar name
                            #:key
                            (serve-port 8080)
+                           ;; The host address used as the proxy backend.
+                           ;; TS_USERSPACE=true uses gVisor netstack, which cannot route
+                           ;; to 127.0.0.1 (virtual loopback, unreachable by kernel procs).
+                           ;; App containers share this sidecar's pasta network namespace
+                           ;; and bind to 0.0.0.0, so they're reachable at the host LAN IP.
+                           (backend-host "192.168.88.46")
                            (ts-state-dir (string-append "/data/tailscale/" name))
                            ;; Secret file name defaults to NAME with hyphens→underscores.
                            ;; Override when the sops key uses different naming.
@@ -331,35 +337,63 @@ hooks:
                            (ports '()))
   "Return an oci-container-configuration for a Tailscale sidecar.
    NAME is used for the provision name (ts-<name>).
-   TS_AUTHKEY is read from /run/secrets/tailscale/<secret-name>_authkey."
-  (oci-container-configuration
-   (user "rafael")
-   (image "tailscale/tailscale:latest")
-   (provision (string-append "ts-" name))
-   (requirement '(sops-secrets networking))
-   (respawn? #t)
-   (ports ports)
-   (volumes
-    (list (string-append ts-state-dir ":/var/lib/tailscale")
-          (string-append "/run/secrets/tailscale/" secret-name "_authkey"
-                         ":/run/secrets/ts-authkey:ro")))
-   (environment
-    (list "TS_USERSPACE=true"
-          "TS_STATE_DIR=/var/lib/tailscale"
-          ;; TS_AUTHKEY_FILE is read by the entrypoint wrapper below and
-          ;; re-exported as TS_AUTHKEY, which containerboot understands.
-          "TS_AUTHKEY_FILE=/run/secrets/ts-authkey"
-          (string-append "TS_SERVE_PORT=" (number->string serve-port))
-          ;; Register with a clean hostname (no "ts-" prefix — that's only for
-          ;; shepherd service namespacing, not the Tailscale node name).
-          (string-append "TS_HOSTNAME=" name)))
-   (extra-arguments '("--cap-add=NET_ADMIN"))
-   ;; Wrapper: read TS_AUTHKEY_FILE and export as TS_AUTHKEY before
-   ;; execing containerboot.  Older image versions don't support
-   ;; TS_AUTHKEY_FILE natively; this shell wrapper bridges the gap.
-   (entrypoint "/bin/sh")
-   (command (list "-c"
-                  "export TS_AUTHKEY=$(cat \"$TS_AUTHKEY_FILE\"); exec /usr/local/bin/containerboot"))))
+   TS_AUTHKEY is read from /run/secrets/tailscale/<secret-name>_authkey.
+   Tailscale serve is configured via TS_SERVE_CONFIG with BACKEND-HOST:SERVE-PORT
+   as the proxy backend, bypassing the TS_USERSPACE netstack loopback limitation."
+  (let* ((backend-url
+          (string-append "http://" backend-host ":" (number->string serve-port)))
+         (serve-config-content
+          (string-append
+           "{\n"
+           "  \"TCP\": {\n"
+           "    \"443\": {\n"
+           "      \"HTTPS\": true\n"
+           "    }\n"
+           "  },\n"
+           "  \"Web\": {\n"
+           "    \"${TS_CERT_DOMAIN}:443\": {\n"
+           "      \"Handlers\": {\n"
+           "        \"/\": {\n"
+           "          \"Proxy\": \"" backend-url "\"\n"
+           "        }\n"
+           "      }\n"
+           "    }\n"
+           "  }\n"
+           "}"))
+         (serve-config-file
+          (plain-file (string-append "ts-serve-" name ".json")
+                      serve-config-content)))
+    (oci-container-configuration
+     (user "rafael")
+     (image "tailscale/tailscale:latest")
+     (provision (string-append "ts-" name))
+     (requirement '(sops-secrets networking))
+     (respawn? #t)
+     (ports ports)
+     (volumes
+      (list (string-append ts-state-dir ":/var/lib/tailscale")
+            (string-append "/run/secrets/tailscale/" secret-name "_authkey"
+                           ":/run/secrets/ts-authkey:ro")
+            (cons serve-config-file "/etc/tailscale/serve-config.json:ro")))
+     (environment
+      (list "TS_USERSPACE=true"
+            "TS_STATE_DIR=/var/lib/tailscale"
+            ;; TS_AUTHKEY_FILE is read by the entrypoint wrapper below and
+            ;; re-exported as TS_AUTHKEY, which containerboot understands.
+            "TS_AUTHKEY_FILE=/run/secrets/ts-authkey"
+            ;; TS_SERVE_CONFIG instead of TS_SERVE_PORT: explicit serve config JSON
+            ;; with backend-host avoids the netstack loopback routing issue.
+            "TS_SERVE_CONFIG=/etc/tailscale/serve-config.json"
+            ;; Register with a clean hostname (no "ts-" prefix — that's only for
+            ;; shepherd service namespacing, not the Tailscale node name).
+            (string-append "TS_HOSTNAME=" name)))
+     (extra-arguments '("--cap-add=NET_ADMIN"))
+     ;; Wrapper: read TS_AUTHKEY_FILE and export as TS_AUTHKEY before
+     ;; execing containerboot.  Older image versions don't support
+     ;; TS_AUTHKEY_FILE natively; this shell wrapper bridges the gap.
+     (entrypoint "/bin/sh")
+     (command (list "-c"
+                    "export TS_AUTHKEY=$(cat \"$TS_AUTHKEY_FILE\"); exec /usr/local/bin/containerboot")))))
 
 (define* (make-app-container name image
                               #:key
@@ -411,15 +445,18 @@ hooks:
     (list "CRON_MIN=*/15"
           "TZ=Europe/Oslo"
           "DB_TYPE=pgsql"
-          "DB_HOST=192.168.88.46"
+          ;; host.containers.internal (pasta gateway 169.254.1.2) routes to
+          ;; the real host; 192.168.88.46 routes to the container's own loopback.
+          "DB_HOST=host.containers.internal"
           "DB_PORT=5432"
           "DB_BASE=freshrss"
           "DB_USER=freshrss")
     ;; FreshRSS needs DB_PASSWORD as a plain env var (no native _FILE support).
-    ;; Read the secret file and exec the real entrypoint.
+    ;; Pass the image CMD as args to the entrypoint so `exec "$@"` starts apache2.
+    ;; Image CMD: /bin/bash -o pipefail -c "([ -z $CRON_MIN ] || cron) && . /etc/apache2/envvars && exec apache2 -D FOREGROUND"
     #:entrypoint "/bin/sh"
     #:command (list "-c"
-                    "export DB_PASSWORD=$(cat /run/secrets/db_password); exec /entrypoint.sh"))
+                    "export DB_PASSWORD=$(cat /run/secrets/db_password); exec ./Docker/entrypoint.sh /bin/bash -o pipefail -c '([ -z \"$CRON_MIN\" ] || cron) && . /etc/apache2/envvars && exec apache2 -D FOREGROUND'"))
 
    ;; ── Nextcloud ─────────────────────────────────────────────────────────
    (make-ts-sidecar "nextcloud" #:serve-port 80)
@@ -432,7 +469,7 @@ hooks:
     #:environment
     (list "PUID=1000" "PGID=1000" "TZ=Europe/Oslo"
           "DB_TYPE=pgsql"
-          "DB_HOST=192.168.88.46"
+          "DB_HOST=host.containers.internal"
           "DB_PORT=5432"
           "DB_NAME=nextcloud"
           "DB_USER=nextcloud")
@@ -452,7 +489,7 @@ hooks:
           "/run/secrets/postgresql/wallabag_password:/run/secrets/db_password:ro")
     #:environment
     (list "SYMFONY__ENV__DATABASE_DRIVER=pdo_pgsql"
-          "SYMFONY__ENV__DATABASE_HOST=192.168.88.46"
+          "SYMFONY__ENV__DATABASE_HOST=host.containers.internal"
           "SYMFONY__ENV__DATABASE_PORT=5432"
           "SYMFONY__ENV__DATABASE_NAME=wallabag"
           "SYMFONY__ENV__DATABASE_USER=wallabag"
@@ -495,38 +532,52 @@ hooks:
     (user "rafael")
     (image "qmcgaw/gluetun:latest")
     (provision "gluetun-pihole")
-    (requirement '(sops-secrets networking))
+    (requirement '(networking))
     (respawn? #t)
     (volumes
      (list "/data/gluetun-pihole:/gluetun"
            "/run/secrets/mullvad/pihole_wg_private_key:/run/secrets/wg-key:ro"))
     (environment
      (list "VPN_SERVICE_PROVIDER=mullvad"
-           "VPN_TYPE=wireguard"))
+           "VPN_TYPE=wireguard"
+           "WIREGUARD_ADDRESSES=10.65.117.74/32"))
     ;; Gluetun does not support WIREGUARD_PRIVATE_KEY_FILE; read key from file.
     (entrypoint "/bin/sh")
     (command (list "-c"
-                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); exec /gluetun"))
-    (ports (list "53:53/tcp" "53:53/udp" "127.0.0.1:8053:8053"))
+                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); exec /gluetun-entrypoint"))
+    ;; Publish pihole's web UI (port 80) as host port 8053.
+    ;; Port 8000 in this netns is gluetun's HTTP control API — not pihole.
+    (ports (list "53:53/tcp" "53:53/udp" "0.0.0.0:8053:80"))
     (extra-arguments (list "--cap-add=NET_ADMIN" "--device=/dev/net/tun")))
 
    (oci-container-configuration
     (user "rafael")
     (image "pihole/pihole:latest")
     (provision "pihole")
-    (requirement '(gluetun-pihole sops-secrets))
+    (requirement '(gluetun-pihole))
     (respawn? #t)
     (volumes
      (list "/data/pihole/etc:/etc/pihole"
            "/data/pihole/dnsmasq:/etc/dnsmasq.d"
            "/run/secrets/pihole/webpassword:/run/secrets/webpassword:ro"))
     (environment
-     (list "WEBPASSWORD_FILE=/run/secrets/webpassword"
-           "TZ=Europe/Oslo"
-           "DNSMASQ_LISTENING=all"))
+     (list
+      ;; WEBPASSWORD_FILE is a filename relative to /run/secrets/.
+      ;; bash_functions.sh reads /run/secrets/$WEBPASSWORD_FILE and
+      ;; exports it as FTLCONF_webserver_api_password so FTL applies
+      ;; the password hash on every container start.
+      "WEBPASSWORD_FILE=webpassword"
+      "TZ=Europe/Oslo"
+      "DNSMASQ_LISTENING=all"
+      "FTLCONF_webserver_serve_all=true"))
     (network "container:gluetun-pihole"))
 
    (make-ts-sidecar "pihole" #:serve-port 8053
+                    ;; pihole shares gluetun-pihole's netns, not ts-pihole's.
+                    ;; Use host.containers.internal (pasta gateway 169.254.1.2)
+                    ;; so pasta routes to the real host, where gluetun-pihole
+                    ;; publishes port 8053→80 (pihole's web UI).
+                    #:backend-host "host.containers.internal"
                     #:ts-state-dir "/data/tailscale/pihole")
 
    ;; ── qBittorrent ───────────────────────────────────────────────────────
@@ -534,26 +585,29 @@ hooks:
     (user "rafael")
     (image "qmcgaw/gluetun:latest")
     (provision "gluetun-qbt")
-    (requirement '(sops-secrets networking))
+    (requirement '(networking))
     (respawn? #t)
     (volumes
      (list "/data/gluetun-qbt:/gluetun"
            "/run/secrets/mullvad/qbt_wg_private_key:/run/secrets/wg-key:ro"))
     (environment
      (list "VPN_SERVICE_PROVIDER=mullvad"
-           "VPN_TYPE=wireguard"))
+           "VPN_TYPE=wireguard"
+           "WIREGUARD_ADDRESSES=10.65.117.74/32"))
     ;; Gluetun does not support WIREGUARD_PRIVATE_KEY_FILE; read key from file.
     (entrypoint "/bin/sh")
     (command (list "-c"
-                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); exec /gluetun"))
-    (ports (list "127.0.0.1:8080:8080"))
+                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); exec /gluetun-entrypoint"))
+    ;; 0.0.0.0 so pasta (ts-qbt) can reach it via host.containers.internal.
+    ;; 127.0.0.1 only would be unreachable from ts-qbt's pasta namespace.
+    (ports (list "0.0.0.0:8080:8080"))
     (extra-arguments (list "--cap-add=NET_ADMIN" "--device=/dev/net/tun")))
 
    (oci-container-configuration
     (user "rafael")
     (image "lscr.io/linuxserver/qbittorrent:latest")
     (provision "qbittorrent")
-    (requirement '(gluetun-qbt sops-secrets))
+    (requirement '(gluetun-qbt))
     (respawn? #t)
     (volumes
      (list "/data/qbittorrent/config:/config"
@@ -563,6 +617,9 @@ hooks:
     (network "container:gluetun-qbt"))
 
    (make-ts-sidecar "qbt" #:serve-port 8080
+                    ;; Same reason as pihole: qbittorrent shares gluetun-qbt's
+                    ;; netns; use host.containers.internal to reach the host.
+                    #:backend-host "host.containers.internal"
                     #:ts-state-dir "/data/tailscale/qbt")))
 
 ;;;
@@ -595,15 +652,16 @@ scrape_configs:
 
 ;;; Grafana datasource provisioning.
 ;;;
-;;; Points at ts-prometheus's published port 9090 (192.168.88.46
-;;; is accessible from ts-grafana's pasta network namespace).
+;;; Uses host.containers.internal to reach prometheus (on host network :9090).
+;;; 192.168.88.46 fails from pasta network namespace due to hairpin NAT;
+;;; host.containers.internal is set by Podman to the pasta gateway IP.
 (define %grafana-prometheus-datasource
   (plain-file "prometheus-datasource.yaml"
               "apiVersion: 1
 datasources:
   - name: Prometheus
     type: prometheus
-    url: http://192.168.88.46:9090
+    url: http://host.containers.internal:9090
     isDefault: true
     access: proxy
     editable: false
@@ -626,8 +684,12 @@ datasources:
    ;; (node-exporter :9100, smartctl-exporter :9633) on the host directly.
    ;; ts-prometheus is NOT used for prometheus itself — instead prometheus
    ;; listens on the host at :9090, and grafana reaches it at 192.168.88.46:9090.
-   ;; ts-prometheus is kept as a no-op sidecar for potential future use.
-   (make-ts-sidecar "prometheus" #:serve-port 80)
+   ;; ts-prometheus exposes Prometheus on Tailscale at prometheus.drake-karat.ts.net.
+   ;; Prometheus is on host network (:9090), reachable at 192.168.88.46:9090.
+   (make-ts-sidecar "prometheus" #:serve-port 9090
+                    ;; prometheus runs on --network=host (separate from ts-prometheus).
+                    ;; Use host.containers.internal so pasta routes to the real host.
+                    #:backend-host "host.containers.internal")
    (oci-container-configuration
     (user "rafael")
     (image "prom/prometheus:latest")
@@ -650,7 +712,7 @@ datasources:
    ;; ── Grafana ───────────────────────────────────────────────────────────
    ;; Provisioned datasource points prometheus at 192.168.88.46:9090
    ;; (the port published by ts-prometheus above).
-   (make-ts-sidecar "grafana" #:serve-port 80)
+   (make-ts-sidecar "grafana" #:serve-port 3000)
    (make-app-container
     "grafana" "grafana/grafana:latest"
     #:volumes
@@ -661,7 +723,11 @@ datasources:
     #:environment
     (list "GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana-admin-pw"
           "GF_PATHS_DATA=/var/lib/grafana"
-          "GF_SERVER_HTTP_PORT=80"))))
+          "GF_SERVER_HTTP_PORT=3000")
+    ;; Run as container root (= host rafael uid 1000) so it can write to
+    ;; /data/grafana, which is owned by rafael.  Grafana uid 472 cannot
+    ;; write to a directory owned by container-root in the user namespace.
+    #:extra-arguments '("--user=0"))))
 
 ;;;
 ;;; Single oci-service-type with all containers
