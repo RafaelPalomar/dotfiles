@@ -350,6 +350,9 @@ hooks:
            "  \"TCP\": {\n"
            "    \"443\": {\n"
            "      \"HTTPS\": true\n"
+           "    },\n"
+           "    \"80\": {\n"
+           "      \"HTTPS\": false\n"
            "    }\n"
            "  },\n"
            "  \"Web\": {\n"
@@ -495,7 +498,7 @@ hooks:
           "SYMFONY__ENV__DATABASE_PORT=5432"
           "SYMFONY__ENV__DATABASE_NAME=wallabag"
           "SYMFONY__ENV__DATABASE_USER=wallabag"
-          "SYMFONY__ENV__DOMAIN_NAME=https://wallabag")
+          "SYMFONY__ENV__DOMAIN_NAME=https://wallabag.drake-karat.ts.net")
     ;; Wrapper: read DB password file and export as the plain env var, then start
     ;; wallabag.  The entrypoint script requires "wallabag" as its first arg to
     ;; start the web server; without it exec "$@" exits immediately.
@@ -674,7 +677,11 @@ datasources:
   (list
    ;; ── smartctl-exporter ─────────────────────────────────────────────────
    ;; No TS sidecar — scraped internally by Prometheus on the host network.
+   ;; Runs as rootful podman (user "root") so the container has real uid 0
+   ;; and can access block devices for SMART health data.
    (oci-container-configuration
+    (user "root")
+    (container-user "root")
     (image "prometheuscommunity/smartctl-exporter:latest")
     (provision "smartctl-exporter")
     (requirement '(networking))

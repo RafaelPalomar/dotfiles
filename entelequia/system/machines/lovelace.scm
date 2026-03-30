@@ -16,6 +16,8 @@
   #:use-module (gnu services guix)
   #:use-module (gnu services networking)
   #:use-module (gnu system accounts)
+  #:use-module (gnu system shadow)
+  #:use-module (gnu packages admin)
   #:use-module (sops packages sops)
   #:use-module (sops secrets)
   #:use-module (sops services sops)
@@ -196,14 +198,25 @@
              #:enable-ip-forwarding? #t))
 
    ;; Single user (no desktop, no audio groups)
-   (users (cons (user-account
-                 (name "rafael")
-                 (comment "Rafael")
-                 (group "users")
-                 (home-directory "/home/rafael")
-                 (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
-                                         "cgroup")))
-                %base-user-accounts))
+   ;; oci-container is also defined here to add it to the 'disk' group so that
+   ;; the smartctl-exporter container (run as oci-container via rootless Podman)
+   ;; can access block devices (/dev/sda–sdf) for SMART health monitoring.
+   (users (cons* (user-account
+                  (name "rafael")
+                  (comment "Rafael")
+                  (group "users")
+                  (home-directory "/home/rafael")
+                  (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
+                                          "cgroup")))
+                 (user-account
+                  (name "oci-container")
+                  (group "users")
+                  (system? #t)
+                  (comment "OCI services account")
+                  (home-directory "/home/oci-container")
+                  (shell (file-append shadow "/sbin/nologin"))
+                  (supplementary-groups '("cgroup" "disk")))
+                 %base-user-accounts))
 
    ;; EFI bootloader
    (bootloader (bootloader-configuration
