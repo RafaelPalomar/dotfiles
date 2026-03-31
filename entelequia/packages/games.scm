@@ -4,6 +4,7 @@
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (gnu packages fontutils)  ; freetype
   #:use-module (gnu packages compression) ; zlib, bzip2
+  #:use-module (gnu packages xml)         ; expat (libCEGUIExpatParser.so)
   #:use-module (gnu packages linux)      ; util-linux, eudev, libcap
   #:use-module (gnu packages xorg)       ; libx11, libxrandr, libxfixes, etc.
   #:use-module (gnu packages gl)         ; mesa
@@ -347,6 +348,9 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
 ;;; libstdc++/libgcc_s (gcc:lib).
 ;;; Audio: fmod dlopen()s libasound.so.2 (ALSA) and libpulse-simple.so.0
 ;;; (PulseAudio); pulseaudio provides libpulse-simple, alsa-lib covers ALSA.
+;;; CEGUI XML: libCEGUIExpatParser.so dlopen()s libexpat.so.1 at runtime;
+;;; expat must be explicit because NVIDIA does not pull it in (mesa does not
+;;; either, but curie happened to get it transitively via pulseaudio).
 
 (define-public gog-torchlight-2
   (make-game-launcher
@@ -359,6 +363,7 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
          libice
          pulseaudio
          alsa-lib
+         expat
          `(,util-linux "lib")
          zlib
          bzip2
