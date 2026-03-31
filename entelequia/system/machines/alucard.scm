@@ -105,6 +105,8 @@
    (inherit (make-desktop-base-os alucard-config
                                   #:extra-packages alucard-extra-packages
                                   #:extra-services alucard-services
+                                  #:firewall-extra-tcp-ports '(4549)
+                                  #:firewall-extra-udp-ports '(4549)
                                   #:ssh-authorized-keys
                                   `(("root" ,(plain-file "monk-access.pub"
                                                          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP1k6qoXg+tPB5tQjDu690RvaICgd8TJYWPCp+U9UJTi rafael@curie"))

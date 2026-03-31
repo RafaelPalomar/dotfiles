@@ -145,7 +145,9 @@
   (operating-system
    (inherit (make-desktop-base-os curie-config
                                   #:extra-packages curie-extra-packages
-                                  #:extra-services curie-services))
+                                  #:extra-services curie-services
+                                  #:firewall-extra-tcp-ports '(4549)
+                                  #:firewall-extra-udp-ports '(4549)))
 
    ;; Curie-specific kernel arguments (amd_pstate, network interface naming)
    (kernel-arguments (gpu-kernel-arguments 'amd
