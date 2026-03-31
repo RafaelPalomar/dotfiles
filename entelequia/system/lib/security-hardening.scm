@@ -186,10 +186,12 @@ net.ipv4.ip_unprivileged_port_start = 53
 ;;; Uses Guix's built-in nftables-service-type for proper integration.
 
 (define* (make-nftables-ruleset #:key (extra-tcp-ports '()) (extra-udp-ports '())
+                                      (trusted-subnets '())
                                       (enable-container-forwarding? #f))
   "Create nftables ruleset with optional extra TCP/UDP ports.
    EXTRA-TCP-PORTS: List of TCP port numbers to allow (e.g., 24800 for Synergy)
    EXTRA-UDP-PORTS: List of UDP port numbers to allow
+   TRUSTED-SUBNETS: List of CIDR subnets to allow all traffic from (e.g., '(\"192.168.88.0/24\"))
    ENABLE-CONTAINER-FORWARDING?: Allow forwarding for container networks (Podman)"
   (let ((tcp-rules (if (null? extra-tcp-ports)
                        ""
@@ -208,7 +210,16 @@ net.ipv4.ip_unprivileged_port_start = 53
                          (map (lambda (port)
                                 (format #f "    udp dport ~a accept" port))
                               extra-udp-ports)
-                         "\n")))))
+                         "\n"))))
+        (subnet-rules (if (null? trusted-subnets)
+                          ""
+                          (string-append
+                           "\n    # Trusted subnets (all traffic allowed)\n"
+                           (string-join
+                            (map (lambda (subnet)
+                                   (format #f "    ip saddr ~a accept" subnet))
+                                 trusted-subnets)
+                            "\n")))))
     (plain-file "nftables.conf"
               (string-append
                "#!/usr/sbin/nft -f
@@ -246,6 +257,7 @@ table inet filter {
 
     # Allow DHCP client
     udp sport 68 udp dport 67 accept"
+               subnet-rules
                tcp-rules
                udp-rules
                "
@@ -283,10 +295,12 @@ table inet filter {
 "))))
 
 (define* (nftables-firewall-service #:key (extra-tcp-ports '()) (extra-udp-ports '())
+                                          (trusted-subnets '())
                                           (enable-container-forwarding? #f))
   "Create nftables firewall service with optional extra ports.
    EXTRA-TCP-PORTS: List of TCP port numbers to allow
    EXTRA-UDP-PORTS: List of UDP port numbers to allow
+   TRUSTED-SUBNETS: List of CIDR subnets to allow all traffic from
    ENABLE-CONTAINER-FORWARDING?: Allow Podman container traffic in forward chain
    Uses Guix's nftables-service-type for proper integration."
   (service nftables-service-type
@@ -294,6 +308,7 @@ table inet filter {
             (ruleset (make-nftables-ruleset
                       #:extra-tcp-ports extra-tcp-ports
                       #:extra-udp-ports extra-udp-ports
+                      #:trusted-subnets trusted-subnets
                       #:enable-container-forwarding? enable-container-forwarding?)))))
 
 ;;; Hardened SSH service configuration
@@ -435,7 +450,8 @@ UseDNS no
                                       (enable-firewall? #t) (enable-audit? #t)
                                       (enable-ip-forwarding? #f)
                                       (firewall-extra-tcp-ports '())
-                                      (firewall-extra-udp-ports '()))
+                                      (firewall-extra-udp-ports '())
+                                      (firewall-trusted-subnets '()))
   "Return a list of all security hardening services.
 
    Options:
@@ -445,7 +461,8 @@ UseDNS no
    - enable-audit?: Enable auditd (default #t)
    - enable-ip-forwarding?: Enable IP forwarding sysctl + container nftables rules (default #f)
    - firewall-extra-tcp-ports: Extra TCP ports to allow through firewall (e.g., '(24800) for Synergy)
-   - firewall-extra-udp-ports: Extra UDP ports to allow through firewall"
+   - firewall-extra-udp-ports: Extra UDP ports to allow through firewall
+   - firewall-trusted-subnets: CIDR subnets to allow all traffic from (e.g., '(\"192.168.88.0/24\"))"
   (append
    ;; Always enable kernel hardening
    kernel-hardening-service
@@ -459,6 +476,7 @@ UseDNS no
        (list (nftables-firewall-service
               #:extra-tcp-ports firewall-extra-tcp-ports
               #:extra-udp-ports firewall-extra-udp-ports
+              #:trusted-subnets firewall-trusted-subnets
               #:enable-container-forwarding? enable-ip-forwarding?))
        '())
    (if enable-audit? auditd-service '())

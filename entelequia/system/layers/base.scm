@@ -31,6 +31,7 @@
                                      (extra-services '())
                                      (firewall-extra-tcp-ports '())
                                      (firewall-extra-udp-ports '())
+                                     (firewall-trusted-subnets '())
                                      (enable-ip-forwarding? #f)
                                      (ssh-authorized-keys '()))
   "Create a base operating system from a machine-config record.
@@ -240,7 +241,8 @@
                                            #:enable-audit? #t
                                            #:enable-ip-forwarding? enable-ip-forwarding?
                                            #:firewall-extra-tcp-ports firewall-extra-tcp-ports
-                                           #:firewall-extra-udp-ports firewall-extra-udp-ports)
+                                           #:firewall-extra-udp-ports firewall-extra-udp-ports
+                                           #:firewall-trusted-subnets firewall-trusted-subnets)
 
               ;; Continue with other services
               (list

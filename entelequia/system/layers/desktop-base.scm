@@ -27,6 +27,7 @@
                                 (extra-services '())
                                 (firewall-extra-tcp-ports '())
                                 (firewall-extra-udp-ports '())
+                                (firewall-trusted-subnets '())
                                 (ssh-authorized-keys '()))
   "Create a desktop base operating system from a machine-config record.
    CONFIG should be a <machine-config> record.
@@ -37,6 +38,7 @@
                                              #:extra-services extra-services
                                              #:firewall-extra-tcp-ports firewall-extra-tcp-ports
                                              #:firewall-extra-udp-ports firewall-extra-udp-ports
+                                             #:firewall-trusted-subnets firewall-trusted-subnets
                                              #:ssh-authorized-keys ssh-authorized-keys)))
     ;; Don't use (inherit base-os) -  explicitly copy only packages field
     ;; This avoids the double-inheritance service duplication bug
