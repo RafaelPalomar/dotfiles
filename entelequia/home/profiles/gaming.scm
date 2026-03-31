@@ -28,6 +28,7 @@
         gog-terraria
         gog-wizard-of-legend
         gog-slay-the-spire
+        gog-torchlight-2
         coq-caves-of-qud
         bay12-dwarf-fortress
         luanti-mineclonia-csm

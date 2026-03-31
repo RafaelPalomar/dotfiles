@@ -3,16 +3,18 @@
   #:use-module (guix build-system trivial)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (gnu packages fontutils)  ; freetype
+  #:use-module (gnu packages compression) ; zlib, bzip2
   #:use-module (gnu packages linux)      ; util-linux, eudev, libcap
   #:use-module (gnu packages xorg)       ; libx11, libxrandr, libxfixes, etc.
   #:use-module (gnu packages gl)         ; mesa
   #:use-module (gnu packages luanti)         ; mesa
-  #:use-module (gnu packages audio)      ; openal
+  #:use-module (gnu packages audio)      ; openal, pulseaudio, alsa-lib
   #:use-module (gnu packages xiph)       ; libogg
   #:use-module (gnu packages gcc)        ; gcc "lib"
   #:use-module (gnu packages sdl)        ; sdl2
   #:use-module (gnu packages gtk)        ; gtk+ (GTK3), gtk+-2 (GTK2)
   #:use-module (gnu packages glib)       ; glib
+  #:use-module (gnu packages pulseaudio) ; pulseaudio (libpulse-simple)
   #:use-module (guix git-download)
   #:use-module (guix utils)
   #:use-module (guix build-system cmake)
@@ -26,6 +28,7 @@
             gog-wizard-of-legend
             gog-slay-the-spire
             gog-death-road-to-canada
+            gog-torchlight-2
             ;; Direct-download games
             coq-caves-of-qud
             bay12-dwarf-fortress))
@@ -334,6 +337,34 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
                       "${GAMEDIR}/jre/lib/amd64/server")
    #:desktop-name "Slay the Spire"
    #:desktop-icon "~/GOG Games/Slay the Spire/support/icon.png"))
+
+;;; Torchlight 2 — Tier 1
+;;;
+;;; Ogre3D-based action RPG.  Bundled libs in lib64/: SDL2, Ogre, CEGUI,
+;;; fmod, freetype — covered by $GAMEDIR/lib64 on LD_LIBRARY_PATH.
+;;; Missing system libs: libGL (mesa), libGLU (glu), libSM/libICE (libsm),
+;;; libuuid (util-linux:lib), libz/libbz2 (zlib/bzip2),
+;;; libstdc++/libgcc_s (gcc:lib).
+;;; Audio: fmod dlopen()s libasound.so.2 (ALSA) and libpulse-simple.so.0
+;;; (PulseAudio); pulseaudio provides libpulse-simple, alsa-lib covers ALSA.
+
+(define-public gog-torchlight-2
+  (make-game-launcher
+   "torchlight-2"
+   "GOG Games/Torchlight 2/game"
+   "Torchlight2.bin.x86_64"
+   (list mesa
+         glu
+         libsm
+         libice
+         pulseaudio
+         alsa-lib
+         `(,util-linux "lib")
+         zlib
+         bzip2
+         `(,gcc "lib"))
+   #:desktop-name "Torchlight 2"
+   #:desktop-icon "~/GOG Games/Torchlight 2/support/icon.png"))
 
 ;;; Death Road to Canada — Tier 1
 
