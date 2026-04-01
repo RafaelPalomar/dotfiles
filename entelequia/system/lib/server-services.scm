@@ -9,6 +9,7 @@
   #:use-module (gnu services shepherd)
   #:use-module (gnu packages admin)
   #:use-module (gnu packages backup)
+  #:use-module (gnu packages containers)
   #:use-module (gnu packages databases)
   #:use-module (gnu packages luanti)
   #:use-module (gnu packages linux)
@@ -23,6 +24,7 @@
             nextcloud-proxy-config-service
             lovelace-container-services
             lovelace-nfs-service
+            podman-prune-service
             make-ts-sidecar
             make-app-container))
 
@@ -392,6 +394,60 @@ hooks:
 ;;; All containers are collected into a single oci-service-type with runtime=podman.
 ;;;
 
+;;;
+;;; podman-prune-service: remove stale containers at boot before OCI services start
+;;;
+;;; At boot, container records from the previous run persist in podman's database even
+;;; though the processes are gone.  When a sidecar tries to replace itself with --replace,
+;;; podman refuses if a dependent app container is still registered.
+;;;
+;;; `podman container prune -f` only removes stopped containers but fails when a container
+;;; has dependents (e.g. ts-* sidecars using --network container:<name> depend on the app
+;;; container).  Using `podman rm -af` removes ALL containers regardless of state or
+;;; dependency order, which is safe at boot before any container services start.
+;;;
+;;; Also creates /run/user/<uid> for the rootless podman user, since elogind only creates
+;;; it on interactive login (not available on headless servers at boot).
+;;;
+;;; All OCI containers require this service via make-ts-sidecar / make-app-container.
+;;;
+
+(define %podman-prune-script
+  (program-file "podman-prune"
+    #~(begin
+        (let* ((pw   (getpwnam "rafael"))
+               (uid  (passwd:uid pw))
+               (gid  (passwd:gid pw))
+               (ruid (string-append "/run/user/" (number->string uid))))
+          ;; Create /run/user/<uid> if missing (elogind won't do it for headless boot)
+          (unless (file-exists? ruid)
+            (mkdir ruid)
+            (chown ruid uid gid)
+            (chmod ruid #o700))
+          (setenv "XDG_RUNTIME_DIR" ruid)
+          (setenv "HOME" (passwd:dir pw))
+          (setgid gid)
+          (setuid uid)
+          ;; Remove ALL containers (including those with dependents) — safe at boot
+          ;; before any container services have started.
+          (system* #$(file-append podman "/bin/podman")
+                   "rm" "-af")))))
+
+(define podman-prune-service
+  (list
+   (simple-service 'podman-prune
+                   shepherd-root-service-type
+                   (list
+                    (shepherd-service
+                     (provision '(podman-prune))
+                     (requirement '(rootless-podman-shared-root-fs user-processes))
+                     (one-shot? #t)
+                     (start #~(make-forkexec-constructor
+                               (list #$%podman-prune-script)
+                               #:log-file "/var/log/podman-prune.log"))
+                     (stop #~(make-kill-destructor))
+                     (documentation "Remove stopped containers from previous boot."))))))
+
 (define* (make-ts-sidecar name
                            #:key
                            (serve-port 8080)
@@ -444,7 +500,7 @@ hooks:
      (user "rafael")
      (image "tailscale/tailscale:latest")
      (provision (string-append "ts-" name))
-     (requirement '(sops-secrets networking))
+     (requirement '(sops-secrets networking podman-prune))
      (respawn? #t)
      (ports ports)
      (volumes
@@ -491,6 +547,7 @@ hooks:
                (provision name)
                (requirement (cons* (string->symbol (string-append "ts-" ts-name))
                                    'sops-secrets
+                                   'podman-prune
                                    requirement))
                (respawn? #t)
                (volumes volumes)

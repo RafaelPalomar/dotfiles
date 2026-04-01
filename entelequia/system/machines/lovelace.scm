@@ -179,6 +179,7 @@
              #:extra-services
              (append
               lovelace-services
+              podman-prune-service
               lovelace-nfs-service
               lovelace-data-dir-service
               nextcloud-proxy-config-service
