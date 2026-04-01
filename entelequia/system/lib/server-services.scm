@@ -431,7 +431,12 @@ hooks:
           ;; Remove ALL containers (including those with dependents) — safe at boot
           ;; before any container services have started.
           (system* #$(file-append podman "/bin/podman")
-                   "rm" "-af")))))
+                   "rm" "-af")
+          ;; Stay alive so shepherd keeps this service in "running" state.
+          ;; Without this, a one-shot service in "stopped" state would be re-run
+          ;; every time a dependent container service restarts, killing all
+          ;; running containers via rm -af.
+          (let loop () (sleep 3600) (loop))))))
 
 (define podman-prune-service
   (list
@@ -441,7 +446,6 @@ hooks:
                     (shepherd-service
                      (provision '(podman-prune))
                      (requirement '(rootless-podman-shared-root-fs user-processes))
-                     (one-shot? #t)
                      (start #~(make-forkexec-constructor
                                (list #$%podman-prune-script)
                                #:log-file "/var/log/podman-prune.log"))

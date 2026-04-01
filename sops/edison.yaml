@@ -1,15 +1,15 @@
 tailscale:
-    jellyfin_authkey: ENC[AES256_GCM,data:xag1rqlBVVH6fdEh1o1GjnnfFFKYjP5D+i+jT9e/B0cu,iv:2VUNDHzm6oGKAlA9SKMIKiekDzv1aQ/gpGztrzz9qmU=,tag:jaG9kTlgGHKV2+be+vJDJQ==,type:str]
-    navidrome_authkey: ENC[AES256_GCM,data:O8K63y1N47Ho3pXU3mnZ3/yz3VSF0cblNNb8i5qObvLh,iv:zM0T5XO/rDr4qYuTZcnEFzsa04NGEx+91bT14QWS7FM=,tag:jeDqe0bv72sFO95KY3+b2A==,type:str]
-    arm_authkey: ENC[AES256_GCM,data:LiTkpL7PuH+a9/FQB1aazw6D8ZhsrsOn2z199wNYGVXx,iv:YfLlC2Hz7AAf+9PfcOojaRsj1H3QM0tDgjpECkO4Cck=,tag:ssP78UcrNTaR+Ylx2ISqvQ==,type:str]
+    jellyfin_authkey: ENC[AES256_GCM,data:ULVtQMyWJi1y05iyEmPFXlC8rr7jjZqJMhEtVrzvJtbNuPEKDDDgCfaXhANCCv82clAowEjZgY+b1hyT5BM=,iv:yLTTqXLhgq/yTknn2pCwUp3MWCfBFGr0Iiskwa2fct4=,tag:SvwGYubJWvUAKt7pMSVT6A==,type:str]
+    navidrome_authkey: ENC[AES256_GCM,data:Hbq6QuFIG3edGEGMmicpZV2hZ70yLfXMz35sg4I0mum7wWppPA+GCuEW6uTWRQIRo9GQYrmyer2LiX2OiQ==,iv:gR4wwT/PUkAuGtbn5Sb5QjFMGYW7BHjohj0uYCvGvYk=,tag:68faKNPFk0f09ZRN1NsvHQ==,type:str]
+    arm_authkey: ENC[AES256_GCM,data:usNLE8W/o+YdE7TR9PLHCcVotNHmadTLrpkSt2OaVFcNMd6618b3uzFgwXcwF6HbVhnhOms3O9J6ij/3AJw=,iv:DLSAla5eHoBp70gs+RfZJ3gxq66XoYRKuM2VsjQhUcE=,tag:tUqKhCU8goZJBZ0W4QaKhQ==,type:str]
 sops:
     kms: []
     gcp_kms: []
     azure_kv: []
     hc_vault: []
     age: []
-    lastmodified: "2026-04-01T07:52:57Z"
-    mac: ENC[AES256_GCM,data:vWcpW0gNSqcYq7vV/qqHt5Lej81p0gA1pl2q2s2cRSfe0QFKoD0W1jp7/So50Zt9rKP7462zpNX4f5ZFeFYaU38W7prEqI4EPxiwP8FGGpC3oYb2bzt1eHSCos72xVUxCbRwkrfm9of1p73/n4Pskz+1aOGLR/cgDcofcS/C/tA=,iv:i4Rac557Kgi7+OyAaGPoYO0uDX8fU2w+lojkAhBkI0o=,tag:yO4EBcwdrTppdaD8HaU2zQ==,type:str]
+    lastmodified: "2026-04-01T20:40:50Z"
+    mac: ENC[AES256_GCM,data:bBAqZ97z9V8NXJq8g+euJeBx07R3cseJgsfIcsTFpp7wa1XWME1d7gzQ0UxsjdRHvBYkZNl1jinpdkB1irKtSmkWg+qve7cOmvI6WkpeEypiLLc72pAQh8c9ngN+v0rCNgF2wnxiW9P8ZRTQBJU0yJ1WN8qSLGnn3Pq2IfndHOk=,iv:gdIGvz/r9Njpanu52g4MOM7x+xkMsw7px+bgCN/B5X0=,tag:cAOlxRQhyGBgai0vuHzajA==,type:str]
     pgp:
         - created_at: "2026-04-01T07:52:57Z"
           enc: |-
