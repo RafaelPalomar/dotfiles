@@ -1,6 +1,7 @@
 (define-module (entelequia system lib common-packages)
   #:use-module (entelequia lib helpers)
   #:export (base-hardware-packages
+            edison-specific-packages
             base-audio-packages
             base-bluetooth-packages
             base-x11-packages
@@ -181,6 +182,26 @@
     "uid-wrapper"
     "slirp4netns"))
 
+;;; Edison-specific packages (multimedia server, NVIDIA, optical ripping)
+
+(define edison-specific-packages
+  '(;; Container runtime support
+    "fuse-overlayfs"
+    "passt"        ; pasta/passt — rootless Podman network backend
+    "slirp4netns"
+    "crun"
+    ;; Filesystem
+    "xfsprogs"     ; XFS tools for /data disk (sdb1)
+    "nfs-utils"    ; NFS client utilities (mount.nfs is setuid via base)
+    ;; Monitoring / diagnostics
+    "lm-sensors"
+    "ethtool"
+    "tcpdump"
+    "jq"
+    ;; Backup / remote access
+    "borgmatic"
+    "openssh"))
+
 ;;; Lovelace-specific packages (headless server)
 
 (define lovelace-specific-packages
@@ -198,6 +219,7 @@
     ;; Backup
     "borgmatic"
     "openssh"    ; ssh client for borg to Hetzner
+    "jq"         ; parse borgmatic info --json for Prometheus metrics
     ;; Luanti game server + Mineclonia game (minetest-game is deprecated)
     "luanti-server"
     "luanti-mineclonia"))

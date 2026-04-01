@@ -85,7 +85,8 @@
                  ;; in make-base-operating-system — do not add them here again.
                  (service prometheus-node-exporter-service-type
                           (prometheus-node-exporter-configuration
-                           (web-listen-address ":9100"))))
+                           (web-listen-address ":9100")
+                           (textfile-directory "/var/lib/node-exporter/textfile"))))
 
                 extra-services
                 (operating-system-user-services base-os))))))
