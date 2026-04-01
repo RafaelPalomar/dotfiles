@@ -5,6 +5,7 @@
   #:use-module (gnu services containers)
   #:use-module (gnu services databases)
   #:use-module (gnu services mcron)
+  #:use-module (gnu services nfs)
   #:use-module (gnu services shepherd)
   #:use-module (gnu packages admin)
   #:use-module (gnu packages backup)
@@ -19,7 +20,11 @@
             luanti-lovelace-service
             borgmatic-lovelace-service
             lovelace-data-dir-service
-            lovelace-container-services))
+            nextcloud-proxy-config-service
+            lovelace-container-services
+            lovelace-nfs-service
+            make-ts-sidecar
+            make-app-container))
 
 ;;; Server services for lovelace
 ;;;
@@ -46,7 +51,13 @@
                                  (uid (passwd:uid pw))
                                  (gid (passwd:gid pw)))
                             (chown dir uid gid)))
-                        '("/data/tailscale/freshrss"
+                        '(;; Media share (exported to Edison via NFS)
+                          "/data/media"
+                          "/data/media/music"
+                          "/data/media/videos"
+                          "/data/media/audiobooks"
+                          "/data/media/rips"
+                          "/data/tailscale/freshrss"
                           "/data/tailscale/nextcloud"
                           "/data/tailscale/wallabag"
                           "/data/tailscale/rss-bridge"
@@ -66,9 +77,59 @@
                           "/data/gluetun-qbt"
                           "/data/prometheus"
                           "/data/grafana"
+                          ;; /data/nextcloud/config: created here so Podman bind-mount
+                          ;; has a concrete host path on first deploy. chown is non-recursive
+                          ;; so the container's abc-owned subdirs (uid 232071) are not affected.
+                          ;; /data/nextcloud/data is NOT listed: container init owns it.
                           "/data/nextcloud/config"
-                          "/data/nextcloud/data"
                           "/data/borg"))))))
+
+;;;
+;;; NFS server — export /data/media to Edison (192.168.88.14)
+;;;
+
+;;; lovelace-nfs-service: export /data/media over NFS to the LAN.
+;;; Edison mounts it as /media. Uses TCP-only NFSv4; port 2049 must be
+;;; open in the firewall (firewall-extra-tcp-ports in lovelace.scm).
+(define lovelace-nfs-service
+  (list
+   (service nfs-service-type
+            (nfs-configuration
+             ;; TCP only (nfsd-udp? defaults to #f)
+             (exports
+              ;; Each inner list is joined with spaces → one /etc/exports line.
+              '(("/data/media"
+                 "192.168.88.0/24(rw,sync,no_subtree_check,no_root_squash)")))))))
+
+;;; nextcloud-proxy-config-service: write a declarative config drop-in for
+;;; Nextcloud covering trusted domains, trusted proxies, and URL overrides.
+;;; The linuxserver/nextcloud image merges all *.config.php files from
+;;; /config/www/nextcloud/config/ into the running configuration.
+;;; Always overwritten on deploy so changes here take effect immediately.
+(define nextcloud-proxy-config-service
+  (list
+   (simple-service 'nextcloud-proxy-config
+                   activation-service-type
+                   #~(begin
+                       (use-modules (guix build utils))
+                       (let* ((conf-dir "/data/nextcloud/config/www/nextcloud/config")
+                              (conf-file (string-append conf-dir "/proxy.config.php"))
+                              (pw  (getpwnam "rafael"))
+                              (uid (passwd:uid pw))
+                              (gid (passwd:gid pw)))
+                         (mkdir-p conf-dir)
+                         (chown conf-dir uid gid)
+                         (call-with-output-file conf-file
+                           (lambda (port)
+                             (display "<?php\n$CONFIG = array (\n" port)
+                             (display "  'trusted_domains' => array('localhost', 'nextcloud.drake-karat.ts.net'),\n" port)
+                             (display "  'trusted_proxies' => array('127.0.0.1', '::1', '192.168.88.46'),\n" port)
+                             (display "  'forwarded_for_headers' => array('HTTP_X_FORWARDED_FOR'),\n" port)
+                             (display "  'overwriteprotocol' => 'https',\n" port)
+                             (display "  'overwrite.cli.url' => 'https://nextcloud.drake-karat.ts.net',\n" port)
+                             (display ");\n" port)))
+                         (chown conf-file uid gid)
+                         (chmod conf-file #o644))))))
 
 ;;;
 ;;; PostgreSQL — shared database for FreshRSS, Nextcloud, Wallabag
@@ -274,11 +335,22 @@ retention:
 hooks:
   before_backup:
     - mkdir -p /data/postgresql-backup
+    - mkdir -p /var/lib/node-exporter/textfile
     - pg_dumpall -U postgres --file=/data/postgresql-backup/full-dump.sql
   after_backup:
     - rm -f /data/postgresql-backup/full-dump.sql
+    - echo borgmatic_last_success_timestamp_seconds $(date +%s) > /var/lib/node-exporter/textfile/borgmatic.prom.tmp
+    - echo borgmatic_last_error 0 >> /var/lib/node-exporter/textfile/borgmatic.prom.tmp
+    - borgmatic info --json --config /etc/borgmatic/lovelace.yaml > /tmp/borg-info.json
+    - echo borgmatic_repository_unique_csize_bytes $(jq -r '.[0].cache.stats.unique_csize' /tmp/borg-info.json) >> /var/lib/node-exporter/textfile/borgmatic.prom.tmp
+    - echo borgmatic_repository_total_size_bytes $(jq -r '.[0].cache.stats.total_size' /tmp/borg-info.json) >> /var/lib/node-exporter/textfile/borgmatic.prom.tmp
+    - rm -f /tmp/borg-info.json
+    - mv /var/lib/node-exporter/textfile/borgmatic.prom.tmp /var/lib/node-exporter/textfile/borgmatic.prom
   on_error:
     - echo 'borgmatic failed!' | logger -t borgmatic -p user.err
+    - echo borgmatic_last_error 1 > /var/lib/node-exporter/textfile/borgmatic.prom.tmp
+    - echo borgmatic_last_error_timestamp_seconds $(date +%s) >> /var/lib/node-exporter/textfile/borgmatic.prom.tmp
+    - mv /var/lib/node-exporter/textfile/borgmatic.prom.tmp /var/lib/node-exporter/textfile/borgmatic.prom
 "))))
 
    ;; Daily mcron job at 03:30

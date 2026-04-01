@@ -179,7 +179,9 @@
              #:extra-services
              (append
               lovelace-services
+              lovelace-nfs-service
               lovelace-data-dir-service
+              nextcloud-proxy-config-service
               postgresql-lovelace-service
               smartd-lovelace-service
               luanti-lovelace-service
@@ -191,9 +193,11 @@
                ("rafael" ,(plain-file "lovelace-deploy-rafael.pub"
                                       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJd+gIEzNyO8gp3FnZnvMI/OhKm0/Hkr0UaDKXx38h7V openpgp:0x96CFC574")))
              #:firewall-extra-tcp-ports
-             '(53)       ; DNS (Pi-hole)
+             '(53        ; DNS (Pi-hole)
+               2049)     ; NFS server (Edison)
              #:firewall-extra-udp-ports
              '(53        ; DNS (Pi-hole)
+               2049      ; NFS server (Edison)
                30000)    ; Luanti game server
              #:enable-ip-forwarding? #t))
 
