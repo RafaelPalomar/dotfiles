@@ -597,6 +597,11 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           "/media/rips:/home/arm/media"
           ;; Music output: abcde writes ripped CDs here; Navidrome scans it
           "/media/music:/home/arm/Music"
+          ;; Persist MakeMKV settings across container restarts.
+          ;; The activation service writes the key from sops to
+          ;; /data/arm/.MakeMKV/settings.conf; mounting it here makes MakeMKV
+          ;; find the key without relying on ARM's internal copy-on-startup.
+          "/data/arm/.MakeMKV:/home/arm/.MakeMKV"
           ;; Share host udev socket so ARM's pyudev can receive kernel disc-change
           ;; events (container netlink is isolated; without this, ARM never detects
           ;; disc insertions in rootless Podman)
@@ -627,6 +632,11 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
     #:extra-arguments
     (list "--device=/dev/sr0"
           "--device=/dev/sr1"
+          ;; SCSI generic devices: MakeMKV uses /dev/sg* (not /dev/sr*) to
+          ;; enumerate and communicate with optical drives.  Without these,
+          ;; makemkvcon reports "can't find any usable optical drives".
+          "--device=/dev/sg0"
+          "--device=/dev/sg1"
           "--group-add=keep-groups"
           "--device=/dev/nvidia1"
           "--device=/dev/nvidiactl"
