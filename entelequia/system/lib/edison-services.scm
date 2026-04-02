@@ -135,30 +135,37 @@
                             "/media/rips/transcode"
                             "/media/rips/completed"
                             "/media/rips/movies"))
-                         ;; Write default arm.yaml only if it doesn't already exist.
+                         ;; Always write arm.yaml so deploys keep it in sync.
                          ;; ARM reads this from /etc/arm/config/arm.yaml inside the container.
                          ;; LOGPATH and DBFILE point into /etc/arm/config so they land on
                          ;; the local XFS volume (the container overlay has an EOVERFLOW bug
                          ;; with file creation in rootless Podman on this kernel).
-                         (let ((arm-yaml "/data/arm/arm.yaml"))
-                           (unless (file-exists? arm-yaml)
-                             (call-with-output-file arm-yaml
-                               (lambda (p)
-                                 (display
-                                  "INSTALLPATH: /opt/arm\n\
-GET_AUDIO_TITLE: musicbrainz\n\
-ABCDE_CONFIG_FILE: /etc/arm/config/abcde.conf\n\
-SET_MEDIA_PERMISSIONS: true\n\
-CHMOD_VALUE: 755\n\
-WEBSERVER_IP: 0.0.0.0\n\
-WEBSERVER_PORT: 8080\n\
-AUTO_EJECT: true\n\
-LOGLIFE: 7\n\
-LOGLEVEL: INFO\n\
-LOGPATH: /etc/arm/config/logs/\n\
-DBFILE: /etc/arm/config/arm.db\n"
-                                  p)))
-                             (chown arm-yaml arm-uid arm-gid)))
+                         ;; TMDB_API_KEY is injected from /run/secrets/tmdb/api_key (sops).
+                         (let* ((arm-yaml  "/data/arm/arm.yaml")
+                                (key-file  "/run/secrets/tmdb/api_key")
+                                (tmdb-key  (if (file-exists? key-file)
+                                               (string-trim-right
+                                                (call-with-input-file key-file read-string))
+                                               "")))
+                           (call-with-output-file arm-yaml
+                             (lambda (p)
+                               (display
+                                (string-append
+                                 "INSTALLPATH: /opt/arm\n"
+                                 "GET_AUDIO_TITLE: musicbrainz\n"
+                                 "ABCDE_CONFIG_FILE: /etc/arm/config/abcde.conf\n"
+                                 "SET_MEDIA_PERMISSIONS: true\n"
+                                 "CHMOD_VALUE: 755\n"
+                                 "WEBSERVER_IP: 0.0.0.0\n"
+                                 "WEBSERVER_PORT: 8080\n"
+                                 "AUTO_EJECT: true\n"
+                                 "LOGLIFE: 7\n"
+                                 "LOGLEVEL: INFO\n"
+                                 "LOGPATH: /etc/arm/config/logs/\n"
+                                 "DBFILE: /etc/arm/config/arm.db\n"
+                                 "TMDB_API_KEY: " tmdb-key "\n")
+                                p)))
+                           (chown arm-yaml arm-uid arm-gid))
                          ;; Always write abcde.conf so deploys keep it in sync with this config.
                          ;; OUTPUTDIR uses the container path /home/arm/Music (capital M),
                          ;; which is mounted from /media/music on the host via NFS.
@@ -519,7 +526,11 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
                ;; write /data/arm/.MakeMKV/settings.conf for the ARM container.
                (sops-secret (key '("makemkv" "license_key"))
                             (file %sops-edison)
-                            (permissions #o400))))))))  ; root-only: written to settings.conf at activation
+                            (permissions #o400))
+               ;; TMDB API key — written into arm.yaml at activation for title lookup.
+               (sops-secret (key '("tmdb" "api_key"))
+                            (file %sops-edison)
+                            (permissions #o400))))))))  ; root-only: written to arm.yaml at activation
 
 ;;;
 ;;; OCI container helpers — reuse make-ts-sidecar / make-app-container
