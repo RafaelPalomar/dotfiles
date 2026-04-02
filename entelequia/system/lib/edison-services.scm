@@ -375,7 +375,16 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
         (unless (file-exists? "/dev/nvidiactl")
           (system* #$(file-append coreutils "/bin/mknod")
                    "-m" "660" "/dev/nvidiactl" "c" "195" "255")
-          (system* #$(file-append coreutils "/bin/chgrp") "video" "/dev/nvidiactl")))))
+          (system* #$(file-append coreutils "/bin/chgrp") "video" "/dev/nvidiactl"))
+        ;; nvidia-cap1 (minor 1) = NVENC capability device.
+        ;; The kernel creates it mode 0400 (root-only).  Rootless Podman containers
+        ;; running as non-root cannot access it, so NVENC fails with
+        ;; "Cannot load libnvidia-encode.so.1".  Make it world-readable so that
+        ;; containers with --device=/dev/nvidia-caps/nvidia-cap1 can use NVENC.
+        ;; nvidia-cap2 (minor 2) is already 0444; no change needed.
+        (when (file-exists? "/dev/nvidia-caps/nvidia-cap1")
+          (system* #$(file-append coreutils "/bin/chmod")
+                   "a+r" "/dev/nvidia-caps/nvidia-cap1")))))
 
 (define edison-nvidia-devices-service
   (list
@@ -460,8 +469,10 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
 ;;; Jellyfin — media server with NVIDIA hardware transcoding
 ;;;
 ;;; Config/cache on /data/jellyfin; media read-only from /media.
-;;; NVIDIA devices passed via --device for NVENC transcoding.
-;;; Tailscale sidecar exposes Jellyfin on Tailscale HTTPS.
+;;; GPU assignment: Quadro P2000 (nvidia0, Pascal, 5 GB) for NVENC/NVDEC.
+;;; Quadro M2000 (nvidia1) is reserved for ARM video encoding.
+;;; NVIDIA runtime libs are mounted from the host profile so ffmpeg can
+;;; dlopen libnvidia-encode.so.1 and libcuda.so.1 for hardware transcode.
 ;;;
 
 (define %jellyfin-containers
@@ -474,22 +485,30 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
     #:volumes
     (list "/data/jellyfin/config:/config"
           "/data/jellyfin/cache:/cache"
-          "/media:/media:ro")
+          "/media:/media:ro"
+          ;; NVIDIA runtime libs (libnvidia-encode, libcuda, libnvcuvid …)
+          ;; dlopen'd by ffmpeg for NVENC/NVDEC hardware transcoding.
+          ;; /run/current-system/profile/lib is a stable path that always
+          ;; points to the current generation's NVIDIA driver package.
+          "/run/current-system/profile/lib:/usr/local/nvidia/lib:ro")
     #:environment
     (list "JELLYFIN_DATA_DIR=/config"
           "JELLYFIN_CACHE_DIR=/cache"
-          "TZ=Europe/Oslo")
+          "TZ=Europe/Oslo"
+          ;; Prepend the host NVIDIA libs so ffmpeg finds them before any
+          ;; stubs that might be bundled in the container image.
+          "LD_LIBRARY_PATH=/usr/local/nvidia/lib")
     ;; Wait for NVIDIA device nodes and NFS mount before starting
     #:requirement '(nvidia-devices nfs-media)
-    ;; NVIDIA device passthrough for NVENC transcoding.
-    ;; Requires rafael in "video" group (set in edison.scm user-account).
-    ;; The nvidia-uvm device is created lazily; the NVIDIA module must be
-    ;; loaded before starting Jellyfin (nonguix-transformation-nvidia handles this).
+    ;; P2000 (nvidia0) only — M2000 (nvidia1) is reserved for ARM.
+    ;; nvidia-cap1 = NVENC capability; nvidia-cap2 = general caps.
+    ;; nvidiactl and nvidia-uvm are shared across both GPUs.
     #:extra-arguments
     (list "--device=/dev/nvidia0"
-          "--device=/dev/nvidia1"
           "--device=/dev/nvidiactl"
-          "--device=/dev/nvidia-uvm"))))   ; nvidia-modeset not present on Quadro P2000/M2000
+          "--device=/dev/nvidia-uvm"
+          "--device=/dev/nvidia-caps/nvidia-cap1"
+          "--device=/dev/nvidia-caps/nvidia-cap2"))))
 
 ;;;
 ;;; Navidrome — Subsonic API for Android clients (DSub, Ultrasonic, etc.)
@@ -540,7 +559,10 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           ;; Share host udev socket so ARM's pyudev can receive kernel disc-change
           ;; events (container netlink is isolated; without this, ARM never detects
           ;; disc insertions in rootless Podman)
-          "/run/udev:/run/udev:ro")
+          "/run/udev:/run/udev:ro"
+          ;; NVIDIA runtime libs for HandBrake NVENC encoding.
+          ;; HandBrake dlopen's libnvidia-encode.so.1 and libcuda.so.1 at runtime.
+          "/run/current-system/profile/lib:/usr/local/nvidia/lib:ro")
     #:environment
     (list "TZ=Europe/Oslo"
           ;; PUID=0: run as container root, which rootless Podman maps to
@@ -548,17 +570,27 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           ;; and the arm user (container uid 1000) maps to host subuid ~232071
           ;; which has no write permission on the NFS-mounted media dirs.
           "PUID=0"
-          "PGID=0")
-    ;; Wait for NFS mount (/media from lovelace) before starting
-    #:requirement '(nfs-media)
+          "PGID=0"
+          ;; Host NVIDIA libs for HandBrake NVENC (libnvidia-encode, libcuda).
+          "LD_LIBRARY_PATH=/usr/local/nvidia/lib")
+    ;; Wait for NVIDIA device nodes and NFS mount before starting
+    #:requirement '(nvidia-devices nfs-media)
     ;; Pass both optical drives into the container.
     ;; --group-add=keep-groups carries the host user's supplementary groups
     ;; (including 'cdrom') into the container so the cdrom block devices
     ;; (root:cdrom 660) remain accessible despite rootless uid mapping.
+    ;; M2000 (nvidia1) reserved for HandBrake NVENC encoding.
+    ;; nvidia-cap1 is the NVENC capability device (made world-readable by
+    ;; the nvidia-devices service above).
     #:extra-arguments
     (list "--device=/dev/sr0"
           "--device=/dev/sr1"
-          "--group-add=keep-groups"))))
+          "--group-add=keep-groups"
+          "--device=/dev/nvidia1"
+          "--device=/dev/nvidiactl"
+          "--device=/dev/nvidia-uvm"
+          "--device=/dev/nvidia-caps/nvidia-cap1"
+          "--device=/dev/nvidia-caps/nvidia-cap2"))))
 
 ;;;
 ;;; Single oci-service-type for all Edison containers
