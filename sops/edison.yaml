@@ -2,14 +2,16 @@ tailscale:
     jellyfin_authkey: ENC[AES256_GCM,data:ULVtQMyWJi1y05iyEmPFXlC8rr7jjZqJMhEtVrzvJtbNuPEKDDDgCfaXhANCCv82clAowEjZgY+b1hyT5BM=,iv:yLTTqXLhgq/yTknn2pCwUp3MWCfBFGr0Iiskwa2fct4=,tag:SvwGYubJWvUAKt7pMSVT6A==,type:str]
     navidrome_authkey: ENC[AES256_GCM,data:Hbq6QuFIG3edGEGMmicpZV2hZ70yLfXMz35sg4I0mum7wWppPA+GCuEW6uTWRQIRo9GQYrmyer2LiX2OiQ==,iv:gR4wwT/PUkAuGtbn5Sb5QjFMGYW7BHjohj0uYCvGvYk=,tag:68faKNPFk0f09ZRN1NsvHQ==,type:str]
     arm_authkey: ENC[AES256_GCM,data:usNLE8W/o+YdE7TR9PLHCcVotNHmadTLrpkSt2OaVFcNMd6618b3uzFgwXcwF6HbVhnhOms3O9J6ij/3AJw=,iv:DLSAla5eHoBp70gs+RfZJ3gxq66XoYRKuM2VsjQhUcE=,tag:tUqKhCU8goZJBZ0W4QaKhQ==,type:str]
+makemkv:
+    license_key: ENC[AES256_GCM,data:d+Hs72s5WXopk6tyll2p1pCGhoPJPilebz1IiG8tXjI2YKxRFpanCD++86c7eE5hBBiYSEzzBWliex9qOx+HnhA4+kk=,iv:dkp5UAcoA36hRnj6JlHbgc2SXS8va9EhyFkKG8s5VVs=,tag:Yj2Aq8ru+kMKsb9Ij7lYcA==,type:str]
 sops:
     kms: []
     gcp_kms: []
     azure_kv: []
     hc_vault: []
     age: []
-    lastmodified: "2026-04-01T20:40:50Z"
-    mac: ENC[AES256_GCM,data:bBAqZ97z9V8NXJq8g+euJeBx07R3cseJgsfIcsTFpp7wa1XWME1d7gzQ0UxsjdRHvBYkZNl1jinpdkB1irKtSmkWg+qve7cOmvI6WkpeEypiLLc72pAQh8c9ngN+v0rCNgF2wnxiW9P8ZRTQBJU0yJ1WN8qSLGnn3Pq2IfndHOk=,iv:gdIGvz/r9Njpanu52g4MOM7x+xkMsw7px+bgCN/B5X0=,tag:cAOlxRQhyGBgai0vuHzajA==,type:str]
+    lastmodified: "2026-04-02T19:01:18Z"
+    mac: ENC[AES256_GCM,data:lcy7fKyUjFb1/z3Om6m5NxgsGjg8vU8eekAmcdjh+GL/cpmfL2O8WTH8uYjpcBTABZlUwFTIeQTdsK0mRZ8cn1ikyoLoTTdhk9HQi+HNsFKKgOoZcIYLt2jBVp66nAiif7a78/jKjdzcpiFCbJqKE5M8r2eYDJIMjqBd9PRXBfM=,iv:rYTLggk4kvGmOw2SXbn8cSPzrU5DavRTeFtPZxX2rfw=,tag:uyZpUP+91Z+wqHgpyZLqmA==,type:str]
     pgp:
         - created_at: "2026-04-01T07:52:57Z"
           enc: |-

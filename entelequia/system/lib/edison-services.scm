@@ -168,7 +168,25 @@ mungefilename () {\n\
   echo \"$@\" | sed -e 's/[^-[:alnum:] _.,()!]//g' | sed -e 's/  */ /g' | sed -e 's/^ //;s/ $//'\n\
 }\n"
                                 p)))
-                           (chown abcde-conf arm-uid arm-gid)))
+                           (chown abcde-conf arm-uid arm-gid))
+                         ;; Write MakeMKV settings.conf with the license key decrypted by SOPS.
+                         ;; The ARM container's arm user home (/home/arm) is not persisted, but
+                         ;; ARM copies this file into the container from /etc/arm/config/.MakeMKV/.
+                         ;; Key is stored in /run/secrets/makemkv_license_key by the sops service.
+                         (let* ((makemkv-dir  "/data/arm/.MakeMKV")
+                                (settings     (string-append makemkv-dir "/settings.conf"))
+                                (key-file     "/run/secrets/makemkv_license_key"))
+                           (mkdir-p makemkv-dir)
+                           (chown makemkv-dir arm-uid arm-gid)
+                           (chmod makemkv-dir #o755)
+                           (when (file-exists? key-file)
+                             (let ((key (string-trim-right
+                                         (call-with-input-file key-file read-string))))
+                               (call-with-output-file settings
+                                 (lambda (p)
+                                   (format p "app_Key = ~s\n" key)))
+                               (chown settings arm-uid arm-gid)
+                               (chmod settings #o600)))))
                        ;; Write the ARM disc-trigger script called by the host udev rule.
                        ;; The ARM container can't receive kernel udev events (netlink is
                        ;; network-namespace scoped), so the host udev rule calls this script.
@@ -388,7 +406,12 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
                             (permissions #o444))
                (sops-secret (key '("tailscale" "arm_authkey"))
                             (file %sops-edison)
-                            (permissions #o444))))))))
+                            (permissions #o444))
+               ;; MakeMKV beta/purchased license key — read at activation to
+               ;; write /data/arm/.MakeMKV/settings.conf for the ARM container.
+               (sops-secret (key '("makemkv" "license_key"))
+                            (file %sops-edison)
+                            (permissions #o400))))))))  ; root-only: written to settings.conf at activation
 
 ;;;
 ;;; OCI container helpers — reuse make-ts-sidecar / make-app-container
