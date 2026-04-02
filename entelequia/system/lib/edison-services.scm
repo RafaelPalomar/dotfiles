@@ -75,15 +75,70 @@
                           "/data/jellyfin/config"
                           "/data/jellyfin/cache"
                           "/data/navidrome"))
-                       ;; /data/arm: owned by container uid 1000 of the ARM container.
+                       ;; /data/arm and subdirs: owned by container uid 1000 of the ARM container.
                        ;; In rootless Podman (rafael uid 1001, subuid starts at 231072):
                        ;;   container uid 0  = host uid 1001 (rafael)
                        ;;   container uid N  = host uid 231072 + N - 1  (for N >= 1)
                        ;; ARM runs its 'arm' user as uid 1000 inside the container,
                        ;; which maps to host uid 232071 (231072 + 1000 - 1).
-                       (mkdir-p "/data/arm")
-                       (chown "/data/arm" 232071 232071)
-                       (chmod "/data/arm" #o755)
+                       (let ((arm-uid 232071)
+                             (arm-gid 232071))
+                         (for-each
+                          (lambda (dir)
+                            (mkdir-p dir)
+                            (chown dir arm-uid arm-gid)
+                            (chmod dir #o755))
+                          '("/data/arm"
+                            "/data/arm/logs"
+                            "/data/arm/logs/progress"))
+                         ;; Write default arm.yaml only if it doesn't already exist.
+                         ;; ARM reads this from /etc/arm/config/arm.yaml inside the container.
+                         ;; LOGPATH and DBFILE point into /etc/arm/config so they land on
+                         ;; the local XFS volume (the container overlay has an EOVERFLOW bug
+                         ;; with file creation in rootless Podman on this kernel).
+                         (let ((arm-yaml "/data/arm/arm.yaml"))
+                           (unless (file-exists? arm-yaml)
+                             (call-with-output-file arm-yaml
+                               (lambda (p)
+                                 (display
+                                  "INSTALLPATH: /opt/arm\n\
+GET_AUDIO_TITLE: musicbrainz\n\
+ABCDE_CONFIG_FILE: /etc/arm/config/abcde.conf\n\
+SET_MEDIA_PERMISSIONS: true\n\
+CHMOD_VALUE: 755\n\
+WEBSERVER_IP: 0.0.0.0\n\
+WEBSERVER_PORT: 8080\n\
+AUTO_EJECT: true\n\
+LOGLIFE: 7\n\
+LOGLEVEL: INFO\n\
+LOGPATH: /etc/arm/config/logs/\n\
+DBFILE: /etc/arm/config/arm.db\n"
+                                  p)))
+                             (chown arm-yaml arm-uid arm-gid)))
+                         ;; Write default abcde.conf only if it doesn't already exist.
+                         ;; OUTPUTDIR uses the container path /home/arm/Music (capital M),
+                         ;; which is mounted from /media/music on the host via NFS.
+                         (let ((abcde-conf "/data/arm/abcde.conf"))
+                           (unless (file-exists? abcde-conf)
+                             (call-with-output-file abcde-conf
+                               (lambda (p)
+                                 (display
+                                  "CDDBMETHOD=musicbrainz\n\
+OUTPUTTYPE=flac\n\
+FLACOPTS='-s -8 --replay-gain'\n\
+OUTPUTDIR=/home/arm/Music\n\
+OUTPUTFORMAT='${ARTISTFILE}/${ALBUMFILE}/${TRACKNUM}. ${TRACKFILE}'\n\
+VAOUTPUTFORMAT='Various Artists/${ALBUMFILE}/${TRACKNUM}. ${ARTISTFILE} - ${TRACKFILE}'\n\
+ACTIONS=cddb,read,encode,tag,move,clean\n\
+EMBEDALBUMART=y\n\
+PADTRACKS=y\n\
+CDROMREADERSYNTAX=cdparanoia\n\
+CDPARANOIAOPTS=--never-skip=40\n\
+mungefilename () {\n\
+  echo \"$@\" | sed -e 's/[^-[:alnum:] _.,()!]//g' | sed -e 's/  */ /g' | sed -e 's/^ //;s/ $//'\n\
+}\n"
+                                  p)))
+                             (chown abcde-conf arm-uid arm-gid))))
                        ;; Dirs owned by mpd (mpd-service-type runs as 'mpd' user)
                        (for-each
                         (lambda (dir)
