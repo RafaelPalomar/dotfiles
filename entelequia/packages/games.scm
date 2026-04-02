@@ -368,6 +368,14 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
          zlib
          bzip2
          `(,gcc "lib"))
+   ;; TL2 enumerates characters by opening "save" relative to CWD (the game
+   ;; dir).  Ensure a symlink exists so it finds ~/.local/share/Runic Games/…
+   #:pre-launch
+   '("SAVEDIR=\"${HOME}/.local/share/Runic Games/Torchlight 2/save\""
+     "mkdir -p \"${SAVEDIR}\""
+     "if [ ! -e \"${GAMEDIR}/save\" ]; then"
+     "  ln -sf \"${SAVEDIR}\" \"${GAMEDIR}/save\""
+     "fi")
    #:desktop-name "Torchlight 2"
    #:desktop-icon "~/GOG Games/Torchlight 2/support/icon.png"))
 
