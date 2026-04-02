@@ -99,6 +99,12 @@
    ;; when a disc is inserted (ARM container can't receive kernel udev events
    ;; due to Pasta network namespace isolation).
    edison-arm-udev-service
+   ;; Patch arm.yaml after sops has decrypted secrets: sets TMDB_API_KEY and
+   ;; METADATA_PROVIDER. ARM generates arm.yaml on first container start, so
+   ;; we can't inject secrets at activation time (sops runs after activation).
+   ;; ARM reads arm.yaml fresh per-job (podman exec python3 main.py), so no
+   ;; container restart needed — next disc insertion uses the patched config.
+   edison-arm-config-patch-service
    ;; MPD music daemon (port 6600 MPD protocol, port 8000 HTTP stream)
    edison-mpd-service
    ;; OCI containers: Jellyfin, Navidrome, ARM
