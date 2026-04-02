@@ -376,6 +376,14 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           (system* #$(file-append coreutils "/bin/mknod")
                    "-m" "660" "/dev/nvidiactl" "c" "195" "255")
           (system* #$(file-append coreutils "/bin/chgrp") "video" "/dev/nvidiactl"))
+        ;; Run nvidia-smi to initialise both GPUs.  This triggers the kernel
+        ;; to create /dev/nvidia-caps/nvidia-cap1 and nvidia-cap2, which are
+        ;; created lazily on first NVENC/NVDEC access and therefore do not
+        ;; exist until someone queries the driver.  Podman checks that
+        ;; --device paths exist before starting a container, so the caps
+        ;; devices must be present before the ARM/Jellyfin containers start.
+        (system* "/run/current-system/profile/bin/nvidia-smi"
+                 "--query-gpu=name" "--format=csv,noheader")
         ;; nvidia-cap1 (minor 1) = NVENC capability device.
         ;; The kernel creates it mode 0400 (root-only).  Rootless Podman containers
         ;; running as non-root cannot access it, so NVENC fails with
