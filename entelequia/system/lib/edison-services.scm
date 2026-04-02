@@ -637,6 +637,10 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           ;; makemkvcon reports "can't find any usable optical drives".
           "--device=/dev/sg0"
           "--device=/dev/sg1"
+          ;; ARM mounts the disc at /mnt/dev/sr0 (per its fstab) to inspect
+          ;; the filesystem for BDMV/VIDEO_TS directories and identify whether
+          ;; the disc is Blu-ray, DVD, or data.  Mounting requires SYS_ADMIN.
+          "--cap-add=SYS_ADMIN"
           "--group-add=keep-groups"
           "--device=/dev/nvidia1"
           "--device=/dev/nvidiactl"
