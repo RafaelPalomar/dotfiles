@@ -222,8 +222,8 @@
     (list "JELLYFIN_DATA_DIR=/config"
           "JELLYFIN_CACHE_DIR=/cache"
           "TZ=Europe/Oslo")
-    ;; Wait for NVIDIA device nodes to be created before starting
-    #:requirement '(nvidia-devices)
+    ;; Wait for NVIDIA device nodes and NFS mount before starting
+    #:requirement '(nvidia-devices file-system-/media)
     ;; NVIDIA device passthrough for NVENC transcoding.
     ;; Requires rafael in "video" group (set in edison.scm user-account).
     ;; The nvidia-uvm device is created lazily; the NVIDIA module must be
@@ -256,7 +256,9 @@
           "ND_DATAFOLDER=/data"
           "ND_LOGLEVEL=info"
           "ND_PORT=4533"
-          "TZ=Europe/Oslo"))))
+          "TZ=Europe/Oslo")
+    ;; Wait for NFS mount (/media from lovelace) before starting
+    #:requirement '(file-system-/media))))
 
 ;;;
 ;;; ARM — Automatic Ripping Machine
@@ -278,6 +280,8 @@
           "/media/rips:/home/arm/media")
     #:environment
     (list "TZ=Europe/Oslo")
+    ;; Wait for NFS mount (/media from lovelace) before starting
+    #:requirement '(file-system-/media)
     ;; Pass both optical drives into the container
     #:extra-arguments
     (list "--device=/dev/sr0"
