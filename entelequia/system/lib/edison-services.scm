@@ -458,15 +458,22 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
   (program-file "arm-config-patch"
     #~(begin
         (use-modules (ice-9 textual-ports) (srfi srfi-13))
-        ;; Poll until ARM has generated arm.yaml (up to 120 s)
-        (let loop ((n 120))
-          (cond
-            ((zero? n)
-             (format (current-error-port)
-                     "arm-config-patch: /data/arm/arm.yaml not found after 120s~%")
-             (primitive-exit 1))
-            ((file-exists? "/data/arm/arm.yaml") #t)
-            (else (sleep 1) (loop (- n 1)))))
+        ;; Poll helper — waits up to n seconds for a file to appear
+        (define (wait-for-file path seconds)
+          (let loop ((n seconds))
+            (cond
+              ((zero? n)
+               (format (current-error-port)
+                       "arm-config-patch: ~a not found after ~as~%" path seconds)
+               (primitive-exit 1))
+              ((file-exists? path) #t)
+              (else (sleep 1) (loop (- n 1))))))
+        ;; Wait for ARM to generate arm.yaml (up to 120 s) and for the
+        ;; sops-secret file to be written to disk (up to 60 s).
+        ;; sops-secrets shepherd service may be "started" before individual
+        ;; secret files are flushed — polling is the safest guard.
+        (wait-for-file "/data/arm/arm.yaml" 120)
+        (wait-for-file "/run/secrets/tmdb/api_key" 60)
         ;; Simple line-by-line key replacement in YAML
         (define (patch-yaml-key content key new-val)
           ;; Replaces lines like:  KEY: "old"  with  KEY: "new"
@@ -480,11 +487,9 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
                   (string-split content #\newline))
              "\n")))
         (let* ((arm-yaml  "/data/arm/arm.yaml")
-               (tmdb-file "/run/secrets/tmdb/api_key")
-               (tmdb-key  (if (file-exists? tmdb-file)
-                              (string-trim-right
-                               (call-with-input-file tmdb-file get-string-all))
-                              ""))
+               (tmdb-key  (string-trim-right
+                           (call-with-input-file "/run/secrets/tmdb/api_key"
+                                                 get-string-all)))
                (content   (call-with-input-file arm-yaml get-string-all))
                (patched   (patch-yaml-key
                            (patch-yaml-key content
