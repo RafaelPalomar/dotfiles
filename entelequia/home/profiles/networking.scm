@@ -1,0 +1,24 @@
+(define-module (entelequia home profiles networking)
+  #:use-module (entelequia packages gns3)
+  #:use-module (gnu packages)
+  #:export (networking-home-packages))
+
+;;; Networking home profile
+;;;
+;;; Network emulation, analysis, and management tools.
+;;; GNS3 requires QEMU (system-level) for VM-based devices.
+;;; MikroTik RouterOS and other appliances can be imported via
+;;; GNS3's appliance manager once it is running.
+
+(define (networking-home-packages)
+  (append
+   (map specification->package
+        '(;; Traffic analysis
+          "wireshark"
+          ;; Terminal-based packet inspector
+          "tcpdump"
+          ;; Network scanning
+          "nmap"
+          ;; SSH tunnelling and port forwarding
+          "autossh"))
+   (list gns3-gui)))       ; gns3-gui pulls in gns3-server as a dep
