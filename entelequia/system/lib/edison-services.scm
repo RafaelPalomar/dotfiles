@@ -639,8 +639,12 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           "--device=/dev/sg1"
           ;; ARM mounts the disc at /mnt/dev/sr0 (per its fstab) to inspect
           ;; the filesystem for BDMV/VIDEO_TS directories and identify whether
-          ;; the disc is Blu-ray, DVD, or data.  Mounting requires SYS_ADMIN.
+          ;; the disc is Blu-ray, DVD, or data.  Mounting a block device inside
+          ;; a rootless container requires both SYS_ADMIN and seccomp=unconfined
+          ;; (rootless Podman's seccomp policy blocks the mount(2) syscall even
+          ;; when SYS_ADMIN is granted).
           "--cap-add=SYS_ADMIN"
+          "--security-opt=seccomp=unconfined"
           "--group-add=keep-groups"
           "--device=/dev/nvidia1"
           "--device=/dev/nvidiactl"
