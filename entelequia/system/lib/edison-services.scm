@@ -468,11 +468,16 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
                (primitive-exit 1))
               ((file-exists? path) #t)
               (else (sleep 1) (loop (- n 1))))))
-        ;; Wait for ARM to generate arm.yaml (up to 120 s) and for the
-        ;; sops-secret file to be written to disk (up to 60 s).
-        ;; sops-secrets shepherd service may be "started" before individual
-        ;; secret files are flushed — polling is the safest guard.
+        ;; Wait for ARM to generate arm.yaml (up to 120 s).
         (wait-for-file "/data/arm/arm.yaml" 120)
+        ;; ARM's config.py runs at module import time (Flask startup) and
+        ;; rewrites arm.yaml ~20 s after container start, normalising values
+        ;; from its template.  Patching before this rewrite loses our changes.
+        ;; Sleep 60 s to let ARM finish its startup normalisation pass.
+        (sleep 60)
+        ;; Wait for the sops secret to be flushed (up to 60 s).
+        ;; sops-secrets shepherd service may be "started" before individual
+        ;; secret files are written to disk.
         (wait-for-file "/run/secrets/tmdb/api_key" 60)
         ;; Simple line-by-line key replacement in YAML
         (define (patch-yaml-key content key new-val)
