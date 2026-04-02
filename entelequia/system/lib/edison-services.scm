@@ -426,7 +426,7 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
              "libcuda.so*"
              "libnvcuvid.so*"
              "libnvrtc*.so*"
-             "libnvoptix*.so*")))))
+             "libnvoptix*.so*"))))))
 
 (define edison-nvidia-devices-service
   (list
