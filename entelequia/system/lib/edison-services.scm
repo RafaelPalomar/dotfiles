@@ -17,7 +17,9 @@
   #:export (edison-data-dir-service
             edison-mpd-service
             edison-nvidia-devices-service
+            edison-nfs-media-service
             edison-sops-service
+            edison-arm-udev-service
             edison-container-services))
 
 ;;; Edison multimedia server services
@@ -75,6 +77,15 @@
                           "/data/jellyfin/config"
                           "/data/jellyfin/cache"
                           "/data/navidrome"))
+                       ;; /run/user/1001: rootless Podman requires XDG_RUNTIME_DIR to exist.
+                       ;; Rafael never logs in interactively, so elogind never creates it.
+                       ;; We create it here so it survives service restarts.
+                       (let* ((pw  (getpwnam "rafael"))
+                              (uid (passwd:uid pw))
+                              (gid (passwd:gid pw)))
+                         (mkdir-p "/run/user/1001")
+                         (chown "/run/user/1001" uid gid)
+                         (chmod "/run/user/1001" #o700))
                        ;; /data/arm and subdirs: owned by container uid 1000 of the ARM container.
                        ;; In rootless Podman (rafael uid 1001, subuid starts at 231072):
                        ;;   container uid 0  = host uid 1001 (rafael)
@@ -91,6 +102,26 @@
                           '("/data/arm"
                             "/data/arm/logs"
                             "/data/arm/logs/progress"))
+                         ;; arm.log is created by ARM on first run; ensure it is
+                         ;; owned by the arm user so subsequent runs can append to it.
+                         (let ((arm-log "/data/arm/logs/arm.log"))
+                           (unless (file-exists? arm-log)
+                             (call-with-output-file arm-log (lambda (p) #f)))
+                           (chown arm-log arm-uid arm-gid))
+                         ;; /media/rips subdirs (NFS mount from Lovelace): ensure the arm
+                         ;; user owns the working directories so cdparanoia and abcde can
+                         ;; write there.  The NFS root (/media/rips) is sticky+world-writable
+                         ;; so we can create/chown inside it even before the arm container runs.
+                         (for-each
+                          (lambda (dir)
+                            (when (file-exists? "/media/rips")
+                              (mkdir-p dir)
+                              (chown dir arm-uid arm-gid)
+                              (chmod dir #o755)))
+                          '("/media/rips/raw"
+                            "/media/rips/transcode"
+                            "/media/rips/completed"
+                            "/media/rips/movies"))
                          ;; Write default arm.yaml only if it doesn't already exist.
                          ;; ARM reads this from /etc/arm/config/arm.yaml inside the container.
                          ;; LOGPATH and DBFILE point into /etc/arm/config so they land on
@@ -115,21 +146,20 @@ LOGPATH: /etc/arm/config/logs/\n\
 DBFILE: /etc/arm/config/arm.db\n"
                                   p)))
                              (chown arm-yaml arm-uid arm-gid)))
-                         ;; Write default abcde.conf only if it doesn't already exist.
+                         ;; Always write abcde.conf so deploys keep it in sync with this config.
                          ;; OUTPUTDIR uses the container path /home/arm/Music (capital M),
                          ;; which is mounted from /media/music on the host via NFS.
                          (let ((abcde-conf "/data/arm/abcde.conf"))
-                           (unless (file-exists? abcde-conf)
-                             (call-with-output-file abcde-conf
-                               (lambda (p)
-                                 (display
-                                  "CDDBMETHOD=musicbrainz\n\
+                           (call-with-output-file abcde-conf
+                             (lambda (p)
+                               (display
+                                "CDDBMETHOD=musicbrainz\n\
 OUTPUTTYPE=flac\n\
 FLACOPTS='-s -8 --replay-gain'\n\
 OUTPUTDIR=/home/arm/Music\n\
 OUTPUTFORMAT='${ARTISTFILE}/${ALBUMFILE}/${TRACKNUM}. ${TRACKFILE}'\n\
 VAOUTPUTFORMAT='Various Artists/${ALBUMFILE}/${TRACKNUM}. ${ARTISTFILE} - ${TRACKFILE}'\n\
-ACTIONS=cddb,read,encode,tag,move,clean\n\
+ACTIONS=cddb,read,getalbumart,encode,embedalbumart,tag,move,clean\n\
 EMBEDALBUMART=y\n\
 PADTRACKS=y\n\
 CDROMREADERSYNTAX=cdparanoia\n\
@@ -137,8 +167,36 @@ CDPARANOIAOPTS=--never-skip=40\n\
 mungefilename () {\n\
   echo \"$@\" | sed -e 's/[^-[:alnum:] _.,()!]//g' | sed -e 's/  */ /g' | sed -e 's/^ //;s/ $//'\n\
 }\n"
-                                  p)))
-                             (chown abcde-conf arm-uid arm-gid))))
+                                p)))
+                           (chown abcde-conf arm-uid arm-gid)))
+                       ;; Write the ARM disc-trigger script called by the host udev rule.
+                       ;; The ARM container can't receive kernel udev events (netlink is
+                       ;; network-namespace scoped), so the host udev rule calls this script.
+                       ;; Using /run (tmpfs) so it is always writable at activation time.
+                       (let ((trigger "/run/arm-trigger.sh"))
+                         (call-with-output-file trigger
+                           (lambda (p)
+                             (display
+                              "#!/bin/sh\n\
+# Trigger ARM rip inside the arm container when a disc is inserted.\n\
+# Called by the 90-arm-disc-trigger.rules udev rule on host.\n\
+# $1 = kernel device name (e.g. sr1)\n\
+DEVNAME=\"$1\"\n\
+LOG=/var/log/arm-trigger.log\n\
+echo \"$(date): arm-trigger fired for $DEVNAME\" >> \"$LOG\"\n\
+# cd away from /root so su rafael can chdir to rafael's home\n\
+cd /\n\
+# Pass a full PATH so podman is found under su's minimal environment.\n\
+# XDG_RUNTIME_DIR points to rafael's (uid 1001) podman socket directory.\n\
+XDG_RUNTIME_DIR=/run/user/1001 \\\n\
+PATH=/run/current-system/profile/bin:/run/current-system/profile/sbin \\\n\
+  su -s /bin/sh rafael -c \\\n\
+  \"podman exec --user arm arm \\\n\
+   python3 /opt/arm/arm/ripper/main.py -d $DEVNAME\" \\\n\
+  >> \"$LOG\" 2>&1\n\
+echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
+                              p)))
+                         (chmod trigger #o755))
                        ;; Dirs owned by mpd (mpd-service-type runs as 'mpd' user)
                        (for-each
                         (lambda (dir)
@@ -149,6 +207,54 @@ mungefilename () {\n\
                             (chown dir uid gid)))
                         '("/data/mpd"
                           "/data/mpd/playlists"))))))
+
+;;;
+;;; NFS /media mount readiness service
+;;;
+;;; file-system-/media succeeds even when the NFS mount fails at boot
+;;; (mount-may-fail? #t). This service waits until /media is actually
+;;; mounted, retrying the mount if necessary. All containers that read from
+;;; /media depend on nfs-media instead of file-system-/media so they are
+;;; guaranteed to start only after the NFS share is accessible.
+
+(define %nfs-media-wait-script
+  (program-file "nfs-media-wait"
+    #~(begin
+        (let loop ((n 12))         ; 12 × 5s = 60s max
+          (cond
+            ((zero? n)
+             (format (current-error-port)
+                     "nfs-media-wait: /media not available after 60s~%")
+             (primitive-exit 1))
+            ((catch #t
+               (lambda () (stat "/media/rips") #t)
+               (lambda _ #f))
+             (format #t "nfs-media-wait: /media is mounted~%")
+             (primitive-exit 0))
+            (else
+             (format #t "nfs-media-wait: /media not mounted, retrying (~a/12)...~%"
+                     (- 13 n))
+             (system* #$(file-append util-linux "/bin/mount") "-t" "nfs"
+                      "-o" "noatime,rsize=131072,wsize=131072,vers=4,soft,intr,timeo=150,retrans=3"
+                      "192.168.88.46:/data/media" "/media")
+             (sleep 5)
+             (loop (- n 1))))))))  ; closes cond, loop, let, begin, #~, program-file, define
+
+(define edison-nfs-media-service
+  (list
+   (simple-service 'nfs-media-wait
+                   shepherd-root-service-type
+                   (list
+                    (shepherd-service
+                     (provision '(nfs-media))
+                     (requirement '(file-system-/media networking))
+                     (one-shot? #t)
+                     (documentation
+                      "Wait for /media NFS mount; retry mount if needed.")
+                     (start #~(make-forkexec-constructor
+                               (list #$%nfs-media-wait-script)
+                               #:log-file "/var/log/nfs-media.log"))
+                     (stop #~(make-kill-destructor)))))))
 
 ;;;
 ;;; MPD — Music Player Daemon
@@ -169,8 +275,8 @@ mungefilename () {\n\
              (db-file "/data/mpd/database")
              (state-file "/data/mpd/state")
              (default-port 6600)
-             ;; Wait for NFS mount (/media) and network before starting
-             (shepherd-requirement '(file-systems networking))
+             ;; Wait for NFS mount to be accessible before starting
+             (shepherd-requirement '(nfs-media))
              ;; No PulseAudio on a headless server
              (environment-variables '())
              (outputs
@@ -233,6 +339,35 @@ mungefilename () {\n\
                      (documentation "Create NVIDIA device nodes at boot."))))))
 
 ;;;
+;;; Host udev rule to trigger ARM rip when a disc is inserted.
+;;;
+;;; The ARM container can't receive kernel NETLINK udev events (they are
+;;; scoped to the network namespace, which Pasta isolates).  Instead, we add
+;;; a host udev rule that fires when the kernel reports a media-change event
+;;; on an optical drive, then calls podman exec to invoke the ARM ripper
+;;; inside the running container.
+;;;
+;;; The trigger script is written to /run/arm-trigger.sh by the data-dir
+;;; activation service and referenced from the udev rule.  (We use /run
+;;; because it is always writable at activation time; /usr/local/bin would
+;;; need a separate store derivation.)
+
+(define %arm-udev-rules
+  (udev-rule "90-arm-disc-trigger.rules"
+             ;; Fire on optical drive media-change events only when media is present.
+             ;; RUN writes a background job to avoid blocking udev's 60s timeout.
+             ;; %k expands to the kernel device name (e.g. sr1).
+             (string-append
+              "SUBSYSTEM==\"block\", KERNEL==\"sr[0-9]*\", ACTION==\"change\","
+              " ENV{ID_CDROM_MEDIA}==\"1\","
+              " RUN+=\"/bin/sh -c '/run/arm-trigger.sh %k &'\"\n")))
+
+(define edison-arm-udev-service
+  (list (simple-service 'arm-disc-trigger-udev
+                        udev-service-type
+                        (list %arm-udev-rules))))
+
+;;;
 ;;; sops-guix: decrypt Tailscale auth keys to /run/secrets/ at boot
 ;;;
 
@@ -286,7 +421,7 @@ mungefilename () {\n\
           "JELLYFIN_CACHE_DIR=/cache"
           "TZ=Europe/Oslo")
     ;; Wait for NVIDIA device nodes and NFS mount before starting
-    #:requirement '(nvidia-devices file-system-/media)
+    #:requirement '(nvidia-devices nfs-media)
     ;; NVIDIA device passthrough for NVENC transcoding.
     ;; Requires rafael in "video" group (set in edison.scm user-account).
     ;; The nvidia-uvm device is created lazily; the NVIDIA module must be
@@ -321,7 +456,7 @@ mungefilename () {\n\
           "ND_PORT=4533"
           "TZ=Europe/Oslo")
     ;; Wait for NFS mount (/media from lovelace) before starting
-    #:requirement '(file-system-/media))))
+    #:requirement '(nfs-media))))
 
 ;;;
 ;;; ARM — Automatic Ripping Machine
@@ -356,11 +491,15 @@ mungefilename () {\n\
           "PUID=0"
           "PGID=0")
     ;; Wait for NFS mount (/media from lovelace) before starting
-    #:requirement '(file-system-/media)
-    ;; Pass both optical drives into the container
+    #:requirement '(nfs-media)
+    ;; Pass both optical drives into the container.
+    ;; --group-add=keep-groups carries the host user's supplementary groups
+    ;; (including 'cdrom') into the container so the cdrom block devices
+    ;; (root:cdrom 660) remain accessible despite rootless uid mapping.
     #:extra-arguments
     (list "--device=/dev/sr0"
-          "--device=/dev/sr1"))))
+          "--device=/dev/sr1"
+          "--group-add=keep-groups"))))
 
 ;;;
 ;;; Single oci-service-type for all Edison containers

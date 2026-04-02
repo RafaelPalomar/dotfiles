@@ -83,6 +83,11 @@
    ;; sops: decrypt Tailscale auth keys to /run/secrets/ at boot.
    ;; Requires /var/lib/sops GPG key and sops/edison.yaml to exist.
    edison-sops-service
+   ;; NFS /media mount readiness: waits until lovelace:/data/media is mounted,
+   ;; retrying if the initial boot-time mount failed. All containers reading
+   ;; from /media depend on this service (nfs-media) rather than the raw
+   ;; file-system-/media which succeeds even when the mount failed.
+   edison-nfs-media-service
    ;; Create /data subdirectories at activation time
    edison-data-dir-service
    ;; Remove stale containers from previous boot before OCI services start
@@ -90,6 +95,10 @@
    ;; NVIDIA device nodes — trigger udev rules at boot to create /dev/nvidia*
    ;; Workaround for 90-nvidia.rules TEST!="/dev/nvidia-uvm" race condition
    edison-nvidia-devices-service
+   ;; ARM disc trigger: host udev rule fires podman exec into the ARM container
+   ;; when a disc is inserted (ARM container can't receive kernel udev events
+   ;; due to Pasta network namespace isolation).
+   edison-arm-udev-service
    ;; MPD music daemon (port 6600 MPD protocol, port 8000 HTTP stream)
    edison-mpd-service
    ;; OCI containers: Jellyfin, Navidrome, ARM
