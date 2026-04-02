@@ -86,6 +86,18 @@
                          (mkdir-p "/run/user/1001")
                          (chown "/run/user/1001" uid gid)
                          (chmod "/run/user/1001" #o700))
+                       ;; Enable elogind user lingering for rafael.
+                       ;; Without this, pam_elogind.so (present in the 'su' PAM stack) destroys
+                       ;; /run/user/1001 when any 'su rafael' session ends (e.g. udev arm-trigger).
+                       ;; This deletes pasta sockets and crun state, bringing down all container
+                       ;; networking.  Lingering tells elogind to keep /run/user/1001 alive
+                       ;; permanently, just as it would for an interactively logged-in user.
+                       ;; The linger file at /var/lib/elogind/linger/rafael persists across reboots.
+                       (let ((linger-dir "/var/lib/elogind/linger"))
+                         (mkdir-p linger-dir)
+                         (let ((linger-file (string-append linger-dir "/rafael")))
+                           (unless (file-exists? linger-file)
+                             (call-with-output-file linger-file (lambda (p) #t)))))
                        ;; /data/arm and subdirs: owned by container uid 1000 of the ARM container.
                        ;; In rootless Podman (rafael uid 1001, subuid starts at 231072):
                        ;;   container uid 0  = host uid 1001 (rafael)
@@ -166,6 +178,30 @@ CDROMREADERSYNTAX=cdparanoia\n\
 CDPARANOIAOPTS=--never-skip=40\n\
 mungefilename () {\n\
   echo \"$@\" | sed -e 's/[^-[:alnum:] _.,()!]//g' | sed -e 's/  */ /g' | sed -e 's/^ //;s/ $//'\n\
+}\n\
+# Override metaflac to inject MIME type when embedding cover art.\n\
+# abcde sources this file so this function shadows the real binary.\n\
+# metaflac 1.3.x cannot auto-detect MIME type when the Cover Art Archive\n\
+# returns PNG (or WebP) with a .jpg filename; this wrapper uses 'file' to\n\
+# detect the actual type and passes it via the full picture spec.\n\
+metaflac () {\n\
+  local real; real=\\$(command -v metaflac)\n\
+  local args=(); local i\n\
+  for arg in \"\\$@\"; do\n\
+    if [ \"\\${arg#--import-picture-from=}\" != \"\\$arg\" ]; then\n\
+      local pic=\"\\${arg#--import-picture-from=}\"\n\
+      if [ -f \"\\$pic\" ] && [ \"\\$(printf '%s' \"\\$pic\" | grep -c '|')\" -eq 0 ]; then\n\
+        local mime; mime=\\$(file --mime-type -b \"\\$pic\" 2>/dev/null)\n\
+        case \"\\$mime\" in\n\
+          image/jpeg|image/png|image/gif)\n\
+            arg=\"--import-picture-from=3|\\${mime}|||\\${pic}\" ;;\n\
+          *) return 0 ;;\n\
+        esac\n\
+      fi\n\
+    fi\n\
+    args+=(\"\\$arg\")\n\
+  done\n\
+  \"\\$real\" \"\\${args[@]}\"\n\
 }\n"
                                 p)))
                            (chown abcde-conf arm-uid arm-gid))
