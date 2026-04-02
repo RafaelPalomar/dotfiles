@@ -74,8 +74,16 @@
                           "/data/jellyfin"
                           "/data/jellyfin/config"
                           "/data/jellyfin/cache"
-                          "/data/navidrome"
-                          "/data/arm"))
+                          "/data/navidrome"))
+                       ;; /data/arm: owned by container uid 1000 of the ARM container.
+                       ;; In rootless Podman (rafael uid 1001, subuid starts at 231072):
+                       ;;   container uid 0  = host uid 1001 (rafael)
+                       ;;   container uid N  = host uid 231072 + N - 1  (for N >= 1)
+                       ;; ARM runs its 'arm' user as uid 1000 inside the container,
+                       ;; which maps to host uid 232071 (231072 + 1000 - 1).
+                       (mkdir-p "/data/arm")
+                       (chown "/data/arm" 232071 232071)
+                       (chmod "/data/arm" #o755)
                        ;; Dirs owned by mpd (mpd-service-type runs as 'mpd' user)
                        (for-each
                         (lambda (dir)
@@ -276,10 +284,10 @@
    (make-app-container
     "arm" "automaticrippingmachine/automatic-ripping-machine:latest"
     #:volumes
-    (list "/data/arm:/home/arm/config"
+    (list "/data/arm:/etc/arm/config"
           "/media/rips:/home/arm/media"
           ;; Music output: abcde writes ripped CDs here; Navidrome scans it
-          "/media/music:/home/arm/music")
+          "/media/music:/home/arm/Music")
     #:environment
     (list "TZ=Europe/Oslo"
           ;; PUID=0: run as container root, which rootless Podman maps to
