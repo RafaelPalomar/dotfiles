@@ -55,11 +55,32 @@
                             (chown dir uid gid)))
                         '(;; Media share (exported to Edison via NFS)
                           "/data/media"
-                          "/data/media/music"
                           "/data/media/videos"
-                          "/data/media/audiobooks"
-                          "/data/media/rips"
-                          "/data/tailscale/freshrss"
+                          "/data/media/audiobooks"))
+                       ;; Music and rips need world-write so the ARM container on Edison
+                       ;; can deposit files. NFS uid mapping is numeric-only (no idmapd
+                       ;; name resolution); Edison's rootless Podman maps container uid 0
+                       ;; to host uid 1001 (rafael on Edison) which Lovelace sees as an
+                       ;; unmapped uid. Mode 1777 (sticky + world-write) allows any process
+                       ;; to create files while preventing others from deleting them.
+                       (for-each
+                        (lambda (dir)
+                          (mkdir-p dir)
+                          (let* ((pw  (getpwnam "rafael"))
+                                 (uid (passwd:uid pw))
+                                 (gid (passwd:gid pw)))
+                            (chown dir uid gid)
+                            (chmod dir #o1777)))
+                        '("/data/media/music"
+                          "/data/media/rips"))
+                       (for-each
+                        (lambda (dir)
+                          (mkdir-p dir)
+                          (let* ((pw  (getpwnam "rafael"))
+                                 (uid (passwd:uid pw))
+                                 (gid (passwd:gid pw)))
+                            (chown dir uid gid)))
+                        '("/data/tailscale/freshrss"
                           "/data/tailscale/nextcloud"
                           "/data/tailscale/wallabag"
                           "/data/tailscale/rss-bridge"

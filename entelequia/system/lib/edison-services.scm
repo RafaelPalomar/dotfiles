@@ -277,9 +277,17 @@
     "arm" "automaticrippingmachine/automatic-ripping-machine:latest"
     #:volumes
     (list "/data/arm:/home/arm/config"
-          "/media/rips:/home/arm/media")
+          "/media/rips:/home/arm/media"
+          ;; Music output: abcde writes ripped CDs here; Navidrome scans it
+          "/media/music:/home/arm/music")
     #:environment
-    (list "TZ=Europe/Oslo")
+    (list "TZ=Europe/Oslo"
+          ;; PUID=0: run as container root, which rootless Podman maps to
+          ;; host uid 1001 (rafael). Needed because NFS uid mapping is numeric
+          ;; and the arm user (container uid 1000) maps to host subuid ~232071
+          ;; which has no write permission on the NFS-mounted media dirs.
+          "PUID=0"
+          "PGID=0")
     ;; Wait for NFS mount (/media from lovelace) before starting
     #:requirement '(file-system-/media)
     ;; Pass both optical drives into the container
