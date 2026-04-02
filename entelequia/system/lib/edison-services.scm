@@ -9,6 +9,7 @@
   #:use-module (gnu packages base)
   #:use-module (gnu packages containers)
   #:use-module (gnu packages linux)
+  #:use-module (nongnu packages nvidia)
   #:use-module (entelequia system lib server-services)
   #:use-module (guix gexp)
   #:use-module (sops packages sops)
@@ -496,11 +497,10 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           "/media:/media:ro"
           ;; NVIDIA runtime libs (libnvidia-encode, libcuda, libnvcuvid …)
           ;; dlopen'd by ffmpeg for NVENC/NVDEC hardware transcoding.
-          ;; /run/current-system/profile/lib contains symlinks into /gnu/store;
-          ;; /gnu/store must also be mounted so those symlinks can be resolved
-          ;; inside the container (the store paths are absolute, not relative).
-          "/run/current-system/profile/lib:/usr/local/nvidia/lib:ro"
-          "/gnu/store:/gnu/store:ro")
+          ;; Use the nvidia-driver store path directly — avoids mounting the entire
+          ;; system profile lib (which contains glibc-2.38-dependent Guix libs that
+          ;; conflict with the Debian container image) or /gnu/store.
+          (cons (file-append nvidia-driver "/lib") "/usr/local/nvidia/lib:ro"))
     #:environment
     (list "JELLYFIN_DATA_DIR=/config"
           "JELLYFIN_CACHE_DIR=/cache"
@@ -572,10 +572,8 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           "/run/udev:/run/udev:ro"
           ;; NVIDIA runtime libs for HandBrake NVENC encoding.
           ;; HandBrake dlopen's libnvidia-encode.so.1 and libcuda.so.1 at runtime.
-          ;; Profile lib contains symlinks into /gnu/store; mount the store so
-          ;; those absolute symlinks resolve inside the container.
-          "/run/current-system/profile/lib:/usr/local/nvidia/lib:ro"
-          "/gnu/store:/gnu/store:ro")
+          ;; nvidia-driver store path contains only driver libs — no glibc conflicts.
+          (cons (file-append nvidia-driver "/lib") "/usr/local/nvidia/lib:ro"))
     #:environment
     (list "TZ=Europe/Oslo"
           ;; PUID=0: run as container root, which rootless Podman maps to
