@@ -7,9 +7,9 @@
   #:use-module (gnu services guix)
   #:use-module (gnu services shepherd)
   #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
   #:use-module (gnu packages containers)
   #:use-module (gnu packages linux)
-  #:use-module (nongnu packages nvidia)
   #:use-module (entelequia system lib server-services)
   #:use-module (guix gexp)
   #:use-module (sops packages sops)
@@ -393,7 +393,40 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
         ;; nvidia-cap2 (minor 2) is already 0444; no change needed.
         (when (file-exists? "/dev/nvidia-caps/nvidia-cap1")
           (system* #$(file-append coreutils "/bin/chmod")
-                   "a+r" "/dev/nvidia-caps/nvidia-cap1")))))
+                   "a+r" "/dev/nvidia-caps/nvidia-cap1"))
+        ;; Build /var/lib/nvidia-container-libs containing only NVIDIA driver
+        ;; .so files with symlinks fully resolved (cp -L = dereference).
+        ;;
+        ;; The Guix nvidia profile libs are all symlinks that ultimately point
+        ;; into /gnu/store.  Mounting the profile lib dir with LD_LIBRARY_PATH
+        ;; causes Debian containers to pick up Guix-compiled Mesa/glibc-2.38
+        ;; libs alongside the nvidia ones, crashing HandBrakeCLI/ffmpeg on
+        ;; start.  This directory holds only libnvidia-*/libcuda*/libnvcuvid*
+        ;; as real .so files (no /gnu/store dependency, no glibc conflict).
+        ;; Recreated fresh at each boot so it stays in sync after driver updates.
+        (let* ((sh     #$(file-append bash-minimal "/bin/sh"))
+               (cp     #$(file-append coreutils "/bin/cp"))
+               (rm     #$(file-append coreutils "/bin/rm"))
+               (mkdir  #$(file-append coreutils "/bin/mkdir"))
+               (target "/var/lib/nvidia-container-libs"))
+          (system* mkdir "-p" target)
+          ;; Wipe stale files so old driver versions don't linger after updates
+          (system* sh "-c" (string-append rm " -f " target "/*.so*"))
+          (for-each
+           (lambda (glob)
+             (system* sh "-c"
+                      (string-append
+                       "for f in /run/current-system/profile/lib/" glob "; do "
+                       "[ -e \"$f\" ] && " cp " -Lf \"$f\" " target "/; "
+                       "done")))
+           ;; Globs covering all NVENC/NVDEC/CUDA driver libs.
+           ;; cp -L dereferences each symlink so the target dir contains
+           ;; actual ELF binaries readable by the Debian container image.
+           '("libnvidia-*.so*"
+             "libcuda.so*"
+             "libnvcuvid.so*"
+             "libnvrtc*.so*"
+             "libnvoptix*.so*")))))
 
 (define edison-nvidia-devices-service
   (list
@@ -497,10 +530,8 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           "/media:/media:ro"
           ;; NVIDIA runtime libs (libnvidia-encode, libcuda, libnvcuvid …)
           ;; dlopen'd by ffmpeg for NVENC/NVDEC hardware transcoding.
-          ;; Use the nvidia-driver store path directly — avoids mounting the entire
-          ;; system profile lib (which contains glibc-2.38-dependent Guix libs that
-          ;; conflict with the Debian container image) or /gnu/store.
-          (cons (file-append nvidia-driver "/lib") "/usr/local/nvidia/lib:ro"))
+          ;; Populated at boot by nvidia-devices with real .so files (cp -L).
+          "/var/lib/nvidia-container-libs:/usr/local/nvidia/lib:ro")
     #:environment
     (list "JELLYFIN_DATA_DIR=/config"
           "JELLYFIN_CACHE_DIR=/cache"
@@ -572,8 +603,8 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           "/run/udev:/run/udev:ro"
           ;; NVIDIA runtime libs for HandBrake NVENC encoding.
           ;; HandBrake dlopen's libnvidia-encode.so.1 and libcuda.so.1 at runtime.
-          ;; nvidia-driver store path contains only driver libs — no glibc conflicts.
-          (cons (file-append nvidia-driver "/lib") "/usr/local/nvidia/lib:ro"))
+          ;; Populated at boot by nvidia-devices with real .so files (cp -L).
+          "/var/lib/nvidia-container-libs:/usr/local/nvidia/lib:ro")
     #:environment
     (list "TZ=Europe/Oslo"
           ;; PUID=0: run as container root, which rootless Podman maps to
