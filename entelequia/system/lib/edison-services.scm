@@ -287,7 +287,11 @@
     (list "/data/arm:/etc/arm/config"
           "/media/rips:/home/arm/media"
           ;; Music output: abcde writes ripped CDs here; Navidrome scans it
-          "/media/music:/home/arm/Music")
+          "/media/music:/home/arm/Music"
+          ;; Share host udev socket so ARM's pyudev can receive kernel disc-change
+          ;; events (container netlink is isolated; without this, ARM never detects
+          ;; disc insertions in rootless Podman)
+          "/run/udev:/run/udev:ro")
     #:environment
     (list "TZ=Europe/Oslo"
           ;; PUID=0: run as container root, which rootless Podman maps to
