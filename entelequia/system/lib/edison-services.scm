@@ -243,8 +243,29 @@ echo \"$(date): arm-trigger fired for $DEVNAME\" >> \"$LOG\"\n\
 cd /\n\
 # Pass a full PATH so podman is found under su's minimal environment.\n\
 # XDG_RUNTIME_DIR points to rafael's (uid 1001) podman socket directory.\n\
-XDG_RUNTIME_DIR=/run/user/1001 \\\n\
-PATH=/run/current-system/profile/bin:/run/current-system/profile/sbin \\\n\
+PODMAN_PATH=\"PATH=/run/current-system/profile/bin:/run/current-system/profile/sbin\"\n\
+PODMAN_ENV=\"XDG_RUNTIME_DIR=/run/user/1001 $PODMAN_PATH\"\n\
+# ARM's identify.py must mount the disc at /mnt/dev/$DEVNAME to inspect\n\
+# the filesystem for BDMV/VIDEO_TS directories.  Mounting a block device\n\
+# inside a rootless container is not possible (kernel restriction on\n\
+# unprivileged user namespaces).  Instead, we use nsenter to enter the\n\
+# container's mount namespace as host root (this script runs as root via\n\
+# udev) and mount the disc there before ARM's identification step.\n\
+ARM_PID=$(env $PODMAN_ENV su -s /bin/sh rafael -c \\\n\
+  \"podman inspect arm --format '{{.State.Pid}}'\" 2>/dev/null)\n\
+if [ -n \"$ARM_PID\" ] && [ \"$ARM_PID\" != \"0\" ]; then\n\
+  MOUNT_TARGET=\"/mnt/dev/$DEVNAME\"\n\
+  # Only mount if not already mounted (idempotent)\n\
+  if ! nsenter -t \"$ARM_PID\" --mount -- /bin/mountpoint -q \"$MOUNT_TARGET\" 2>/dev/null; then\n\
+    nsenter -t \"$ARM_PID\" --mount -- /bin/mkdir -p \"$MOUNT_TARGET\"\n\
+    nsenter -t \"$ARM_PID\" --mount -- \\\n\
+      /bin/mount -t udf,iso9660 -o ro \"/dev/$DEVNAME\" \"$MOUNT_TARGET\" >> \"$LOG\" 2>&1\n\
+    echo \"$(date): pre-mounted /dev/$DEVNAME at $MOUNT_TARGET (exit $?)\" >> \"$LOG\"\n\
+  fi\n\
+else\n\
+  echo \"$(date): arm container not running, skipping pre-mount\" >> \"$LOG\"\n\
+fi\n\
+env $PODMAN_ENV \\\n\
   su -s /bin/sh rafael -c \\\n\
   \"podman exec --user arm arm \\\n\
    python3 /opt/arm/arm/ripper/main.py -d $DEVNAME\" \\\n\
@@ -602,10 +623,6 @@ echo \"$(date): arm-trigger exit $? for $DEVNAME\" >> \"$LOG\"\n"
           ;; /data/arm/.MakeMKV/settings.conf; mounting it here makes MakeMKV
           ;; find the key without relying on ARM's internal copy-on-startup.
           "/data/arm/.MakeMKV:/home/arm/.MakeMKV"
-          ;; Share host udev socket so ARM's pyudev can receive kernel disc-change
-          ;; events (container netlink is isolated; without this, ARM never detects
-          ;; disc insertions in rootless Podman)
-          "/run/udev:/run/udev:ro"
           ;; NVIDIA runtime libs for HandBrake NVENC encoding.
           ;; HandBrake dlopen's libnvidia-encode.so.1 and libcuda.so.1 at runtime.
           ;; Populated at boot by nvidia-devices with real .so files (cp -L).
