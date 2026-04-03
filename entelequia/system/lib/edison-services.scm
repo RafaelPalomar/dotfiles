@@ -206,7 +206,7 @@ metaflac () {\n\
                                  (lambda (p)
                                    (format p "app_Key = ~s\n" key)))
                                (chown settings arm-uid arm-gid)
-                               (chmod settings #o600)))))
+                               (chmod settings #o600))))
                        ;; Write the ARM disc-trigger script called by the host udev rule.
                        ;; The ARM container can't receive kernel udev events (netlink is
                        ;; network-namespace scoped), so the host udev rule calls this script.
@@ -299,7 +299,7 @@ TMDB_API_KEY: \"\"\n" p)))
                           (list identify-src sysdrv-src musicbrainz-src)
                           (list "/data/arm/identify.py"
                                 "/data/arm/system_drives.py"
-                                "/data/arm/music_brainz.py"))))
+                                "/data/arm/music_brainz.py")))))
                        ;; Dirs owned by mpd (mpd-service-type runs as 'mpd' user)
                        (for-each
                         (lambda (dir)
