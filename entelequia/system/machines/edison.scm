@@ -126,10 +126,12 @@
                                       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINjd0lrTPhG75R5jWBCrtN7xX4u7D12527agB+Jolx9f openpgp:0xA08C8C2F"))
                ("rafael" ,(plain-file "edison-deploy-rafael.pub"
                                       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINjd0lrTPhG75R5jWBCrtN7xX4u7D12527agB+Jolx9f openpgp:0xA08C8C2F")))
-             ;; Ports: 8096 Jellyfin, 4533 Navidrome, 8080 ARM web UI, 6600 MPD, 8000 MPD HTTP stream
+             ;; Ports: 8096 Jellyfin, 4533 Navidrome HTTP, 4534 Navidrome HTTPS (Caddy),
+             ;;        8080 ARM web UI, 6600 MPD, 8000 MPD HTTP stream
              #:firewall-extra-tcp-ports
              '(8096   ; Jellyfin (LAN fallback)
-               4533   ; Navidrome (LAN fallback)
+               4533   ; Navidrome HTTP (LAN)
+               4534   ; Navidrome HTTPS via Caddy (Symfonium primary, ignore-cert)
                8080   ; ARM web UI (LAN fallback)
                6600   ; MPD protocol
                8000)  ; MPD HTTP stream
