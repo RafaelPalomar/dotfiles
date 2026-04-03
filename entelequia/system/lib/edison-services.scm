@@ -288,16 +288,18 @@ TMDB_API_KEY: \"\"\n" p)))
                        ;;   when findmnt returns the device path itself (devtmpfs stub).
                        ;; arm-system-drives.py: fixes CDROM_DRIVE_STATUS ioctl failure on
                        ;;   rootless podman sr* stubs; returns DISC_OK so ARM can proceed.
-                       (let ((identify-src #$(local-file "arm-identify.py"))
-                             (sysdrv-src   #$(local-file "arm-system-drives.py")))
+                       (let ((identify-src    #$(local-file "arm-identify.py"))
+                             (sysdrv-src      #$(local-file "arm-system-drives.py"))
+                             (musicbrainz-src #$(local-file "arm-music-brainz.py")))
                          (for-each
                           (lambda (src dst)
                             (copy-file src dst)
                             (chown dst arm-uid arm-gid)
                             (chmod dst #o644))
-                          (list identify-src sysdrv-src)
+                          (list identify-src sysdrv-src musicbrainz-src)
                           (list "/data/arm/identify.py"
-                                "/data/arm/system_drives.py"))))
+                                "/data/arm/system_drives.py"
+                                "/data/arm/music_brainz.py"))))
                        ;; Dirs owned by mpd (mpd-service-type runs as 'mpd' user)
                        (for-each
                         (lambda (dir)
@@ -767,7 +769,11 @@ TMDB_API_KEY: \"\"\n" p)))
           ;; Patched system_drives.py: fixes {err:s} TypeError bug in _tray_status
           ;; and returns CDS_DISC_OK for sr* devices when CDROM_DRIVE_STATUS ioctl
           ;; fails (rootless podman devtmpfs presents sr* as regular-file stubs).
-          "/data/arm/system_drives.py:/opt/arm/arm/models/system_drives.py")
+          "/data/arm/system_drives.py:/opt/arm/arm/models/system_drives.py"
+          ;; Patched music_brainz.py: adds GNUDB (freedb-compatible) fallback when
+          ;; MusicBrainz returns 404 for a disc.  Also ensures no_of_titles is
+          ;; always set so the ARM UI shows CD rip progress (track N / total).
+          "/data/arm/music_brainz.py:/opt/arm/arm/ripper/music_brainz.py")
     #:environment
     (list "TZ=Europe/Oslo"
           ;; PUID=0: run as container root, which rootless Podman maps to
