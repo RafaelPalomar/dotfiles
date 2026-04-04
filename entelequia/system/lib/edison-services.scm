@@ -136,7 +136,8 @@
                           '("/media/rips/raw"
                             "/media/rips/transcode"
                             "/media/rips/completed"
-                            "/media/rips/movies"))
+                            "/media/rips/movies"
+                            "/media/rips/tv"))
                          ;; arm.yaml seed: write a minimal file if absent so the
                          ;; arm-config-patch shepherd service can patch the TMDB key
                          ;; without waiting for ARM to generate the file first.
@@ -290,16 +291,19 @@ TMDB_API_KEY: \"\"\n" p)))
                        ;;   rootless podman sr* stubs; returns DISC_OK so ARM can proceed.
                        (let ((identify-src    #$(local-file "arm-identify.py"))
                              (sysdrv-src      #$(local-file "arm-system-drives.py"))
-                             (musicbrainz-src #$(local-file "arm-music-brainz.py")))
+                             (musicbrainz-src #$(local-file "arm-music-brainz.py"))
+                             (postproc-src    #$(local-file "arm-post-process.sh")))
                          (for-each
-                          (lambda (src dst)
+                          (lambda (src dst mode)
                             (copy-file src dst)
                             (chown dst arm-uid arm-gid)
-                            (chmod dst #o644))
-                          (list identify-src sysdrv-src musicbrainz-src)
+                            (chmod dst mode))
+                          (list identify-src sysdrv-src musicbrainz-src postproc-src)
                           (list "/data/arm/identify.py"
                                 "/data/arm/system_drives.py"
-                                "/data/arm/music_brainz.py")))))
+                                "/data/arm/music_brainz.py"
+                                "/data/arm/post-process.sh")
+                          (list #o644 #o644 #o644 #o755)))))
                        ;; Dirs owned by mpd (mpd-service-type runs as 'mpd' user)
                        (for-each
                         (lambda (dir)
@@ -534,12 +538,18 @@ TMDB_API_KEY: \"\"\n" p)))
                                                  get-string-all)))
                (content   (call-with-input-file arm-yaml get-string-all))
                (patched   (patch-yaml-key
-                           (patch-yaml-key content
-                                           "TMDB_API_KEY" tmdb-key)
-                           "METADATA_PROVIDER" "tmdb")))
+                           (patch-yaml-key
+                            (patch-yaml-key
+                             (patch-yaml-key
+                              (patch-yaml-key content
+                                             "TMDB_API_KEY" tmdb-key)
+                              "METADATA_PROVIDER" "tmdb")
+                             "HB_PRESET_BD" "H.265 NVENC 1080p")
+                            "HB_PRESET_DVD" "H.265 NVENC 480p30")
+                           "BASH_SCRIPT" "/etc/arm/config/post-process.sh")))
           (call-with-output-file arm-yaml
             (lambda (p) (display patched p)))
-          (format #t "arm-config-patch: patched TMDB_API_KEY and METADATA_PROVIDER~%")))))
+          (format #t "arm-config-patch: patched TMDB_API_KEY, METADATA_PROVIDER, HB_PRESET_BD, HB_PRESET_DVD, BASH_SCRIPT~%")))))
 
 (define edison-arm-config-patch-service
   (list

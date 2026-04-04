@@ -26,4 +26,4 @@
           ;; SSH tunnelling and port forwarding
           "autossh"))
    (list gns3-gui         ; gns3-gui pulls in gns3-server as a dep
-         winbox))          ; MikroTik RouterOS GUI manager (native Linux, WinBox 4)
+         winbox)))         ; MikroTik RouterOS GUI manager (native Linux, WinBox 4)
