@@ -812,8 +812,10 @@ TMDB_API_KEY: \"\"\n" p)))
           "PGID=0"
           ;; Host NVIDIA libs for HandBrake NVENC (libnvidia-encode, libcuda).
           "LD_LIBRARY_PATH=/usr/local/nvidia/lib")
-    ;; Wait for NVIDIA device nodes and NFS mount before starting
-    #:requirement '(nvidia-devices nfs-media)
+    ;; Wait for NVIDIA device nodes, NFS mount, and TMDB key patch before starting.
+    ;; arm-config-patch must run before ARM imports config.py, otherwise ARM's
+    ;; merge-and-writeback overwrites the TMDB key with the template's empty value.
+    #:requirement '(nvidia-devices nfs-media arm-config-patch)
     ;; Pass both optical drives into the container.
     ;; --group-add=keep-groups carries the host user's supplementary groups
     ;; (including 'cdrom') into the container so the cdrom block devices
