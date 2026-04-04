@@ -187,7 +187,7 @@ def _parse_gnudb_response(response: str, disc_id: str, track_count: int) -> dict
     """
     lines = response.splitlines()
     if not lines or not lines[0].startswith("210 "):
-        logging.warning(f"GNUDB read: unexpected status line {lines[0]!r if lines else '(empty)'}")
+        logging.warning(f"GNUDB read: unexpected status line {repr(lines[0]) if lines else '(empty)'}")
         return None
 
     fields = {}
