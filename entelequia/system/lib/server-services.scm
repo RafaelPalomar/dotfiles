@@ -26,6 +26,7 @@
             lovelace-nfs-service
             podman-prune-service
             make-ts-sidecar
+            make-ts-ready-service
             make-app-container))
 
 ;;; Server services for lovelace
@@ -449,17 +450,30 @@ hooks:
             (chmod ruid #o700))
           (setenv "XDG_RUNTIME_DIR" ruid)
           (setenv "HOME" (passwd:dir pw))
+          ;; Prepend /run/setuid-programs so podman finds the setuid newuidmap
+          ;; and newgidmap wrappers.  Without this, podman uses the non-setuid
+          ;; copies from /run/current-system/profile/bin and `rm -af` fails for
+          ;; containers that were running at reboot time.
+          (setenv "PATH"
+                  (string-append "/run/setuid-programs:"
+                                 (or (getenv "PATH") "")))
           (setgid gid)
           (setuid uid)
-          ;; Remove ALL containers (including those with dependents) — safe at boot
-          ;; before any container services have started.
+          ;; Remove ALL containers at boot before any container service starts.
+          ;; This service is one-shot: shepherd waits for this process to exit
+          ;; before marking it "started" and allowing dependent services to begin.
+          ;; That serialisation guarantees cleanup is complete before any
+          ;; `podman run --replace` is attempted by the ts-* sidecars.
+          ;;
+          ;; A one-shot service in "started" state continues to satisfy the
+          ;; requirement of dependent services on respawn, so container services
+          ;; can restart without re-triggering this cleanup.
+          ;;
+          ;; We ignore the exit code of rm -af: it may log newuidmap warnings
+          ;; for containers that were running at reboot time, but it still removes
+          ;; their entries from podman's storage, which is all that is needed.
           (system* #$(file-append podman "/bin/podman")
-                   "rm" "-af")
-          ;; Stay alive so shepherd keeps this service in "running" state.
-          ;; Without this, a one-shot service in "stopped" state would be re-run
-          ;; every time a dependent container service restarts, killing all
-          ;; running containers via rm -af.
-          (let loop () (sleep 3600) (loop))))))
+                   "rm" "-af")))))
 
 (define podman-prune-service
   (list
@@ -469,11 +483,11 @@ hooks:
                     (shepherd-service
                      (provision '(podman-prune))
                      (requirement '(rootless-podman-shared-root-fs user-processes))
+                     (one-shot? #t)
                      (start #~(make-forkexec-constructor
                                (list #$%podman-prune-script)
                                #:log-file "/var/log/podman-prune.log"))
-                     (stop #~(make-kill-destructor))
-                     (documentation "Remove stopped containers from previous boot."))))))
+                     (documentation "Remove all containers from previous boot, then exit."))))))
 
 (define* (make-ts-sidecar name
                            #:key
@@ -532,15 +546,20 @@ hooks:
      (ports ports)
      (volumes
       (list (string-append ts-state-dir ":/var/lib/tailscale")
-            (string-append "/run/secrets/tailscale/" secret-name "_authkey"
-                           ":/run/secrets/ts-authkey:ro")
+            ;; Mount the whole tailscale secrets directory (not just the specific
+            ;; file) so the container can start even when GPG decryption is still
+            ;; running.  The directory always exists; the key file appears once sops
+            ;; finishes.  The entrypoint waits for the file to be non-empty before
+            ;; calling containerboot.
+            "/run/secrets/tailscale:/run/secrets/tailscale:ro"
             (cons serve-config-file "/etc/tailscale/serve-config.json:ro")))
      (environment
       (list "TS_USERSPACE=true"
             "TS_STATE_DIR=/var/lib/tailscale"
             ;; TS_AUTHKEY_FILE is read by the entrypoint wrapper below and
             ;; re-exported as TS_AUTHKEY, which containerboot understands.
-            "TS_AUTHKEY_FILE=/run/secrets/ts-authkey"
+            (string-append "TS_AUTHKEY_FILE=/run/secrets/tailscale/"
+                           secret-name "_authkey")
             ;; TS_SERVE_CONFIG instead of TS_SERVE_PORT: explicit serve config JSON
             ;; with backend-host avoids the netstack loopback routing issue.
             "TS_SERVE_CONFIG=/etc/tailscale/serve-config.json"
@@ -548,12 +567,63 @@ hooks:
             ;; shepherd service namespacing, not the Tailscale node name).
             (string-append "TS_HOSTNAME=" name)))
      (extra-arguments '("--cap-add=NET_ADMIN"))
-     ;; Wrapper: read TS_AUTHKEY_FILE and export as TS_AUTHKEY before
-     ;; execing containerboot.  Older image versions don't support
-     ;; TS_AUTHKEY_FILE natively; this shell wrapper bridges the gap.
+     ;; Wrapper entrypoint: wait for the auth key file before calling containerboot.
+     ;; sops GPG decryption can take >60 s on first boot; mounting the directory
+     ;; (not just the key file) means podman starts the container immediately while
+     ;; this loop waits for the key to arrive.
+     ;;
+     ;; tailscaled.state is persisted on the host at /data/tailscale/<name>/ so the
+     ;; node reconnects as the same Tailscale machine on every reboot — no new node
+     ;; registrations, no "navidrome-1 / navidrome-2 / ..." pollution.
      (entrypoint "/bin/sh")
      (command (list "-c"
-                    "export TS_AUTHKEY=$(cat \"$TS_AUTHKEY_FILE\"); exec /usr/local/bin/containerboot")))))
+                    (string-append
+                     "while [ ! -s \"$TS_AUTHKEY_FILE\" ]; do sleep 1; done; "
+                     "export TS_AUTHKEY=$(cat \"$TS_AUTHKEY_FILE\"); "
+                     "exec /usr/local/bin/containerboot"))))))
+
+(define (make-ts-ready-service ts-name)
+  "Return a one-shot shepherd-service that waits for the ts-TS-NAME podman
+container to exist.  App containers depend on ts-<name>-ready (not ts-<name>
+directly) so they don't race against the sidecar's `podman run`."
+  (let ((container-name (string-append "ts-" ts-name)))
+    (simple-service
+     (string->symbol (string-append "ts-" ts-name "-ready"))
+     shepherd-root-service-type
+     (list
+      (shepherd-service
+       (provision (list (string->symbol (string-append "ts-" ts-name "-ready"))))
+       (requirement (list (string->symbol container-name)))
+       (one-shot? #t)
+       (start
+        #~(make-forkexec-constructor
+           (list
+            #$(program-file
+               (string-append "ts-" ts-name "-ready")
+               #~(begin
+                   (let* ((pw   (getpwnam "rafael"))
+                          (uid  (passwd:uid pw))
+                          (gid  (passwd:gid pw))
+                          (ruid (string-append "/run/user/"
+                                               (number->string uid))))
+                     (setenv "XDG_RUNTIME_DIR" ruid)
+                     (setenv "HOME" (passwd:dir pw))
+                     (setenv "PATH"
+                             (string-append "/run/setuid-programs:"
+                                            (or (getenv "PATH") "")))
+                     (setgid gid)
+                     (setuid uid)
+                     (let loop ()
+                       (unless (zero?
+                                (status:exit-val
+                                 (system* #$(file-append podman "/bin/podman")
+                                          "container" "exists"
+                                          #$container-name)))
+                         (sleep 1)
+                         (loop)))))))
+           #:log-file #$(string-append "/var/log/ts-" ts-name "-ready.log")))
+       (documentation
+        (string-append "Wait for " container-name " container to exist in podman.")))))))
 
 (define* (make-app-container name image
                               #:key
@@ -572,7 +642,8 @@ hooks:
                (user "rafael")
                (image image)
                (provision name)
-               (requirement (cons* (string->symbol (string-append "ts-" ts-name))
+               (requirement (cons* (string->symbol
+                                    (string-append "ts-" ts-name "-ready"))
                                    'sops-secrets
                                    'podman-prune
                                    requirement))
@@ -907,10 +978,21 @@ datasources:
 ;;; ("oci-container") to avoid duplicating the "rafael" system account — each container
 ;;; specifies (user "rafael") directly.
 (define lovelace-container-services
-  (list
-   (service oci-service-type
-            (oci-configuration
-             (runtime 'podman)
-             (containers (append %app-containers
-                                 %vpn-containers
-                                 %monitoring-containers))))))
+  (append
+   ;; Gate services: one-shot readiness checks that ensure each ts-* sidecar
+   ;; container is registered in podman before the app container tries
+   ;; --network=container:ts-<name>.  Without these, app containers race
+   ;; against their sidecar's `podman run` and fail with "no container found".
+   (list (make-ts-ready-service "freshrss")
+         (make-ts-ready-service "nextcloud")
+         (make-ts-ready-service "wallabag")
+         (make-ts-ready-service "rss-bridge")
+         (make-ts-ready-service "searxng")
+         (make-ts-ready-service "grafana"))
+   (list
+    (service oci-service-type
+             (oci-configuration
+              (runtime 'podman)
+              (containers (append %app-containers
+                                  %vpn-containers
+                                  %monitoring-containers)))))))

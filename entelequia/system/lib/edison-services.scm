@@ -856,11 +856,19 @@ TMDB_API_KEY: \"\"\n" p)))
 ;;;
 
 (define edison-container-services
-  (list
-   (service oci-service-type
-            (oci-configuration
-             (runtime 'podman)
-             (containers (append %jellyfin-containers
-                                 %navidrome-containers
-                                 (list %caddy-navidrome-container)
-                                 %arm-containers))))))
+  (append
+   ;; Gate services: one-shot readiness checks that ensure each ts-* sidecar
+   ;; container is registered in podman before the app container tries
+   ;; --network=container:ts-<name>.  Without these, app containers race
+   ;; against their sidecar's `podman run` and fail with exit 126.
+   (list (make-ts-ready-service "jellyfin")
+         (make-ts-ready-service "navidrome")
+         (make-ts-ready-service "arm"))
+   (list
+    (service oci-service-type
+             (oci-configuration
+              (runtime 'podman)
+              (containers (append %jellyfin-containers
+                                  %navidrome-containers
+                                  (list %caddy-navidrome-container)
+                                  %arm-containers)))))))
