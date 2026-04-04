@@ -547,21 +547,24 @@ TMDB_API_KEY: \"\"\n" p)))
                (patched   (patch-yaml-key
                            (patch-yaml-key
                             (patch-yaml-key
+                             ;; NLMeans light denoise: removes film grain/speckle
+                             ;; before NVENC sees it. CPU denoise + GPU encode run
+                             ;; in parallel so throughput is barely affected.
+                             ;; Preserve ARM's default subtitle flags alongside.
                              (patch-yaml-key
                               (patch-yaml-key
-                               (patch-yaml-key content
-                                              "TMDB_API_KEY" tmdb-key)
-                               "METADATA_PROVIDER" "tmdb")
-                              "HB_PRESET_BD" "H.265 NVENC 1080p")
-                             "HB_PRESET_DVD" "H.265 NVENC 480p30")
-                            ;; NLMeans light denoise: removes film grain/speckle
-                            ;; before NVENC sees it. CPU denoise + GPU encode run
-                            ;; in parallel so throughput is barely affected.
-                            "HB_ARGS" "--nlmeans=light")
+                               (patch-yaml-key
+                                (patch-yaml-key content
+                                               "TMDB_API_KEY" tmdb-key)
+                                "METADATA_PROVIDER" "tmdb")
+                               "HB_PRESET_BD" "H.265 NVENC 1080p")
+                              "HB_PRESET_DVD" "H.265 NVENC 480p30")
+                             "HB_ARGS_BD" "--subtitle scan -F --subtitle-burned --audio-lang-list eng --all-audio --nlmeans=light")
+                            "HB_ARGS_DVD" "--subtitle scan -F --nlmeans=light")
                            "BASH_SCRIPT" "/etc/arm/config/post-process.sh")))
           (call-with-output-file arm-yaml
             (lambda (p) (display patched p)))
-          (format #t "arm-config-patch: patched TMDB_API_KEY, METADATA_PROVIDER, HB_PRESET_BD, HB_PRESET_DVD, HB_ARGS, BASH_SCRIPT~%")))))
+          (format #t "arm-config-patch: patched TMDB_API_KEY, METADATA_PROVIDER, HB_PRESET_BD, HB_PRESET_DVD, HB_ARGS_BD, HB_ARGS_DVD, BASH_SCRIPT~%")))))
 
 (define edison-arm-config-patch-service
   (list
