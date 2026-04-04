@@ -135,9 +135,16 @@
                               (chmod dir #o755)))
                           '("/media/rips/raw"
                             "/media/rips/transcode"
-                            "/media/rips/completed"
-                            "/media/rips/movies"
-                            "/media/rips/tv"))
+                            "/media/rips/completed"))
+                         ;; Jellyfin media roots: world-writable so ARM and manual
+                         ;; additions can both deposit files here.
+                         (for-each
+                          (lambda (dir)
+                            (when (file-exists? "/media")
+                              (mkdir-p dir)
+                              (chmod dir #o1777)))
+                          '("/media/movies"
+                            "/media/tv"))
                          ;; arm.yaml seed: write a minimal file if absent so the
                          ;; arm-config-patch shepherd service can patch the TMDB key
                          ;; without waiting for ARM to generate the file first.
@@ -756,6 +763,9 @@ TMDB_API_KEY: \"\"\n" p)))
     #:volumes
     (list "/data/arm:/etc/arm/config"
           "/media/rips:/home/arm/media"
+          ;; Final Jellyfin-ready destinations (shared with manually-added media)
+          "/media/movies:/home/arm/movies"
+          "/media/tv:/home/arm/tv"
           ;; Music output: abcde writes ripped CDs here; Navidrome scans it
           "/media/music:/home/arm/Music"
           ;; Persist MakeMKV settings across container restarts.

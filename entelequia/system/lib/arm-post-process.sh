@@ -3,8 +3,8 @@
 # ARM invokes: bash /etc/arm/config/post-process.sh "title" "body"
 #
 # Organises completed video rips into Jellyfin-ready locations:
-#   Movies → /home/arm/media/movies/<Title (Year)>/<Title (Year)>.mkv
-#   TV     → /home/arm/media/tv/<Show>/Season NN/<Show> - SNNENN.mkv
+#   Movies → /home/arm/movies/<Title (Year)>/<Title (Year)>.mkv
+#   TV     → /home/arm/tv/<Show>/Season NN/<Show> - SNNENN.mkv
 #
 # TV episode numbering: counts existing episodes in the season dir and
 # continues from there, so disc 2 automatically follows disc 1.
@@ -17,8 +17,8 @@ set -uo pipefail
 
 LOG="/home/arm/logs/post-process.log"
 DB="/etc/arm/config/arm.db"
-MOVIES_DIR="/home/arm/media/movies"
-TV_DIR="/home/arm/media/tv"
+MOVIES_DIR="/home/arm/movies"
+TV_DIR="/home/arm/tv"
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [post-process] $*" >> "$LOG"; }
 

@@ -72,7 +72,9 @@
                             (chown dir uid gid)
                             (chmod dir #o1777)))
                         '("/data/media/music"
-                          "/data/media/rips"))
+                          "/data/media/rips"
+                          "/data/media/movies"
+                          "/data/media/tv"))
                        (for-each
                         (lambda (dir)
                           (mkdir-p dir)
