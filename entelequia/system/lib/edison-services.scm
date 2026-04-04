@@ -683,11 +683,11 @@ TMDB_API_KEY: \"\"\n" p)))
           "LD_LIBRARY_PATH=/usr/local/nvidia/lib")
     ;; Wait for NVIDIA device nodes and NFS mount before starting
     #:requirement '(nvidia-devices nfs-media)
-    ;; P2000 (nvidia0) only — M2000 (nvidia1) is reserved for ARM.
+    ;; M2000 (nvidia1) only — P2000 (nvidia0) is reserved for ARM encoding.
     ;; nvidia-cap1 = NVENC capability; nvidia-cap2 = general caps.
     ;; nvidiactl and nvidia-uvm are shared across both GPUs.
     #:extra-arguments
-    (list "--device=/dev/nvidia0"
+    (list "--device=/dev/nvidia1"
           "--device=/dev/nvidiactl"
           "--device=/dev/nvidia-uvm"
           "--device=/dev/nvidia-caps/nvidia-cap1"
@@ -845,7 +845,7 @@ TMDB_API_KEY: \"\"\n" p)))
           ;; pyudev property reads (via /run/udev) fully functional.
           "--tmpfs=/lib/udev/rules.d"
           "--group-add=keep-groups"
-          "--device=/dev/nvidia1"
+          "--device=/dev/nvidia0"
           "--device=/dev/nvidiactl"
           "--device=/dev/nvidia-uvm"
           "--device=/dev/nvidia-caps/nvidia-cap1"
