@@ -559,7 +559,7 @@ TMDB_API_KEY: \"\"\n" p)))
                                 "METADATA_PROVIDER" "tmdb")
                                "HB_PRESET_BD" "H.265 NVENC 1080p")
                               "HB_PRESET_DVD" "H.265 NVENC 480p30")
-                             "HB_ARGS_BD" "--subtitle scan -F --subtitle-burned --audio-lang-list eng --all-audio --nlmeans=light --bframes 4 --bframe-adaptive 2")
+                             "HB_ARGS_BD" "--subtitle scan -F --subtitle-burned --audio-lang-list eng --all-audio --nlmeans=light")
                             "HB_ARGS_DVD" "--subtitle scan -F --nlmeans=light")
                            "BASH_SCRIPT" "/etc/arm/config/post-process.sh")))
           (call-with-output-file arm-yaml
