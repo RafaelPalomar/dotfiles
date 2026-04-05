@@ -31,7 +31,7 @@ cd "$DOTFILES_DIR"
 # ── Local deployment (einstein / curie) ──────────────────────────────────────
 
 if [[ "$MACHINE" == "einstein" || "$MACHINE" == "curie" ]]; then
-    CMD=(sudo guix time-machine -C channels.scm --
+    CMD=(sudo guix time-machine -C channels-lock.scm --
          system reconfigure "entelequia/system/machines/$MACHINE.scm")
     [[ "$DRY_RUN" == "--dry-run" ]] && CMD+=(--dry-run)
 
@@ -47,7 +47,7 @@ fi
 # ── Remote deployment (alucard via guix deploy) ───────────────────────────────
 
 if [[ "$MACHINE" == "alucard" ]]; then
-    CMD=(guix time-machine -C channels.scm --
+    CMD=(guix time-machine -C channels-lock.scm --
          deploy -L "$(realpath .)" entelequia/deploy/alucard.scm)
     [[ "$DRY_RUN" == "--dry-run" ]] && CMD+=(--dry-run)
 
@@ -63,7 +63,7 @@ fi
 # ── Remote deployment (lovelace via guix deploy) ──────────────────────────────
 
 if [[ "$MACHINE" == "lovelace" ]]; then
-    CMD=(guix time-machine -C channels.scm --
+    CMD=(guix time-machine -C channels-lock.scm --
          deploy -L "$(realpath .)" entelequia/deploy/lovelace.scm)
     [[ "$DRY_RUN" == "--dry-run" ]] && CMD+=(--dry-run)
 
@@ -79,7 +79,7 @@ fi
 # ── Remote deployment (edison via guix deploy) ────────────────────────────────
 
 if [[ "$MACHINE" == "edison" ]]; then
-    CMD=(guix time-machine -C channels.scm --
+    CMD=(guix time-machine -C channels-lock.scm --
          deploy -L "$(realpath .)" entelequia/deploy/edison.scm)
     [[ "$DRY_RUN" == "--dry-run" ]] && CMD+=(--dry-run)
 
