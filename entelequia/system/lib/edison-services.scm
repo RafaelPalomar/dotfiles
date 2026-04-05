@@ -157,7 +157,8 @@
                            (call-with-output-file abcde-conf
                              (lambda (p)
                                (display
-                                "CDDBMETHOD=musicbrainz\n\
+                                "CDDBMETHOD=musicbrainz,cddb\n\
+CDDBURL=https://gnudb.gnudb.org/~cddb/cddb.cgi\n\
 OUTPUTTYPE=flac\n\
 FLACOPTS='-s -8 --replay-gain'\n\
 OUTPUTDIR=/home/arm/Music\n\
@@ -177,23 +178,23 @@ mungefilename () {\n\
 # returns PNG (or WebP) with a .jpg filename; this wrapper uses 'file' to\n\
 # detect the actual type and passes it via the full picture spec.\n\
 metaflac () {\n\
-  local real; real=\\$(command -v metaflac)\n\
+  local real; real=$(command -v metaflac)\n\
   local args=(); local i\n\
-  for arg in \"\\$@\"; do\n\
-    if [ \"\\${arg#--import-picture-from=}\" != \"\\$arg\" ]; then\n\
-      local pic=\"\\${arg#--import-picture-from=}\"\n\
-      if [ -f \"\\$pic\" ] && [ \"\\$(printf '%s' \"\\$pic\" | grep -c '|')\" -eq 0 ]; then\n\
-        local mime; mime=\\$(file --mime-type -b \"\\$pic\" 2>/dev/null)\n\
-        case \"\\$mime\" in\n\
+  for arg in \"$@\"; do\n\
+    if [ \"${arg#--import-picture-from=}\" != \"$arg\" ]; then\n\
+      local pic=\"${arg#--import-picture-from=}\"\n\
+      if [ -f \"$pic\" ] && [ \"$(printf '%s' \"$pic\" | grep -c '|')\" -eq 0 ]; then\n\
+        local mime; mime=$(file --mime-type -b \"$pic\" 2>/dev/null)\n\
+        case \"$mime\" in\n\
           image/jpeg|image/png|image/gif)\n\
-            arg=\"--import-picture-from=3|\\${mime}|||\\${pic}\" ;;\n\
+            arg=\"--import-picture-from=3|${mime}|||${pic}\" ;;\n\
           *) return 0 ;;\n\
         esac\n\
       fi\n\
     fi\n\
-    args+=(\"\\$arg\")\n\
+    args+=(\"$arg\")\n\
   done\n\
-  \"\\$real\" \"\\${args[@]}\"\n\
+  \"$real\" \"${args[@]}\"\n\
 }\n"
                                 p)))
                            (chown abcde-conf arm-uid arm-gid))
@@ -559,8 +560,8 @@ TMDB_API_KEY: \"\"\n" p)))
                                 "METADATA_PROVIDER" "tmdb")
                                "HB_PRESET_BD" "H.265 NVENC 1080p")
                               "HB_PRESET_DVD" "H.265 NVENC 480p30")
-                             "HB_ARGS_BD" "--subtitle scan -F --subtitle-burned --audio-lang-list eng --all-audio --nlmeans=light")
-                            "HB_ARGS_DVD" "--subtitle scan -F --nlmeans=light")
+                             "HB_ARGS_BD" "--subtitle scan -F --subtitle-burned --audio-lang-list eng --all-audio")
+                            "HB_ARGS_DVD" "--subtitle scan -F")
                            "BASH_SCRIPT" "/etc/arm/config/post-process.sh")))
           (call-with-output-file arm-yaml
             (lambda (p) (display patched p)))
