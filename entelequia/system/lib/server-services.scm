@@ -103,9 +103,10 @@
                           "/data/gluetun-qbt"
                           "/data/prometheus"
                           "/data/grafana"
-                          ;; /data/nextcloud/config: created here so Podman bind-mount
-                          ;; has a concrete host path on first deploy. chown is non-recursive
-                          ;; so the container's abc-owned subdirs (uid 232071) are not affected.
+                          ;; /data/nextcloud/config: non-recursive chown to rafael so
+                          ;; container root (= host rafael in rootless Podman) can write.
+                          ;; Subdirs are owned by container abc (host uid 232071); do NOT
+                          ;; chown recursively or the web server loses access.
                           ;; /data/nextcloud/data is NOT listed: container init owns it.
                           "/data/nextcloud/config"
                           "/data/borg"))))))
