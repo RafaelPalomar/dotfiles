@@ -123,16 +123,16 @@
                            (unless (file-exists? arm-log)
                              (call-with-output-file arm-log (lambda (p) #f)))
                            (chown arm-log arm-uid arm-gid))
-                         ;; /media/rips subdirs (NFS mount from Lovelace): ensure the arm
-                         ;; user owns the working directories so cdparanoia and abcde can
-                         ;; write there.  The NFS root (/media/rips) is sticky+world-writable
-                         ;; so we can create/chown inside it even before the arm container runs.
+                         ;; /media/rips subdirs (NFS mount from Lovelace): world-writable
+                         ;; because ARM main.py runs as container root (host rafael via
+                         ;; rootless podman) while abcde/cdparanoia run as container arm
+                         ;; user (host UID 232071).  Both need write access.
                          (for-each
                           (lambda (dir)
                             (when (file-exists? "/media/rips")
                               (mkdir-p dir)
                               (chown dir arm-uid arm-gid)
-                              (chmod dir #o755)))
+                              (chmod dir #o777)))
                           '("/media/rips/raw"
                             "/media/rips/transcode"
                             "/media/rips/completed"))
