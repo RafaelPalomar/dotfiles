@@ -567,7 +567,10 @@ hooks:
             ;; Register with a clean hostname (no "ts-" prefix — that's only for
             ;; shepherd service namespacing, not the Tailscale node name).
             (string-append "TS_HOSTNAME=" name)))
-     (extra-arguments '("--cap-add=NET_ADMIN"))
+     ;; TS_USERSPACE=true uses gVisor netstack (no TUN device) so NET_ADMIN is not
+     ;; needed and must be omitted: Podman 5.x passes -t none to pasta when
+     ;; NET_ADMIN is present, silently breaking host→container port forwarding
+     ;; on any restart (pasta only works at first boot otherwise).
      ;; Wrapper entrypoint: wait for the auth key file before calling containerboot.
      ;; sops GPG decryption can take >60 s on first boot; mounting the directory
      ;; (not just the key file) means podman starts the container immediately while
@@ -629,6 +632,8 @@ directly) so they don't race against the sidecar's `podman run`."
 (define* (make-app-container name image
                               #:key
                               (ts-name name)
+                              (share-ts-netns? #t)
+                              (ports '())
                               (volumes '())
                               (environment '())
                               (requirement '())
@@ -637,23 +642,41 @@ directly) so they don't race against the sidecar's `podman run`."
                               (command '()))
   "Return an oci-container-configuration sharing a Tailscale sidecar's network.
    NAME is the provision name.  TS-NAME is the sidecar to share network with.
+   When SHARE-TS-NETNS? is #f, the container runs in its own pasta netns and
+   PORTS (list of \"HOST:CONTAINER\" mappings) are published on the host.
    COMMAND overrides the image CMD (args passed to the container entrypoint).
    ENTRYPOINT overrides the image ENTRYPOINT when non-#f."
-  (let ((base (oci-container-configuration
-               (user "rafael")
-               (image image)
-               (provision name)
-               (requirement (cons* (string->symbol
-                                    (string-append "ts-" ts-name "-ready"))
-                                   'sops-secrets
-                                   'podman-prune
-                                   requirement))
-               (respawn? #t)
-               (volumes volumes)
-               (environment environment)
-               (network (string-append "container:ts-" ts-name))
-               (extra-arguments extra-arguments)
-               (command command))))
+  (let ((base (if share-ts-netns?
+                  (oci-container-configuration
+                   (user "rafael")
+                   (image image)
+                   (provision name)
+                   (requirement (cons* (string->symbol
+                                        (string-append "ts-" ts-name "-ready"))
+                                       'sops-secrets
+                                       'podman-prune
+                                       requirement))
+                   (respawn? #t)
+                   (ports ports)
+                   (volumes volumes)
+                   (environment environment)
+                   (network (string-append "container:ts-" ts-name))
+                   (extra-arguments extra-arguments)
+                   (command command))
+                  (oci-container-configuration
+                   (user "rafael")
+                   (image image)
+                   (provision name)
+                   ;; Standalone pasta netns: no shared ts sidecar, no secrets
+                   ;; consumed, so don't depend on sops-secrets — otherwise every
+                   ;; respawn churns the sops secret chain and cascades.
+                   (requirement (cons* 'podman-prune requirement))
+                   (respawn? #t)
+                   (ports ports)
+                   (volumes volumes)
+                   (environment environment)
+                   (extra-arguments extra-arguments)
+                   (command command)))))
     (if entrypoint
         (oci-container-configuration
          (inherit base)
