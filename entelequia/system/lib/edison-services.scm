@@ -664,9 +664,20 @@ TMDB_API_KEY: \"\"\n" p)))
   (list
    (make-ts-sidecar "jellyfin"
                     #:serve-port 8096
-                    #:backend-host %edison-ip)
+                    ;; ts-jellyfin runs in its own pasta netns; pasta maps the
+                    ;; host LAN IP into that namespace, so reaching
+                    ;; %edison-ip:8096 loops back to the sidecar itself.  Use
+                    ;; host.containers.internal (169.254.1.2 gateway) to hit
+                    ;; the standalone jellyfin container on the host.
+                    #:backend-host "host.containers.internal")
    (make-app-container
     "jellyfin" "jellyfin/jellyfin:latest"
+    ;; Run in its own pasta netns so -p 8096:8096 actually publishes the
+    ;; port on the LAN (TV needs http://192.168.88.14:8096).  ts-jellyfin
+    ;; reaches us via host.containers.internal:8096 per its serve-config,
+    ;; so Tailscale access still works without sharing a netns.
+    #:share-ts-netns? #f
+    #:ports '("8096:8096")
     #:volumes
     (list "/data/jellyfin/config:/config"
           "/data/jellyfin/cache:/cache"
