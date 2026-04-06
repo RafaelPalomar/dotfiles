@@ -437,9 +437,13 @@ UseDNS no
                    (pam-limits-entry "@realtime" 'both 'nice -19)
                    (pam-limits-entry "@realtime" 'both 'memlock 'unlimited)
 
-                   ;; Process limits for regular users
-                   (pam-limits-entry "*" 'soft 'nproc 1024)
-                   (pam-limits-entry "*" 'hard 'nproc 4096)
+                   ;; Process limits for regular users.  Jellyfin ffmpeg
+                   ;; transcoding plus the full container stack easily spawns
+                   ;; >2500 threads under rafael, so the previous 1024/4096
+                   ;; defaults caused fork EAGAIN on any new PAM session (sudo,
+                   ;; su, ssh) — breaking screen, podman exec, etc.
+                   (pam-limits-entry "*" 'soft 'nproc 32768)
+                   (pam-limits-entry "*" 'hard 'nproc 65535)
 
                    ;; Core dump limits (disable for security)
                    (pam-limits-entry "*" 'hard 'core 0))))
