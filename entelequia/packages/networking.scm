@@ -73,18 +73,21 @@
                     (format #t "Categories=Network;System;~%")))))))))
     (native-inputs (list unzip))
     (inputs
-     (list dbus
-           fontconfig
-           freetype
-           libx11
-           libxcb
-           mesa
-           xcb-util-image
-           xcb-util-keysyms
-           xcb-util-renderutil
-           xcb-util-wm
-           libxkbcommon
-           zlib))
+     ;; Explicit labels so the nonguix patchelf-plan can look inputs up
+     ;; by the names used in the plan above (some package names — e.g.
+     ;; fontconfig-minimal — don't match the plan keys).
+     `(("dbus" ,dbus)
+       ("fontconfig" ,fontconfig)
+       ("freetype" ,freetype)
+       ("libx11" ,libx11)
+       ("libxcb" ,libxcb)
+       ("mesa" ,mesa)
+       ("xcb-util-image" ,xcb-util-image)
+       ("xcb-util-keysyms" ,xcb-util-keysyms)
+       ("xcb-util-renderutil" ,xcb-util-renderutil)
+       ("xcb-util-wm" ,xcb-util-wm)
+       ("libxkbcommon" ,libxkbcommon)
+       ("zlib" ,zlib)))
     (supported-systems '("x86_64-linux"))
     (synopsis "MikroTik RouterOS GUI management tool")
     (description

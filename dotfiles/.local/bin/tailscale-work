@@ -1,0 +1,7 @@
+#!/bin/sh
+# Wrapper: talk to the userspace work tailscaled (see
+# entelequia/home/services/tailscale-work.scm). The personal tailnet
+# remains reachable via the unwrapped `tailscale` command.
+exec /run/current-system/profile/bin/tailscale \
+  --socket="${XDG_STATE_HOME:-$HOME/.local/state}/tailscale-work/tailscaled.sock" \
+  "$@"

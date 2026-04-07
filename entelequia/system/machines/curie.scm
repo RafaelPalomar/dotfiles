@@ -6,6 +6,8 @@
   #:use-module (entelequia system lib common-packages)
   #:use-module (entelequia system lib common-services)
   #:use-module (entelequia systems desktop)  ; For desktop-home-services
+  #:use-module (entelequia home services tailscale-work)
+  #:use-module (btv tailscale)
   #:use-module (entelequia home profiles base)
   #:use-module (entelequia home profiles development)
   #:use-module (entelequia home profiles email)
@@ -94,9 +96,13 @@
                         (networking-home-packages)
                         email-home-packages
                         documentation-home-packages
-                        (gaming-home-packages)))
-      ;; desktop-home-services includes DataLocker service
-      (services desktop-home-services)))
+                        (gaming-home-packages)
+                        (list tailscaled)))  ; work tailscaled daemon (userspace mode)
+      ;; desktop-home-services includes DataLocker service.
+      ;; Curie-only: userspace tailscaled for the work tailnet
+      ;; (side-by-side with the system-level personal tailscaled).
+      (services (cons (service home-tailscale-work-service-type)
+                      desktop-home-services))))
 
     ;; SLiM display manager with AMD Xlibre config
     (service slim-service-type
