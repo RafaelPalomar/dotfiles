@@ -3,6 +3,7 @@
   #:use-module (entelequia packages aider)
   #:use-module (entelequia packages claude-code)
   #:use-module (guix-openclaw packages openclaw)
+  #:use-module (systole packages claude-skills)
   #:export (development-home-packages))
 
 ;;; Development home profile
@@ -47,4 +48,5 @@
    ;; AI coding assistants (local packages)
    (list claude-code
          python-aider-chat
-         openclaw)))
+         openclaw
+         slicer-skill)))

@@ -19,6 +19,7 @@
   #:use-module (gnu home services dotfiles)
   #:use-module (gnu home services shells)
   #:use-module (guix gexp)
+  #:use-module (systole packages claude-skills)
   #:export (desktop-home-services))
 
 (use-service-modules desktop mcron pm syncthing)
@@ -37,6 +38,15 @@
                    #~(let ((gnupg-dir (string-append (getenv "HOME") "/.gnupg")))
                        (mkdir-p gnupg-dir)
                        (chmod gnupg-dir #o700)))
+
+   ;; Expose installed claude skills as user commands (~/.claude/commands/).
+   ;; Uses home-files-service-type (build-time) to avoid activation ordering
+   ;; issues with home-activation-service-type.  Add new skills here.
+   (simple-service 'claude-skills-files
+                   home-files-service-type
+                   (list `(".claude/commands/slicer.md"
+                           ,(file-append slicer-skill
+                                         "/share/claude-skills/slicer/SKILL.md"))))
 
    ;; GnuPG configuration
    (service home-gpg-agent-service-type
