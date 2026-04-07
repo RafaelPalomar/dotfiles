@@ -1,0 +1,65 @@
+#!/bin/sh
+# slicer-init — drop a Slicer-style direnv environment into a worktree.
+#
+# Usage:
+#   slicer-init [-q QT_VERSION] [-f] [TARGET_DIR]
+#
+#   -q  Qt major version (5 or 6, default: 5)
+#   -f  overwrite existing .envrc / .guix_manifest.scm
+#
+# TARGET_DIR defaults to the current directory.  Files deployed:
+#   .envrc               (from envrc.template, @QT_VERSION@ substituted)
+#   .guix_manifest.scm   (from manifest-qt${QT_VERSION}.scm)
+#
+# Templates live in ~/.dotfiles/dotfiles/.local/share/slicer-templates/
+# (resolved via $XDG_DATA_HOME or $HOME/.local/share).
+
+set -eu
+
+QT_VERSION=5
+FORCE=0
+while getopts "q:fh" opt; do
+  case "$opt" in
+    q) QT_VERSION="$OPTARG" ;;
+    f) FORCE=1 ;;
+    h) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+TARGET="${1:-$PWD}"
+
+case "$QT_VERSION" in
+  5|6) ;;
+  *) echo "slicer-init: QT_VERSION must be 5 or 6 (got '$QT_VERSION')" >&2; exit 2 ;;
+esac
+
+TEMPLATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/slicer-templates"
+ENVRC_TPL="$TEMPLATE_DIR/envrc.template"
+MANIFEST_TPL="$TEMPLATE_DIR/manifest-qt${QT_VERSION}.scm"
+
+for f in "$ENVRC_TPL" "$MANIFEST_TPL"; do
+  [ -r "$f" ] || { echo "slicer-init: missing template: $f" >&2; exit 1; }
+done
+
+[ -d "$TARGET" ] || { echo "slicer-init: not a directory: $TARGET" >&2; exit 1; }
+
+deploy() {
+  src="$1"; dst="$2"
+  if [ -e "$dst" ] && [ "$FORCE" -ne 1 ]; then
+    echo "slicer-init: $dst exists (use -f to overwrite); skipping"
+    return 0
+  fi
+  cp "$src" "$dst.tmp"
+  sed -i "s|@QT_VERSION@|$QT_VERSION|g" "$dst.tmp"
+  mv "$dst.tmp" "$dst"
+  echo "slicer-init: wrote $dst"
+}
+
+deploy "$ENVRC_TPL"    "$TARGET/.envrc"
+deploy "$MANIFEST_TPL" "$TARGET/.guix_manifest.scm"
+
+echo
+echo "Next steps:"
+echo "  cd $TARGET && direnv allow"

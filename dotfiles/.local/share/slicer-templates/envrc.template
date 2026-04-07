@@ -1,0 +1,48 @@
+# -*- mode: sh; -*-
+#
+# Slicer / Slicer-derivative direnv environment.
+# Deployed by `slicer-init` from ~/.dotfiles/dotfiles/.local/share/slicer-templates/.
+
+# Qt major version this worktree builds against (5 or 6).
+SLICER_QT_VERSION="${SLICER_QT_VERSION:-@QT_VERSION@}"
+
+# Use SLICER_GUIX_PROFILE if set, otherwise use a per-worktree profile.
+GUIX_PROFILE="${SLICER_GUIX_PROFILE:-$PWD/.envrc.guix-profile}"
+
+# Create the profile from the manifest if it doesn't exist yet.  Pinned
+# through channels-lock so the build is reproducible.
+CHANNELS_LOCK="${SLICER_CHANNELS_LOCK:-$HOME/.dotfiles/channels-lock.scm}"
+if [ -z "$SLICER_GUIX_PROFILE" ] && [ ! -e "$GUIX_PROFILE" ]; then
+  guix time-machine -C "$CHANNELS_LOCK" -- \
+       package -p "$GUIX_PROFILE" --manifest=.guix_manifest.scm
+fi
+
+# `guix package --search-paths` overwrites PATH; preserve the original so
+# ssh, claude, and other home-profile tools remain available.
+_ORIG_PATH="$PATH"
+eval $(guix package -p "$GUIX_PROFILE" --search-paths)
+export PATH="$GUIX_PROFILE/bin:/bin:/usr/bin:$_ORIG_PATH"
+unset _ORIG_PATH
+
+export LD_LIBRARY_PATH="${GUIX_PROFILE}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# CTKAppLauncher: the upstream pre-built binary (v0.1.34, Qt5.15.2) is
+# incompatible with glibc 2.34+ on Guix.  Use a locally-built binary that
+# matches the active Qt version.  Override by setting CTKAppLauncher_DIR.
+export CTKAppLauncher_DIR="${CTKAppLauncher_DIR:-${HOME}/src/AppLauncher/Release-qt${SLICER_QT_VERSION}}"
+export LD_LIBRARY_PATH="${HOME}/.slicer-guix-profile-${SLICER_QT_VERSION}/lib:${LD_LIBRARY_PATH}"
+
+# Apply Guix-specific patches to the source tree if not already applied.
+_PATCHES_DIR="$PWD/.guix_patches"
+if [ -d "$_PATCHES_DIR" ]; then
+  for _patch in "$_PATCHES_DIR"/*.patch; do
+    [ -f "$_patch" ] || continue
+    if git apply --check --reverse "$_patch" 2>/dev/null; then
+      : # already applied
+    else
+      echo "Applying Guix patch: $(basename "$_patch")"
+      git apply "$_patch"
+    fi
+  done
+fi
+unset _PATCHES_DIR _patch

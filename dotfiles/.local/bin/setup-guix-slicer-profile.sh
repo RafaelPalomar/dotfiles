@@ -32,9 +32,13 @@ else
         qtx11extras qttools qtpositioning qt5compat qtscxml"
 fi
 
+CHANNELS_LOCK="${SLICER_CHANNELS_LOCK:-$HOME/.dotfiles/channels-lock.scm}"
+
 if [ ! -e "$PROFILE_PATH" ]; then
     echo "Creating Guix profile at $PROFILE_PATH with Qt${QT_VERSION}..."
-    guix package -p "$PROFILE_PATH" -i \
+    echo "Pinning to channels: $CHANNELS_LOCK"
+    guix time-machine -C "$CHANNELS_LOCK" -- \
+         package -p "$PROFILE_PATH" -i \
          $BASE_PACKAGES $QT_PACKAGES $DOC_PACKAGES $EXTRA_PACKAGES
 
     echo "Profile created successfully at $PROFILE_PATH"
