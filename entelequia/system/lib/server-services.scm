@@ -8,6 +8,7 @@
   #:use-module (gnu services nfs)
   #:use-module (gnu services shepherd)
   #:use-module (gnu packages admin)
+  #:use-module (gnu packages base)
   #:use-module (gnu packages backup)
   #:use-module (gnu packages containers)
   #:use-module (gnu packages databases)
@@ -473,8 +474,19 @@ hooks:
           ;; We ignore the exit code of rm -af: it may log newuidmap warnings
           ;; for containers that were running at reboot time, but it still removes
           ;; their entries from podman's storage, which is all that is needed.
-          (system* #$(file-append podman "/bin/podman")
-                   "rm" "-af")))))
+          ;;
+          ;; Use execlp (not system*) so this guile process is replaced by podman
+          ;; directly.  Shepherd then holds the podman PID, and SIGTERM/SIGKILL
+          ;; from make-kill-destructor reach it without orphaning a child process.
+          ;; Without this, system* forks a child; shepherd kills the guile parent
+          ;; but the podman child becomes an orphan and keeps running — causing
+          ;; hundreds of stuck `podman rm -af` processes after repeated deploys.
+          ;;
+          ;; coreutils timeout wraps podman so a hung rm -af cannot block the
+          ;; service forever (120 s is generous for removing a handful of containers).
+          (execlp #$(file-append coreutils "/bin/timeout")
+                  "timeout" "120"
+                  #$(file-append podman "/bin/podman") "rm" "-af")))))
 
 (define podman-prune-service
   (list
