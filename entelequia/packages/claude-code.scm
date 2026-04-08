@@ -9,7 +9,7 @@
 (define-public claude-code
   (package
     (name "claude-code")
-    (version "2.1.76")
+    (version "2.1.87")
     (source
      (origin
        (method url-fetch)
@@ -17,30 +17,22 @@
              "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-"
              version ".tgz"))
        (sha256
-        (base32 "19bspc18gs6az5w2mc6y1zdrziahhy23gn42j1n8ydshnrvlndpn"))))
+        (base32 "18lnqln4piwjdv7aky3fswsf1ccrb2hmnpm0qcaf9dr3s8jchmax"))))
     (build-system binary-build-system)
     (arguments
      `(#:install-plan
        ;; Install the bundled CLI and vendored binaries, linux/x64 only
        '(("cli.js" "lib/claude-code/cli.js")
          ("package.json" "lib/claude-code/package.json")
-         ("resvg.wasm" "lib/claude-code/resvg.wasm")
+         ;;("resvg.wasm" "lib/claude-code/resvg.wasm")
          ("vendor/ripgrep/x64-linux/" "lib/claude-code/vendor/ripgrep/x64-linux/")
-         ("vendor/tree-sitter-bash/x64-linux/" "lib/claude-code/vendor/tree-sitter-bash/x64-linux/"))
+         ;;("vendor/tree-sitter-bash/x64-linux/" "lib/claude-code/vendor/tree-sitter-bash/x64-linux/")
+         )
        #:validate-runpath? #f        ; pre-built binaries, skip RUNPATH check
        #:phases
        (modify-phases %standard-phases
-         (add-after 'install 'patchelf-binaries
-           ;; The built-in patchelf phase runs before install, missing .node
-           ;; files. tree-sitter-bash.node is a shared object that links
-           ;; against libc/ld-linux; set its RPATH to glibc so it can be
-           ;; found at runtime. rg is statically linked and needs no patch.
-           (lambda* (#:key outputs inputs #:allow-other-keys)
-             (let* ((out (assoc-ref outputs "out"))
-                    (node-addon (string-append out "/lib/claude-code/vendor/tree-sitter-bash/x64-linux/tree-sitter-bash.node"))
-                    (rpath (string-append (assoc-ref inputs "glibc") "/lib")))
-               (invoke "patchelf" "--set-rpath" rpath node-addon))))
-         (add-after 'patchelf-binaries 'create-wrapper
+
+         (add-after 'install 'create-wrapper
            (lambda* (#:key outputs inputs #:allow-other-keys)
              (let* ((out (assoc-ref outputs "out"))
                     (bin (string-append out "/bin"))
