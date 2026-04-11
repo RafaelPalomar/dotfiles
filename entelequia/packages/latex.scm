@@ -4,7 +4,6 @@
   #:use-module (guix build-system font)
   #:use-module (guix build-system copy)
   #:use-module (guix licenses)
-  #:use-module (guix utils)
   #:export (font-sciflycore-sans
             latex-nfr))
 
@@ -19,8 +18,7 @@
   (package
     (name "font-sciflycore-sans")
     (version "1.0")
-    (source (local-file (string-append (dirname (current-filename))
-                                       "/nfr/SciFly-Sans.ttf")
+    (source (local-file "entelequia/packages/nfr/SciFly-Sans.ttf"
                         "SciFly-Sans.ttf"))
     (build-system font-build-system)
     (arguments
@@ -46,8 +44,7 @@ It is used by the @code{nfr} LaTeX class for title and heading decorations.")
   (package
     (name "latex-nfr")
     (version "2022.10.18")
-    (source (local-file (string-append (dirname (current-filename))
-                                       "/nfr/nfr.cls")
+    (source (local-file "entelequia/packages/nfr/nfr.cls"
                         "nfr.cls"))
     (build-system copy-build-system)
     (arguments
