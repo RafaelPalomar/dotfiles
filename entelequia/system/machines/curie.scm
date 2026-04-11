@@ -4,6 +4,7 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
+  #:use-module (entelequia packages latex)
   #:use-module (entelequia system lib common-services)
   #:use-module (entelequia systems desktop)  ; For desktop-home-services
   #:use-module (entelequia home services tailscale-work)
@@ -66,7 +67,9 @@
 (define curie-extra-packages
   (append
    (specifications->packages amd-specific-packages)
-   (specifications->packages curie-specific-packages)))
+   (specifications->packages curie-specific-packages)
+   (specifications->packages base-latex-packages)
+   (list font-sciflycore-sans latex-nfr)))
 
 ;;; Curie system definition
 

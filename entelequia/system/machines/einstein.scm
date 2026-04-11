@@ -4,6 +4,7 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
+  #:use-module (entelequia packages latex)
   #:use-module (entelequia system lib common-services)
   #:use-module (entelequia system machines datalocker-udev-rules)
   #:use-module (entelequia systems desktop)  ; For desktop-home-services
@@ -57,7 +58,9 @@
 (define einstein-extra-packages
   (append
    (specifications->packages nvidia-specific-packages)
-   (specifications->packages einstein-specific-packages)))
+   (specifications->packages einstein-specific-packages)
+   (specifications->packages base-latex-packages)
+   (list font-sciflycore-sans latex-nfr)))
 
 ;;; Einstein system definition
 

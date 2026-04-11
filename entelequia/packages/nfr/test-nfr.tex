@@ -1,0 +1,38 @@
+\documentclass[12pt,a4paper]{nfr}
+
+% Minimal smoke-test for the nfr class.
+% Compile with:
+%   cd entelequia/packages/nfr
+%   xelatex test-nfr.tex
+%
+% Expected output: test-nfr.pdf (≥10 KB) with lavender headings and correct fonts.
+
+\title{NFR Class Test}
+\author{Test Author}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Section Heading}
+
+This paragraph uses the default roman font (\textbf{Gentium Plus Bold}, \textit{Gentium Plus Italic}).
+
+\subsection{Subsection Heading}
+
+Tags test: \tag{REQ-01}{req:01}. Back-reference: \tagref{req:01}.
+
+\subsubsection{Subsubsection Heading}
+
+\begin{figure}[h]
+  \centering
+  \rule{4cm}{2cm}
+  \caption{A placeholder figure to test the custom caption rule.}
+\end{figure}
+
+{\DosisSemiBold Dosis SemiBold text.}
+{\DosisLight Dosis Light text.}
+{\DosisExtraLight Dosis ExtraLight text.}
+{\SciFly SciFly Sans text.}
+
+\end{document}

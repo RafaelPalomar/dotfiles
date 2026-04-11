@@ -98,6 +98,64 @@ Custom Packages
 - ``entelequia/packages/fonts.scm`` - Nerd fonts (CommitMono, Iosevka, JetBrainsMono, etc.)
 - ``entelequia/packages/polybar-themes.scm`` - Polybar theme collection
 - ``entelequia/packages/cyrus-sasl-xoauth2.scm``, ``mutt-oauth2.scm`` - OAuth2 email authentication
+- ``entelequia/packages/latex.scm`` - NFR proposal LaTeX class and SciFly Sans font
+
+NFR LaTeX Class (XeLaTeX)
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``nfr`` document class provides styling for Norwegian Research Council (NFR)
+grant proposals.  It requires XeLaTeX and lives under
+``entelequia/packages/nfr/``.
+
+**Guix packages defined in** ``entelequia/packages/latex.scm``:
+
+- ``latex-nfr`` — installs ``nfr.cls`` to ``share/texmf/tex/latex/nfr/``
+- ``font-sciflycore-sans`` — SciFly Sans TTF (freeware, Flyerzone)
+
+**Font dependencies resolved from upstream Guix** (added to
+``entelequia/home/profiles/development.scm``):
+
+- ``font-dosis`` — Dosis family (headings and requirement tags)
+- ``font-sil-gentium`` / ``font-sil-gentium-book`` — Gentium Plus (body text)
+- ``texlive-xetex``, ``texlive-fontspec``, ``texlive-xcolor``,
+  ``texlive-titlesec``, ``texlive-hyperref``, ``texlive-caption``
+
+**Usage** — in a ``.tex`` document::
+
+    \documentclass[12pt,a4paper]{nfr}
+
+    \begin{document}
+    \section{Section}
+    Body text uses Gentium Plus. {\DosisSemiBold Heading uses Dosis.}
+    \tag{REQ-01}{req:01}   % coloured boxed requirement tag
+    \tagref{req:01}         % hyperlinked back-reference
+    \end{document}
+
+Compile with XeLaTeX::
+
+    xelatex proposal.tex
+
+A minimal smoke-test document is provided at
+``entelequia/packages/nfr/test-nfr.tex``.  Run from that directory so that
+the class file is on the local search path::
+
+    cd entelequia/packages/nfr
+    xelatex test-nfr.tex
+
+A successful run produces ``test-nfr.pdf`` (≥10 KB) with lavender section
+headings, Gentium body text, Dosis headings, and SciFly-Sans decorations.
+
+.. note::
+
+   **Gentium font naming** — ``font-sil-gentium`` v7 renamed the family from
+   "Gentium Plus" (v6 and earlier) to "Gentium", and ships TTF files alongside
+   WOFF web fonts in the same package.  ``nfr.cls`` uses ``Extension=.ttf`` for
+   the Gentium ``\setromanfont`` declaration so that ``xdvipdfmx`` never
+   resolves to the WOFF variant (which it cannot embed in PDF).
+
+   **Dosis regular weight** — ``font-dosis`` v1.7 ships the regular weight as
+   ``Dosis-Book`` (not ``Dosis-Regular``).  The ``\Dosis`` command in
+   ``nfr.cls`` therefore uses the PostScript name ``Dosis-Book``.
 
 User Dotfiles
 -------------

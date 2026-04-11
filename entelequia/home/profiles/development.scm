@@ -2,6 +2,7 @@
   #:use-module (gnu packages)
   #:use-module (entelequia packages aider)
   #:use-module (entelequia packages claude-code)
+  #:use-module (entelequia packages mermaid-cli)
   #:use-module (guix-openclaw packages openclaw)
   #:use-module (systole packages claude-skills)
   #:export (development-home-packages))
@@ -41,12 +42,13 @@
           ;; Secrets management
           "sops"
 
-          ;; LaTeX / document authoring
-          "texlive-scheme-basic"  ;; pdflatex engine + basic LaTeX
-          "texlive-pgfgantt"      ;; Gantt charts (pulls in pgf/tikz)
-          "texlive-standalone"))  ;; standalone class for org-babel latex blocks
-   ;; AI coding assistants (local packages)
+          ;; Note: full LaTeX/XeLaTeX toolchain is at the system level via
+          ;; base-latex-packages (common-packages.scm) so xelatex is on PATH
+          ;; for all processes including the Emacs shepherd daemon.
+          ))
+   ;; Local packages
    (list claude-code
+         mermaid-cli
          python-aider-chat
          openclaw
          slicer-skill)))

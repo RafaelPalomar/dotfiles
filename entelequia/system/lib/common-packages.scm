@@ -11,6 +11,7 @@
             base-monitoring-packages
             nvidia-specific-packages
             amd-specific-packages
+            base-latex-packages
             curie-specific-packages
             einstein-specific-packages
             alucard-specific-packages
@@ -134,6 +135,35 @@
   '("xlibre-video-amdgpu"
     "amd-microcode"
     "amdgpu-firmware"))
+
+;;; LaTeX / XeLaTeX toolchain (system-level for Emacs AUCTeX and other daemons)
+;;;
+;;; These are placed at the system level so they are on PATH for all processes,
+;;; including the Emacs shepherd service which does not inherit the home-profile PATH.
+
+(define base-latex-packages
+  '("texlive-xetex"         ;; XeLaTeX engine
+    "texlive-fontspec"      ;; font loading for XeLaTeX/LuaLaTeX
+    "texlive-xcolor"        ;; colour support
+    "texlive-titlesec"      ;; section heading formatting
+    "texlive-hyperref"      ;; hyperlinks and PDF metadata
+    "texlive-caption"       ;; subcaption + caption formatting
+    "texlive-biblatex"      ;; bibliography management
+    "texlive-biber"         ;; biber bibliography backend
+    "texlive-setspace"      ;; line spacing control
+    "texlive-fancyhdr"      ;; custom headers and footers
+    "texlive-wrapfig"       ;; text wrapping around figures
+    "texlive-booktabs"      ;; professional-quality tables
+    "texlive-tools"         ;; tabularx and other table tools
+    "texlive-float"         ;; improved float placement [H]
+    "texlive-pgfgantt"      ;; Gantt charts (pgf/tikz)
+    "texlive-scheme-basic"  ;; pdflatex + base LaTeX packages
+    "texlive-pgfgantt"      ;; Gantt charts (used in proposals, org-babel)
+    "texlive-standalone"    ;; standalone class for org-babel latex blocks
+    ;; Fonts used by nfr.cls
+    "font-dosis"
+    "font-sil-gentium"
+    "font-sil-gentium-book"))
 
 ;;; Machine-specific packages
 
