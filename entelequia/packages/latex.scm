@@ -49,7 +49,7 @@ It is used by the @code{nfr} LaTeX class for title and heading decorations.")
     (build-system copy-build-system)
     (arguments
      `(#:install-plan
-       '(("." "share/texmf/tex/latex/nfr/"
+       '(("." "share/texmf-dist/tex/latex/nfr/"
           #:include ("nfr.cls")))))
     (home-page "https://github.com/OUH-MESHLab")
     (synopsis "LaTeX class for NFR grant proposals (XeLaTeX)")
