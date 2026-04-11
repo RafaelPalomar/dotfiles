@@ -18,7 +18,7 @@
   (package
     (name "font-sciflycore-sans")
     (version "1.0")
-    (source (local-file "entelequia/packages/nfr/SciFly-Sans.ttf"
+    (source (local-file "nfr/SciFly-Sans.ttf"
                         "SciFly-Sans.ttf"))
     (build-system font-build-system)
     (arguments
@@ -44,7 +44,7 @@ It is used by the @code{nfr} LaTeX class for title and heading decorations.")
   (package
     (name "latex-nfr")
     (version "2022.10.18")
-    (source (local-file "entelequia/packages/nfr/nfr.cls"
+    (source (local-file "nfr/nfr.cls"
                         "nfr.cls"))
     (build-system copy-build-system)
     (arguments
