@@ -31,13 +31,12 @@
 % SciFly Sans (freeware, installed via font-sciflycore-sans Guix package)
 \newfontfamily\SciFly[Ligatures=TeX]{SciFly-Sans}
 % Gentium v7 body font (SIL, installed via font-sil-gentium Guix package)
-% Extension=.ttf prevents xdvipdfmx from resolving to the WOFF web-font variants
+% Uses fontconfig fullnames; WOFF rejected via 70-no-woff.conf in dotfiles
 \setromanfont[
-  BoldFont={Gentium-Bold},
-  ItalicFont={Gentium-Italic},
-  BoldItalicFont={Gentium-BoldItalic},
-  Extension=.ttf
-]{Gentium-Regular}
+  BoldFont={Gentium Bold},
+  ItalicFont={Gentium Italic},
+  BoldItalicFont={Gentium Bold Italic}
+]{Gentium}
 
 %===============================================================================
 % SECTIONS FORMATTING
