@@ -2,7 +2,7 @@
   #:use-module (guix packages)
   #:use-module (guix gexp)
   #:use-module (guix build-system font)
-  #:use-module (guix build-system copy)
+  #:use-module (guix build-system texlive)
   #:use-module (guix licenses)
   #:export (font-sciflycore-sans
             latex-nfr))
@@ -44,13 +44,10 @@ It is used by the @code{nfr} LaTeX class for title and heading decorations.")
   (package
     (name "latex-nfr")
     (version "2022.10.18")
-    (source (local-file "nfr/nfr.cls"
-                        "nfr.cls"))
-    (build-system copy-build-system)
-    (arguments
-     `(#:install-plan
-       '(("." "share/texmf-dist/tex/latex/nfr/"
-          #:include ("nfr.cls")))))
+    (source (local-file "nfr/texmf"
+                        "latex-nfr-texmf"
+                        #:recursive? #t))
+    (build-system texlive-build-system)
     (home-page "https://github.com/OUH-MESHLab")
     (synopsis "LaTeX class for NFR grant proposals (XeLaTeX)")
     (description
