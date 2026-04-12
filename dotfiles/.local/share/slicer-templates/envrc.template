@@ -6,25 +6,47 @@
 # Qt major version this worktree builds against (5 or 6).
 SLICER_QT_VERSION="${SLICER_QT_VERSION:-@QT_VERSION@}"
 
+# Save GUIX_PROFILE now, before we override it, so we can restore it at the
+# end.  This keeps `guix` commands targeting the home profile even inside the
+# slicer direnv environment.
+_HOME_GUIX_PROFILE="${GUIX_PROFILE-}"
+
 # Use SLICER_GUIX_PROFILE if set, otherwise use a per-worktree profile.
-GUIX_PROFILE="${SLICER_GUIX_PROFILE:-$PWD/.envrc.guix-profile}"
+_SLICER_PROFILE="${SLICER_GUIX_PROFILE:-$PWD/.envrc.guix-profile}"
 
 # Create the profile from the manifest if it doesn't exist yet.  Pinned
 # through channels-lock so the build is reproducible.
 CHANNELS_LOCK="${SLICER_CHANNELS_LOCK:-$HOME/.dotfiles/channels-lock.scm}"
-if [ -z "$SLICER_GUIX_PROFILE" ] && [ ! -e "$GUIX_PROFILE" ]; then
+if [ -z "$SLICER_GUIX_PROFILE" ] && [ ! -e "$_SLICER_PROFILE" ]; then
   guix time-machine -C "$CHANNELS_LOCK" -- \
-       package -p "$GUIX_PROFILE" --manifest=.guix_manifest.scm
+       package -p "$_SLICER_PROFILE" --manifest=.guix_manifest.scm
 fi
 
-# `guix package --search-paths` overwrites PATH; preserve the original so
-# ssh, claude, and other home-profile tools remain available.
+# `guix package --search-paths` also exports GUIX_PROFILE (overwriting it with
+# the slicer profile path) and overwrites PATH.  Save PATH first so home-profile
+# tools (guix, claude, ssh, …) remain accessible after the eval.
 _ORIG_PATH="$PATH"
-eval $(guix package -p "$GUIX_PROFILE" --search-paths)
-export PATH="$GUIX_PROFILE/bin:/bin:/usr/bin:$_ORIG_PATH"
-unset _ORIG_PATH
+eval $(guix package -p "$_SLICER_PROFILE" --search-paths)
 
-export LD_LIBRARY_PATH="${GUIX_PROFILE}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# Restore GUIX_PROFILE so that `guix` commands still target the home profile.
+if [ -n "$_HOME_GUIX_PROFILE" ]; then
+  export GUIX_PROFILE="$_HOME_GUIX_PROFILE"
+else
+  unset GUIX_PROFILE
+fi
+
+# Slicer profile takes precedence.  Explicitly include the Guix home-profile
+# bin so that ssh, guix, claude, etc. are always reachable — even when Emacs
+# (or another GUI tool) was launched from a desktop shortcut with a minimal
+# PATH that does not already include ~/.guix-home/profile/bin.
+export PATH="$_SLICER_PROFILE/bin:/bin:/usr/bin:$HOME/.guix-home/profile/bin:$_ORIG_PATH"
+unset _ORIG_PATH _HOME_GUIX_PROFILE
+
+# Slicer libs first so the Slicer build and any in-tree binaries find the
+# right Qt/GL versions.  Guix-built home-profile tools (guix, claude, node,
+# …) have store RPATHs that take precedence over LD_LIBRARY_PATH, so they
+# are unaffected.
+export LD_LIBRARY_PATH="${_SLICER_PROFILE}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # CTKAppLauncher: the upstream pre-built binary (v0.1.34, Qt5.15.2) is
 # incompatible with glibc 2.34+ on Guix.  Use a locally-built binary that
