@@ -463,7 +463,7 @@ Deletes other windows and makes the frame floating."
                                                    :with-author nil
                                                    :with-toc nil)))
 
-(setq ob-mermaid-cli-path "/home/rafael/node_modules/.bin/mmdc")
+(setq ob-mermaid-cli-path (expand-file-name "~/.guix-home/profile/bin/mmdc"))
 
 (use-package org-protocol
   :ensure nil

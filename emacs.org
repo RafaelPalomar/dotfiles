@@ -693,7 +693,7 @@ Deletes other windows and makes the frame floating."
 ** Org-babel mermaid integration
 
 #+begin_src emacs-lisp :tangle dotfiles/.config/emacs/init.el
-(setq ob-mermaid-cli-path "/home/rafael/node_modules/.bin/mmdc")
+(setq ob-mermaid-cli-path (expand-file-name "~/.guix-home/profile/bin/mmdc"))
 #+end_src
 
 ** Org-Protocol Setup
