@@ -175,7 +175,8 @@
                   (home-directory "/home/rafael")
                   ;; Include all base groups + cgroup (containers)
                   (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
-                                          "realtime" "audio" "video" "cgroup")))
+                                          "realtime" "audio" "video" "cgroup"
+                                          "dialout")))
                  %base-user-accounts))
 
    ;; Bootloader configuration
