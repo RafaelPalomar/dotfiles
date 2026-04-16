@@ -46,7 +46,10 @@
                    home-files-service-type
                    (list `(".claude/commands/slicer.md"
                            ,(file-append slicer-skill
-                                         "/share/claude-skills/slicer/SKILL.md"))))
+                                         "/share/claude-skills/slicer/SKILL.md"))
+                         `(".claude/commands/guix-systole-dev.md"
+                           ,(file-append guix-systole-dev-skill
+                                         "/share/claude-skills/guix-systole-dev/SKILL.md"))))
 
    ;; GnuPG configuration
    (service home-gpg-agent-service-type

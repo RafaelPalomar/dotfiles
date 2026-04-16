@@ -51,4 +51,5 @@
          mermaid-cli
          python-aider-chat
          openclaw
-         slicer-skill)))
+         slicer-skill
+         guix-systole-dev-skill)))
