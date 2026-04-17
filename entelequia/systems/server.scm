@@ -21,7 +21,9 @@
                 ("la"  . "ls -A --color=auto")
                 ("ls"  . "ls --color=auto")
                 ("gs"  . "git status")
-                ("gl"  . "git log --oneline -10")))
+                ("gl"  . "git log --oneline -10")
+                ("sys-reconfigure" . "sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure -L ~/.dotfiles ~/.dotfiles/entelequia/system/machines/$(hostname).scm")
+                ("sys-update" . "git -C ~/.dotfiles pull && sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure -L ~/.dotfiles ~/.dotfiles/entelequia/system/machines/$(hostname).scm")))
              (bashrc
               (list (plain-file "bashrc-server"
                                 "# Server-specific shell config
