@@ -636,7 +636,18 @@ directly) so they don't race against the sidecar's `podman run`."
                                           "container" "exists"
                                           #$container-name)))
                          (sleep 1)
-                         (loop)))))))
+                         (loop)))
+                     ;; Podman registers the container the moment `podman
+                     ;; run` returns, but the sidecar's containerboot still
+                     ;; needs ~8 s to (1) read the sops-decrypted authkey,
+                     ;; (2) bring tailscaled up, (3) authenticate, and
+                     ;; (4) apply the serve config.  Without this settle
+                     ;; window, dependents start while `--network
+                     ;; container:ts-<name>` points at a half-initialised
+                     ;; netns and fail with exit 125/126.
+                     ;; Replace with a real tailscaled readiness probe in
+                     ;; Phase 1.
+                     (sleep 8)))))
            #:log-file #$(string-append "/var/log/ts-" ts-name "-ready.log")))
        (documentation
         (string-append "Wait for " container-name " container to exist in podman.")))))))

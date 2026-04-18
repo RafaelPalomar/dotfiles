@@ -5,6 +5,7 @@
   #:use-module (gnu services base)
   #:use-module (gnu services containers)
   #:use-module (gnu services guix)
+  #:use-module (gnu services mcron)
   #:use-module (gnu services shepherd)
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
@@ -757,7 +758,13 @@ TMDB_API_KEY: \"\"\n" p)))
    (user "rafael")
    (image "docker.io/library/caddy:latest")
    (provision "caddy-navidrome")
-   (requirement '(navidrome podman-prune cgroups2-fs-owner cgroups2-limits
+   ;; Depend on the ts-ready gate instead of navidrome itself: when navidrome
+   ;; flaps, caddy should stay up (it reverse-proxies via
+   ;; host.containers.internal, which routes to the ts-navidrome sidecar's
+   ;; pasta netns — so caddy is only coupled to the sidecar, not to
+   ;; navidrome).  Previously a navidrome flap pulled caddy into the respawn
+   ;; budget and the whole stack hit shepherd's disable threshold together.
+   (requirement '(ts-navidrome-ready podman-prune cgroups2-fs-owner cgroups2-limits
                   rootless-podman-shared-root-fs user-processes))
    (respawn? #t)
    (volumes
@@ -866,6 +873,62 @@ TMDB_API_KEY: \"\"\n" p)))
           "--device=/dev/nvidia-caps/nvidia-cap2"))))
 
 ;;;
+;;; Container watchdog — auto-reconcile services shepherd has given up on
+;;;
+;;; Shepherd's default respawn-limit is 5 restarts in 7 seconds; when a
+;;; container flaps past that (e.g. ts-* sidecar cold-start races), shepherd
+;;; DISABLES the service and silently stops respawning — but `herd status`
+;;; still prints "Will be respawned".  On 2026-04-13 this left the navidrome
+;;; stack down for four days before anyone noticed.
+;;;
+;;; Every 5 minutes, scan a whitelist of container services; for any that is
+;;; stopped, run `herd enable` + `herd start` to re-arm and kick it.  Logs to
+;;; syslog under the container-watchdog tag.
+
+(define %edison-watchdog-services
+  '("ts-jellyfin" "jellyfin"
+    "ts-navidrome" "navidrome" "caddy-navidrome"
+    "ts-arm" "arm"))
+
+(define %edison-container-watchdog-script
+  (program-file
+   "edison-container-watchdog"
+   #~(begin
+       (use-modules (ice-9 popen)
+                    (ice-9 rdelim)
+                    (srfi srfi-1))
+       (define herd "/run/current-system/profile/bin/herd")
+       (define logger "/run/current-system/profile/bin/logger")
+       (define (log msg)
+         (system* logger "-t" "container-watchdog" msg))
+       (define (service-stopped? svc)
+         (let* ((port (open-pipe* OPEN_READ herd "status" svc))
+                (out  (read-string port))
+                (_    (close-pipe port)))
+           ;; Match "It is stopped" — covers both stopped-and-enabled
+           ;; and stopped-and-disabled.  A running service prints
+           ;; "It is running".
+           (string-contains out "It is stopped")))
+       (for-each
+        (lambda (svc)
+          (when (service-stopped? svc)
+            (log (string-append "reconciling " svc))
+            ;; herd enable is idempotent — no-op if already enabled,
+            ;; needed if shepherd disabled the service after flapping.
+            (system* herd "enable" svc)
+            (system* herd "start"  svc)))
+        '#$%edison-watchdog-services))))
+
+(define edison-container-watchdog-service
+  (simple-service 'edison-container-watchdog
+                  mcron-service-type
+                  (list
+                   #~(job "*/5 * * * *"
+                          (lambda ()
+                            (system* #$%edison-container-watchdog-script))
+                          "edison-container-watchdog"))))
+
+;;;
 ;;; Single oci-service-type for all Edison containers
 ;;;
 
@@ -878,6 +941,7 @@ TMDB_API_KEY: \"\"\n" p)))
    (list (make-ts-ready-service "jellyfin")
          (make-ts-ready-service "navidrome")
          (make-ts-ready-service "arm"))
+   (list edison-container-watchdog-service)
    (list
     (service oci-service-type
              (oci-configuration
