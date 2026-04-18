@@ -599,9 +599,23 @@ hooks:
                      "exec /usr/local/bin/containerboot"))))))
 
 (define (make-ts-ready-service ts-name)
-  "Return a one-shot shepherd-service that waits for the ts-TS-NAME podman
-container to exist.  App containers depend on ts-<name>-ready (not ts-<name>
-directly) so they don't race against the sidecar's `podman run`."
+  "Return a one-shot shepherd-service that polls the ts-TS-NAME sidecar
+until tailscaled is actually authenticated and serving
+(BackendState=Running), not merely until the podman container exists.
+
+Previously this gate only checked `podman container exists`, which
+succeeds the moment `podman run` returns — before containerboot has
+read the authkey, brought tailscaled up, authenticated, or applied
+the serve config.  Dependents then started while
+`--network container:ts-<name>` pointed at a half-initialised netns
+and failed with exit 125/126.
+
+This version `podman exec`s into the sidecar and runs
+`tailscale status --json --peers=false`.  The exec fails (non-zero)
+while the container does not yet exist, and the JSON reports
+BackendState != \"Running\" until auth completes.  Hard timeout 120 s:
+on wedge the gate exits non-zero so dependents fail fast instead of
+hanging forever (mcron watchdog will retry)."
   (let ((container-name (string-append "ts-" ts-name)))
     (simple-service
      (string->symbol (string-append "ts-" ts-name "-ready"))
@@ -617,6 +631,8 @@ directly) so they don't race against the sidecar's `podman run`."
             #$(program-file
                (string-append "ts-" ts-name "-ready")
                #~(begin
+                   (use-modules (ice-9 popen)
+                                (ice-9 rdelim))
                    (let* ((pw   (getpwnam "rafael"))
                           (uid  (passwd:uid pw))
                           (gid  (passwd:gid pw))
@@ -629,28 +645,37 @@ directly) so they don't race against the sidecar's `podman run`."
                                             (or (getenv "PATH") "")))
                      (setgid gid)
                      (setuid uid)
-                     (let loop ()
-                       (unless (zero?
-                                (status:exit-val
-                                 (system* #$(file-append podman "/bin/podman")
-                                          "container" "exists"
-                                          #$container-name)))
-                         (sleep 1)
-                         (loop)))
-                     ;; Podman registers the container the moment `podman
-                     ;; run` returns, but the sidecar's containerboot still
-                     ;; needs ~8 s to (1) read the sops-decrypted authkey,
-                     ;; (2) bring tailscaled up, (3) authenticate, and
-                     ;; (4) apply the serve config.  Without this settle
-                     ;; window, dependents start while `--network
-                     ;; container:ts-<name>` points at a half-initialised
-                     ;; netns and fail with exit 125/126.
-                     ;; Replace with a real tailscaled readiness probe in
-                     ;; Phase 1.
-                     (sleep 8)))))
+                     (let ((podman   #$(file-append podman "/bin/podman"))
+                           (deadline (+ (current-time) 120)))
+                       (let loop ()
+                         (let* ((port (open-pipe* OPEN_READ podman
+                                                  "exec" #$container-name
+                                                  "tailscale" "status"
+                                                  "--json" "--peers=false"))
+                                (out  (read-string port))
+                                (rc   (status:exit-val (close-pipe port))))
+                           ;; tailscale --json prints "BackendState":"Running"
+                           ;; (compact) or "BackendState": "Running" (pretty).
+                           ;; Accept either.
+                           (if (and (zero? rc)
+                                    (or (string-contains
+                                         out "\"BackendState\":\"Running\"")
+                                        (string-contains
+                                         out "\"BackendState\": \"Running\"")))
+                               #t  ; success → exit 0
+                               (if (> (current-time) deadline)
+                                   (begin
+                                     (format (current-error-port)
+                                             "ts-ready: ~a did not reach BackendState=Running within 120s~%"
+                                             #$container-name)
+                                     (exit 1))
+                                   (begin
+                                     (sleep 1)
+                                     (loop)))))))))))
            #:log-file #$(string-append "/var/log/ts-" ts-name "-ready.log")))
        (documentation
-        (string-append "Wait for " container-name " container to exist in podman.")))))))
+        (string-append "Wait for " container-name
+                       " to reach tailscale BackendState=Running.")))))))
 
 (define* (make-app-container name image
                               #:key
