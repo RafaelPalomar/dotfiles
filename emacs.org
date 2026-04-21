@@ -2088,6 +2088,33 @@ See `my-denote-add-to-agenda'.")
   (advice-add 'org-update-dblock     :around #'my-denote-rescope-dblock-update)
   (advice-add 'org-update-all-dblocks :around #'my-denote-rescope-dblock-update))
 
+;; consult-denote: Vertico/Marginalia-style fuzzy search + grep across
+;; the PKS corpus with live preview.  Scoped globally to ~/pks/ so one
+;; search hits every silo (default denote-directory is only the
+;; fleeting silo).
+(use-package consult-denote
+  :ensure nil
+  :after denote
+  :commands (consult-denote-find consult-denote-grep)
+  :config
+  (consult-denote-mode 1))
+
+(defun my-pks-consult-find ()
+  "`consult-denote-find' scoped to the whole PKS tree."
+  (interactive)
+  (let ((denote-directory (expand-file-name "~/pks/")))
+    (call-interactively #'consult-denote-find)))
+
+(defun my-pks-consult-grep ()
+  "`consult-denote-grep' scoped to the whole PKS tree."
+  (interactive)
+  (let ((denote-directory (expand-file-name "~/pks/")))
+    (call-interactively #'consult-denote-grep)))
+
+(with-eval-after-load 'denote
+  (define-key my-pks-prefix-map (kbd ".") #'my-pks-consult-find)
+  (define-key my-pks-prefix-map (kbd "?") #'my-pks-consult-grep))
+
 ;; Denote capture templates — body inserted below front-matter.
 (with-eval-after-load 'denote
   (setq denote-templates

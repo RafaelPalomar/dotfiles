@@ -32,6 +32,7 @@
         emacs-dashboard
         emacs-citar
         emacs-citar-denote
+        emacs-consult-denote
         emacs-denote
         emacs-denote-org
         emacs-denote-silo
