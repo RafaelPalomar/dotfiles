@@ -1,3 +1,5 @@
+(define-module (channels-lock))
+
 (use-modules (guix channels))
 
 (list (channel
@@ -53,13 +55,16 @@
         (commit
           "4b8f5ed7449b937d7f17d01706c575476fa72d13"))
       (channel
+        ;; Pinned to rafaelpalomar/sops-guix fork with local sops package.
+        ;; Upstream sops-guix (7d3eb60) assumes sops is available in
+        ;; (gnu packages password-utils) from upstream Guix commit 24a33681
+        ;; (2026-04-04), but our pinned Guix commit (2026-03) predates that.
+        ;; Our fork restores the trivial binary-based sops package.
+        ;; Introduction field is omitted because our patched commits are
+        ;; not signed with the upstream maintainer's GPG key; the fork
+        ;; is trusted because we control it.
         (name 'sops-guix)
-        (url "https://github.com/fishinthecalculator/sops-guix.git")
-        (branch "main")
+        (url "https://github.com/RafaelPalomar/sops-guix.git")
+        (branch "fix-local-sops-for-older-guix")
         (commit
-          "7d3eb6069c71fa3f4281d6a0b209e55cb96a8674")
-        (introduction
-          (make-channel-introduction
-            "0bbaf1fdd25266c7df790f65640aaa01e6d2dbc9"
-            (openpgp-fingerprint
-              "8D10 60B9 6BB8 292E 829B  7249 AED4 1CC1 93B7 01E2")))))
+          "b17655781fe1de0bcdede165b384d96ea2d311d8")))
