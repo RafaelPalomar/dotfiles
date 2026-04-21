@@ -4,12 +4,41 @@
 
 set -e
 
-# Step 1: Select entry from Bitwarden vault
-ENTRY=$(rbw list | rofi -dmenu -i -p "Bitwarden")
+# Step 0: Ensure the agent is unlocked. If it is locked, this triggers the
+# pinentry prompt and blocks until we have a usable vault. Without this,
+# the very first invocation after login shows an empty list.
+if ! rbw unlocked >/dev/null 2>&1; then
+    if ! rbw unlock; then
+        notify-send "Bitwarden" "Unlock cancelled or failed"
+        exit 1
+    fi
+fi
 
-if [ -z "$ENTRY" ]; then
+# Step 1: Select entry. Display name, username and folder so that entries
+# that share a URL/name can be told apart by the user account.
+# Format: "<name>  |  <user>  |  <folder>" — we parse name + user back out
+# to pass to `rbw get`/`rbw code`, which accept `<NEEDLE> [USER]`.
+SEP=" | "
+SELECTION=$(rbw list --fields name,user,folder \
+    | awk -F'\t' -v sep="$SEP" '{
+        name=$1; user=($2==""?"-":$2); folder=($3==""?"-":$3);
+        printf "%s%s%s%s%s\n", name, sep, user, sep, folder
+      }' \
+    | rofi -dmenu -i -p "Bitwarden")
+
+if [ -z "$SELECTION" ]; then
     exit 0
 fi
+
+# Split selection back into name / user. Folder is only shown as a hint.
+ENTRY=${SELECTION%%"$SEP"*}
+REST=${SELECTION#*"$SEP"}
+USER_FIELD=${REST%%"$SEP"*}
+[ "$USER_FIELD" = "-" ] && USER_FIELD=""
+
+# Build the argument list for rbw (quote-safe via an array).
+RBW_ARGS=("$ENTRY")
+[ -n "$USER_FIELD" ] && RBW_ARGS+=("$USER_FIELD")
 
 # Step 2: Present action menu
 ACTION=$(echo -e "Type username and password\nType username only\nType password only\nType OTP code\nCopy username to clipboard\nCopy password to clipboard\nCopy OTP to clipboard" | rofi -dmenu -i -p "Action")
@@ -21,8 +50,8 @@ fi
 # Step 3: Execute selected action using rbw and xdotool/xclip
 case "$ACTION" in
     "Type username and password")
-        USERNAME=$(rbw get "$ENTRY" --field username 2>/dev/null || echo "")
-        PASSWORD=$(rbw get "$ENTRY" 2>/dev/null || echo "")
+        USERNAME=$(rbw get "${RBW_ARGS[@]}" --field username 2>/dev/null || echo "")
+        PASSWORD=$(rbw get "${RBW_ARGS[@]}" 2>/dev/null || echo "")
         if [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
             sleep 0.1
             xdotool type --clearmodifiers "$USERNAME"
@@ -31,28 +60,28 @@ case "$ACTION" in
         fi
         ;;
     "Type username only")
-        USERNAME=$(rbw get "$ENTRY" --field username 2>/dev/null || echo "")
+        USERNAME=$(rbw get "${RBW_ARGS[@]}" --field username 2>/dev/null || echo "")
         if [ -n "$USERNAME" ]; then
             sleep 0.1
             xdotool type --clearmodifiers "$USERNAME"
         fi
         ;;
     "Type password only")
-        PASSWORD=$(rbw get "$ENTRY" 2>/dev/null || echo "")
+        PASSWORD=$(rbw get "${RBW_ARGS[@]}" 2>/dev/null || echo "")
         if [ -n "$PASSWORD" ]; then
             sleep 0.1
             xdotool type --clearmodifiers "$PASSWORD"
         fi
         ;;
     "Type OTP code")
-        TOTP=$(rbw code "$ENTRY" 2>/dev/null || echo "")
+        TOTP=$(rbw code "${RBW_ARGS[@]}" 2>/dev/null || echo "")
         if [ -n "$TOTP" ]; then
             sleep 0.1
             xdotool type --clearmodifiers "$TOTP"
         fi
         ;;
     "Copy username to clipboard")
-        USERNAME=$(rbw get "$ENTRY" --field username 2>/dev/null || echo "")
+        USERNAME=$(rbw get "${RBW_ARGS[@]}" --field username 2>/dev/null || echo "")
         if [ -n "$USERNAME" ]; then
             echo -n "$USERNAME" | xclip -selection clipboard
             notify-send "Bitwarden" "Username copied (auto-clear in 15s)"
@@ -61,7 +90,7 @@ case "$ACTION" in
         fi
         ;;
     "Copy password to clipboard")
-        PASSWORD=$(rbw get "$ENTRY" 2>/dev/null || echo "")
+        PASSWORD=$(rbw get "${RBW_ARGS[@]}" 2>/dev/null || echo "")
         if [ -n "$PASSWORD" ]; then
             echo -n "$PASSWORD" | xclip -selection clipboard
             notify-send "Bitwarden" "Password copied (auto-clear in 15s)"
@@ -70,7 +99,7 @@ case "$ACTION" in
         fi
         ;;
     "Copy OTP to clipboard")
-        TOTP=$(rbw code "$ENTRY" 2>/dev/null || echo "")
+        TOTP=$(rbw code "${RBW_ARGS[@]}" 2>/dev/null || echo "")
         if [ -n "$TOTP" ]; then
             echo -n "$TOTP" | xclip -selection clipboard
             notify-send "Bitwarden" "OTP copied (auto-clear in 15s)"
