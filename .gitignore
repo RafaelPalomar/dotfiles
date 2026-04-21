@@ -1,7 +1,9 @@
 .aider*
 
-# Generated documentation (auto-generated from RST sources)
-CLAUDE.md
+# Generated documentation (auto-generated from RST sources).
+# Anchored to repo root so per-scope CLAUDE.md files (e.g. user-level
+# dotfiles/.claude/CLAUDE.md) are still tracked.
+/CLAUDE.md
 
 # Sphinx build artifacts
 docs/build/
