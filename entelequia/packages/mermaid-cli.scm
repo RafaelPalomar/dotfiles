@@ -41,13 +41,17 @@
                (mkdir-p bin)
                (call-with-output-file (string-append bin "/mmdc")
                  (lambda (port)
-                   ;; Chromium is resolved at runtime from the system profile.
-                   ;; PUPPETEER_SKIP_DOWNLOAD prevents any attempt to fetch a
-                   ;; bundled browser.
+                   ;; Chromium is resolved at runtime. Honor a pre-set
+                   ;; PUPPETEER_EXECUTABLE_PATH; otherwise probe PATH for
+                   ;; chromium, then google-chrome, then fall back to the
+                   ;; system profile path. PUPPETEER_SKIP_DOWNLOAD prevents
+                   ;; any attempt to fetch a bundled browser.
                    (format port
                            "#!/bin/sh~%\
-PUPPETEER_SKIP_DOWNLOAD=1 \\~%\
-PUPPETEER_EXECUTABLE_PATH=\"$(command -v chromium || echo /run/current-system/profile/bin/chromium)\" \\~%\
+: \"${PUPPETEER_EXECUTABLE_PATH:=$(command -v chromium \
+|| command -v google-chrome \
+|| echo /run/current-system/profile/bin/chromium)}\"~%\
+export PUPPETEER_SKIP_DOWNLOAD=1 PUPPETEER_EXECUTABLE_PATH~%\
 exec ~a ~a \"$@\"~%"
                            node cli)))
                (chmod (string-append bin "/mmdc") #o755)))))))

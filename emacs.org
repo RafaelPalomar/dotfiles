@@ -692,9 +692,31 @@ Deletes other windows and makes the frame floating."
 
 ** Org-babel mermaid integration
 
+Set the path to =mmdc= and configure sensible defaults so that mermaid blocks
+only need to specify =:file=. With these defaults, blocks render to files on
+evaluation and are embedded into HTML/LaTeX exports automatically.
+
 #+begin_src emacs-lisp :tangle dotfiles/.config/emacs/init.el
 (setq ob-mermaid-cli-path (expand-file-name "~/.guix-home/profile/bin/mmdc"))
+
+(with-eval-after-load 'ob-mermaid
+  (setq org-babel-default-header-args:mermaid
+        '((:results . "file replace")
+          (:exports . "results")
+          (:background-color . "transparent"))))
 #+end_src
+
+Example: a block like the following renders =flow.svg= next to the org file
+and embeds it on export.
+
+#+begin_example
+,#+begin_src mermaid :file flow.svg
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Do X]
+    B -->|No| D[Do Y]
+,#+end_src
+#+end_example
 
 ** Org-Protocol Setup
 

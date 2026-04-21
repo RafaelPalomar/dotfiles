@@ -465,6 +465,12 @@ Deletes other windows and makes the frame floating."
 
 (setq ob-mermaid-cli-path (expand-file-name "~/.guix-home/profile/bin/mmdc"))
 
+(with-eval-after-load 'ob-mermaid
+  (setq org-babel-default-header-args:mermaid
+        '((:results . "file replace")
+          (:exports . "results")
+          (:background-color . "transparent"))))
+
 (use-package org-protocol
   :ensure nil
   :config
