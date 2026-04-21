@@ -1,3 +1,5 @@
+(use-modules (guix channels))
+
 (list (channel
         (name 'guix)
         (url "https://git.guix.gnu.org/guix.git")
@@ -49,4 +51,15 @@
         (url "https://github.com/OUH-MESHLab/guix-openclaw")
         (branch "main")
         (commit
-          "4b8f5ed7449b937d7f17d01706c575476fa72d13")))
+          "4b8f5ed7449b937d7f17d01706c575476fa72d13"))
+      (channel
+        (name 'sops-guix)
+        (url "https://github.com/fishinthecalculator/sops-guix.git")
+        (branch "main")
+        (commit
+          "7d3eb6069c71fa3f4281d6a0b209e55cb96a8674")
+        (introduction
+          (make-channel-introduction
+            "0bbaf1fdd25266c7df790f65640aaa01e6d2dbc9"
+            (openpgp-fingerprint
+              "8D10 60B9 6BB8 292E 829B  7249 AED4 1CC1 93B7 01E2"))))
