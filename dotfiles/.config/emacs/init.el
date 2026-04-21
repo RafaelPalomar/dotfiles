@@ -1652,12 +1652,18 @@ See `my-denote-add-to-agenda'.")
   ;; dblock update to the PKS root.  Advice applies only when the buffer
   ;; is under ~/pks/ so it stays neutral for other denote trees.
   (defun my-denote-rescope-dblock-update (orig-fun &rest args)
+    ;; ~/pks/ is a symlink into ~/Nextcloud/PKS/; resolve both sides to
+    ;; their true names before comparing, otherwise file-truename on
+    ;; the buffer path yields the Nextcloud path and the prefix match
+    ;; fails.
     (let* ((file (buffer-file-name))
-           (pks  (expand-file-name "~/pks/"))
-           (denote-directory
-            (if (and file (string-prefix-p pks (file-truename file)))
-                pks
-              denote-directory)))
+           (pks-link (expand-file-name "~/pks/"))
+           (pks-real (file-truename pks-link))
+           (inside-pks (and file
+                            (let ((true (file-truename file)))
+                              (or (string-prefix-p pks-link true)
+                                  (string-prefix-p pks-real true)))))
+           (denote-directory (if inside-pks pks-link denote-directory)))
       (apply orig-fun args)))
   (advice-add 'org-update-dblock     :around #'my-denote-rescope-dblock-update)
   (advice-add 'org-update-all-dblocks :around #'my-denote-rescope-dblock-update))
