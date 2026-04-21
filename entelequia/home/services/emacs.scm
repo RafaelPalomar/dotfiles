@@ -30,7 +30,10 @@
         emacs-company
         emacs-copilot
         emacs-dashboard
+        emacs-citar
+        emacs-citar-denote
         emacs-denote
+        emacs-denote-org
         emacs-denote-silo
         emacs-diredfl
         emacs-dirvish

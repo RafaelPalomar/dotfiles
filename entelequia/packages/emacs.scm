@@ -9,23 +9,9 @@
   #:use-module (guix git-download)
   #:use-module ((guix licenses) #:prefix license:))
 
-(define-public emacs-denote-silo
-  (package
-    (name "emacs-denote-silo")
-    (version "0.2.0")
-    (source
-     (origin
-       (method url-fetch)
-       (uri (string-append "https://elpa.gnu.org/packages/denote-silo-"
-                           version ".tar"))
-       (sha256
-        (base32 "10n4xv179dl6zz1k28lcbrgyqx8k3hfh3isd7q3qg1vcahlw04vl"))))
-    (build-system emacs-build-system)
-    (propagated-inputs (list upstream:emacs-denote))
-    (home-page "https://github.com/protesilaos/denote-silo")
-    (synopsis "Convenience functions for using Denote in multiple silos")
-    (description "Package for working with different denote silos")
-    (license license:gpl3+)))
+;; emacs-denote-silo is now available upstream in (gnu packages emacs-xyz)
+;; at the same version (0.2.0), so the local definition was removed.  It is
+;; picked up via `(use-package-modules emacs-xyz ...)` in the home service.
 
 ;; This is a copy of the original in
 ;; https://github.com/hiecaq/guix-config?tab=readme-ov-file#evil-snipe

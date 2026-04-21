@@ -323,19 +323,29 @@
 
 (setq org-capture-templates
       '(("t" "TODO workflow")
-        ("tt" "Work Todo" entry (file+olp "~/org/inbox.org" "Inbox")
+        ("tt" "Work Todo (refile to project)" entry (file+olp "~/org/inbox.org" "Inbox")
          "* TODO %?\nEntered on %U\n  %i\n\n")
         ("tp" "Personal Todo" entry (file+olp "~/org/inbox-personal.org" "Inbox")
          "* TODO %? :personal:\nEntered on %U\n  %i\n\n")
         ("q" "Quick Capture" entry (file+olp "~/org/inbox.org" "Inbox")
          "* TODO %?\nEntered on %U\n" :immediate-finish t)
-        ("p" "Project Idea" entry (file+olp "~/org/projects.org" "Project Ideas")
-         "* PROJECT %?\n:PROPERTIES:\n:CREATED: %U\n:STATUS: idea\n:END:\n\n** Goals\n\n** Notes\n\n")
+
+        ;; Denote captures — route into the function-based PKS silos.
+        ("f" "Fleeting (denote)"   plain (function my-pks-capture-fleeting)
+         "" :jump-to-captured t)
+        ("l" "Literature (denote)" plain (function my-pks-capture-literature)
+         "" :jump-to-captured t)
+        ("P" "New Project (denote)" plain (function my-pks-capture-project)
+         "" :jump-to-captured t)
+        ("H" "Hub / MOC (denote)"  plain (function my-pks-capture-hub)
+         "" :jump-to-captured t)
+
         ("a" "AI-Friendly Task" entry (file+olp "~/org/inbox.org" "Inbox")
          "* TODO %?\n:PROPERTIES:\n:AI_FRIENDLY: t\n:CONTEXT: \n:EXPECTED_OUTPUT: \n:FILES: \n:END:\n\n#+BEGIN_AI_CONTEXT\n\n#+END_AI_CONTEXT\n\n** Acceptance Criteria\n- [ ] \n")
-        ("g" "GitHub Issue" entry (file+olp "~/org/github-issues.org" "Open Issues")
+        ("g" "GitHub Issue" entry (file+olp "~/org/inbox.org" "GitHub")
          "* TODO %?\n:PROPERTIES:\n:REPO: \n:ISSUE: \n:STATE: \n:GITHUB_URL: \n:LABELS: \n:END:\n\n")
-        ("n" "Meeting Note" entry (file+olp "~/org/inbox.org" "Meetings")
+        ("n" "Meeting Note (inbox; refile to denote project)" entry
+         (file+olp "~/org/inbox.org" "Meetings")
          "* Meeting: %?\n:PROPERTIES:\n:CREATED: %U\n:ATTENDEES: \n:END:\n\n** Agenda\n\n** Notes\n\n** Action Items\n")
         ("m" "Email Workflow")
         ("me" "Email Task" entry (file+olp "~/org/inbox.org" "E-Mail")
@@ -390,17 +400,35 @@ Waiting for response from %:fromname
 
 %i")))
 
-(setq org-agenda-files '("~/org/inbox.org"
-                         "~/org/inbox-personal.org"
-                         "~/org/projects.org"
-                         "~/org/github-issues.org"
-                         "~/org/archive.org"
-                         "~/org/archive-personal.org"))
+;; Agenda files.  With the function-based PKS, projects/ notes tagged
+;; _agenda become the source of truth for active project TODOs.  The
+;; legacy ~/org/projects.org and ~/org/github-issues.org are retired
+;; from org-agenda (kept read-only for history); inbox.org stays as the
+;; single org-capture sink.
+(defun my-pks-projects-files ()
+  "All org files under ~/pks/projects/, as a refile-targets function."
+  (when (file-directory-p (expand-file-name "~/pks/projects/"))
+    (directory-files-recursively
+     (expand-file-name "~/pks/projects/") "\\.org\\'")))
 
-(setq-default org-refile-targets '((nil :maxlevel . 9)
-                                   (org-agenda-files :maxlevel . 9)))
+(setq org-agenda-files
+      (delete-dups
+       (append
+        '("~/org/inbox.org"
+          "~/org/inbox-personal.org"
+          "~/org/archive.org"
+          "~/org/archive-personal.org")
+        ;; Denote notes tagged _agenda across all PKS silos.
+        (when (file-directory-p (expand-file-name "~/pks/"))
+          (directory-files-recursively
+           (expand-file-name "~/pks/") "_agenda.*\\.org\\'")))))
+
+(setq-default org-refile-targets
+              '((nil :maxlevel . 9)
+                (org-agenda-files :maxlevel . 9)
+                (my-pks-projects-files :maxlevel . 5)))
 (setq org-outline-path-complete-in-steps nil)
-(setq org-refile-use-outline-path t)
+(setq org-refile-use-outline-path 'file)
 
 ;; Helper function to make current frame floating in bspwm
 (defun my/make-frame-floating ()
@@ -992,14 +1020,50 @@ Deletes other windows and makes the frame floating."
 
   (setq gptel-model 'claude-sonnet-4-5-20250929)
 
-  ;; Custom directives for common tasks
-  ;; TODO: Fix gptel-make-directive - function doesn't exist in current version
-  ;; (gptel-make-directive "code-review"
-  ;;                       "Review this code for bugs, performance, and best practices.")
-  ;;
-  ;; (gptel-make-directive "explain"
-  ;;                       "Explain this code in simple terms.")
-  )
+  ;; PKS-aware system directive.  Ensures gptel's output uses denote's
+  ;; filename conventions, link syntax, and closed keyword vocabulary
+  ;; when the user asks it to produce notes or link suggestions.
+  (setq gptel-directives
+        (append (bound-and-true-p gptel-directives)
+                '((pks
+                   . "You are assisting a user whose notes live in a function-based Zettelkasten at ~/pks/ managed with Denote.
+Silos: fleeting/ permanent/ literature/ projects/ reference/ (+ review-queue/, library/).
+Filenames: YYYYMMDDTHHMMSS--slug__kw1_kw2.org.
+Closed keyword vocabulary: _research _code _learn _project _lit _perm _fleeting _ntnu _ous _agenda _moc _meeting _hub _idea _review. Warn before proposing a new keyword outside this set.
+Links: [[denote:YYYYMMDDTHHMMSSID][title]].
+Citations: [cite:@citekey] with bibliography at ~/pks/library/references.bib.
+When drafting a note propose: Title (asserts a single claim for permanent/), Silo, Keywords.
+Prefer atomic notes (one claim per permanent note).  Hubs (MOCs) live in reference/ with _moc keyword.
+Do NOT regenerate denote IDs; preserve them on rename."))))
+
+  (setq gptel--system-message
+        (alist-get 'pks gptel-directives)))
+
+;; Capture the last gptel response (or the selected region) as a
+;; fleeting denote note via denotecli.  Useful after a chat where the
+;; conclusion deserves to become a trackable note.
+(defun my/gptel-capture-as-fleeting (beg end)
+  "Capture region BEG..END as a fleeting denote note.
+If no active region, use the whole buffer."
+  (interactive
+   (if (use-region-p) (list (region-beginning) (region-end))
+     (list (point-min) (point-max))))
+  (let* ((text (buffer-substring-no-properties beg end))
+         (title (read-string "Title: "))
+         (kw (completing-read-multiple
+              "Keywords (comma-separated): "
+              '("fleeting" "research" "code" "learn" "ntnu" "ous" "idea")
+              nil nil "fleeting")))
+    (with-temp-buffer
+      (insert text)
+      (shell-command-on-region
+       (point-min) (point-max)
+       (format "denotecli create --title %s --tags %s --dir %s --content -"
+               (shell-quote-argument title)
+               (shell-quote-argument (string-join kw ","))
+               (shell-quote-argument (expand-file-name "~/pks/fleeting/")))
+       nil t))
+    (message "Captured to ~/pks/fleeting/ as %s" title)))
 
 ;; Helper function to switch between backends
 (defun my/gptel-switch-backend ()
@@ -1503,53 +1567,220 @@ https://ntnu.no
 (use-package denote
   :ensure nil
   :config
-  ;; Define silos for Work and Personal notes
-  (setq denote-directory "~/Notes/Work/")
+  (setq denote-directory (expand-file-name "~/pks/fleeting/"))
 
   (setq denote-silo-extras-directories
-        '(("personal" . "~/Notes/Personal/")))
+        '(("permanent"  . "~/pks/permanent/")
+          ("literature" . "~/pks/literature/")
+          ("projects"   . "~/pks/projects/")
+          ("reference"  . "~/pks/reference/")
+          ("review"     . "~/pks/review-queue/")
+          ("legacy"     . "~/Notes/Work-legacy/")))
+
+  (setq denote-known-keywords
+        '("research" "code" "learn" "project" "lit" "perm" "fleeting"
+          "ntnu" "ous" "agenda" "moc" "meeting" "hub" "idea" "review"))
+
+  (setq denote-infer-keywords t
+        denote-sort-keywords t
+        denote-file-type 'org
+        denote-prompts '(title keywords)
+        denote-date-prompt-use-org-read-date t
+        denote-rename-confirmations nil
+        denote-excluded-directories-regexp "legacy\\|review-queue")
 
   (defvar my-denote-to-agenda-regexp "_agenda"
     "Denote file names that are added to the agenda.
-See `my-add-denote-to-agenda'.")
+See `my-denote-add-to-agenda'.")
 
   (defun my-denote-add-to-agenda ()
-    "Add current file to the `org-agenda-files', if needed.
-The file's name must match the `my-denote-to-agenda-regexp'.
-
-Add this to the `after-save-hook' or call it interactively."
+    "Add current file to `org-agenda-files' if it matches the regexp."
     (interactive)
     (when-let* ((file (buffer-file-name))
                 ((denote-file-is-note-p file))
-                ((string-match-p my-denote-to-agenda-regexp (buffer-file-name))))
+                ((string-match-p my-denote-to-agenda-regexp file)))
       (add-to-list 'org-agenda-files file)))
 
-  ;; Example to add the file automatically. Comment/Uncomment it:
-  (add-hook 'after-save-hook #'my-denote-add-to-agenda)
-
   (defun my-denote-remove-from-agenda ()
-    "Remove current file from the `org-agenda-files'.
-See `my-denote-add-to-agenda' for how to add files to the Org
-agenda."
+    "Remove current file from `org-agenda-files'."
     (interactive)
     (when-let* ((file (buffer-file-name))
-                ((string-match-p my-denote-to-agenda-regexp (buffer-file-name))))
-      (setq org-agenda-files (delete file org-agenda-files)))))
+                ((string-match-p my-denote-to-agenda-regexp file)))
+      (setq org-agenda-files (delete file org-agenda-files))))
+
+  (add-hook 'after-save-hook #'my-denote-add-to-agenda)
+
+  (defun my-denote-refresh-agenda ()
+    "Seed `org-agenda-files' with all _agenda notes across PKS silos."
+    (interactive)
+    (dolist (silo '("~/pks/projects/" "~/pks/fleeting/" "~/pks/permanent/"))
+      (when (file-directory-p (expand-file-name silo))
+        (dolist (f (directory-files-recursively
+                    (expand-file-name silo) "_agenda.*\\.org\\'"))
+          (add-to-list 'org-agenda-files f)))))
+  (add-hook 'after-init-hook #'my-denote-refresh-agenda))
 
 (use-package denote-silo
   :ensure nil
-  ;; Bind these commands to key bindings of your choice.
-  :commands ( denote-silo-create-note
-              denote-silo-open-or-create
-              denote-silo-select-silo-then-command
-              denote-silo-dired
-              denote-silo-cd )
+  :commands (denote-silo-create-note
+             denote-silo-open-or-create
+             denote-silo-select-silo-then-command
+             denote-silo-dired
+             denote-silo-cd)
   :config
-  ;; Add your silos to this list.  By default, it only includes the
-  ;; value of the variable `denote-directory'.
   (setq denote-silo-directories
         (list denote-directory
-              "~/Notes/Personal/")))
+              "~/pks/permanent/"
+              "~/pks/literature/"
+              "~/pks/projects/"
+              "~/pks/reference/"
+              "~/pks/review-queue/"
+              "~/Notes/Work-legacy/")))
+
+(use-package denote-org
+  :ensure nil
+  :after denote
+  :commands (denote-org-link-to-heading
+             denote-org-extract-org-subtree
+             denote-org-dblock-insert-backlinks
+             denote-org-dblock-insert-links
+             denote-org-dblock-insert-missing-links)
+  :config
+  ;; Denote-org's dblocks scan `denote-directory', which in this setup is
+  ;; ~/pks/fleeting/ (the default capture silo).  Hub / MOC notes live in
+  ;; reference/ and want to see links across ALL silos, so rescope the
+  ;; dblock update to the PKS root.  Advice applies only when the buffer
+  ;; is under ~/pks/ so it stays neutral for other denote trees.
+  (defun my-denote-rescope-dblock-update (orig-fun &rest args)
+    (let* ((file (buffer-file-name))
+           (pks  (expand-file-name "~/pks/"))
+           (denote-directory
+            (if (and file (string-prefix-p pks (file-truename file)))
+                pks
+              denote-directory)))
+      (apply orig-fun args)))
+  (advice-add 'org-update-dblock     :around #'my-denote-rescope-dblock-update)
+  (advice-add 'org-update-all-dblocks :around #'my-denote-rescope-dblock-update))
+
+;; Denote capture templates — body inserted below front-matter.
+(with-eval-after-load 'denote
+  (setq denote-templates
+        '((fleeting
+           . "* Thought\n\n")
+          (literature
+           . "* Source\n- Author:\n- Year:\n- URL:\n\n* Key claims\n\n* My notes\n")
+          (project
+           . "* Status\nBrief current state.\n\n* Next actions\n** NEXT \n\n* Log\n- %U :: \n\n* Architecture / patterns\n\n* References\n")
+          (moc
+           . "* Purpose\n\n* Pinned notes\n\n#+BEGIN: denote-backlinks\n#+END:\n"))))
+
+;; Silo-routing capture helpers.  `denote-org-capture' is routed to a
+;; specific silo by binding `denote-directory' around the call.
+(defun my-pks-capture-to-silo (silo keywords &optional template)
+  "Capture a denote note into SILO under ~/pks/ with KEYWORDS and TEMPLATE."
+  (let ((denote-directory (expand-file-name (concat "~/pks/" silo "/")))
+        (denote-use-keywords keywords)
+        (denote-use-template template))
+    (denote-org-capture)))
+
+(defun my-pks-capture-fleeting ()
+  (interactive) (my-pks-capture-to-silo "fleeting"   '("fleeting")           'fleeting))
+(defun my-pks-capture-literature ()
+  (interactive) (my-pks-capture-to-silo "literature" '("lit")                'literature))
+(defun my-pks-capture-project ()
+  (interactive) (my-pks-capture-to-silo "projects"   '("project" "agenda")   'project))
+(defun my-pks-capture-hub ()
+  (interactive) (my-pks-capture-to-silo "reference"  '("moc" "hub")          'moc))
+
+(defun my-pks-find-project (query)
+  "Jump to a projects/ note whose filename contains QUERY."
+  (interactive "sProject: ")
+  (let* ((files (directory-files-recursively
+                 (expand-file-name "~/pks/projects/") "\\.org\\'"))
+         (match (seq-find (lambda (f) (string-match-p query f)) files)))
+    (if match (find-file match)
+      (user-error "No matching project note: %s" query))))
+
+(defun my-denote-promote-fleeting-to-permanent ()
+  "Promote current fleeting note to permanent/ via denotecli (preserves ID)."
+  (interactive)
+  (unless (string-prefix-p (expand-file-name "~/pks/fleeting/")
+                           (buffer-file-name))
+    (user-error "Current buffer is not a fleeting note"))
+  (let* ((id (denote-retrieve-filename-identifier (buffer-file-name)))
+         (kw (completing-read-multiple
+              "Permanent keywords (comma-separated): "
+              '("perm" "research" "code" "learn" "ntnu" "ous"))))
+    (save-buffer)
+    (shell-command
+     (format "denotecli rename %s --silo permanent --keywords %s --keep-id"
+             (shell-quote-argument id)
+             (shell-quote-argument (string-join kw ","))))))
+
+;; C-c n prefix keymap (Protesilaos-style).
+(define-prefix-command 'my-pks-prefix-map)
+(with-eval-after-load 'denote
+  (global-set-key (kbd "C-c n") 'my-pks-prefix-map)
+  (let ((m my-pks-prefix-map))
+    (define-key m "c" #'denote)
+    (define-key m "C" #'denote-open-or-create)
+    (define-key m "s" #'denote-silo-create-note)
+    (define-key m "S" #'denote-silo-select-silo-then-command)
+    (define-key m "d" #'denote-silo-dired)
+    (define-key m "n" #'my-pks-capture-fleeting)
+    (define-key m "i" #'denote-link)
+    (define-key m "I" #'denote-link-after-creating)
+    (define-key m "b" #'denote-backlinks)
+    (define-key m "B" #'denote-find-backlink)
+    (define-key m "r" #'denote-rename-file)
+    (define-key m "k" #'denote-rename-file-keywords)
+    (define-key m "e" #'denote-org-extract-org-subtree)
+    (define-key m "h" #'my-pks-capture-hub)
+    (define-key m "p" #'my-pks-find-project)
+    (define-key m "P" #'my-pks-capture-project)
+    (define-key m "L" #'my-pks-capture-literature)
+    (define-key m "a" #'my-denote-add-to-agenda)
+    (define-key m "A" #'my-denote-remove-from-agenda)
+    (define-key m "!" #'my-denote-promote-fleeting-to-permanent)
+    (define-key m (kbd "l l") #'denote-org-dblock-insert-links)
+    (define-key m (kbd "l b") #'denote-org-dblock-insert-backlinks)
+    (define-key m (kbd "l m") #'denote-org-dblock-insert-missing-links)))
+
+(use-package citar
+  :ensure nil
+  :after denote
+  :custom
+  (citar-bibliography '("~/pks/library/references.bib"))
+  (citar-library-paths '("~/pks/library/papers/"
+                         "~/pks/library/books/"))
+  (citar-notes-paths '("~/pks/literature/"))
+  (org-cite-global-bibliography '("~/pks/library/references.bib"))
+  (org-cite-insert-processor 'citar)
+  (org-cite-follow-processor 'citar)
+  (org-cite-activate-processor 'citar))
+
+(use-package citar-denote
+  :ensure nil
+  :after citar
+  :custom
+  (citar-denote-file-type 'org)
+  (citar-denote-keyword "lit")        ; literature notes carry _lit
+  (citar-denote-subdir nil)           ; use denote-directory itself
+  (citar-denote-signature nil)        ; consistent with flat-ZK choice
+  :config
+  (citar-denote-mode))
+
+;; Citar bindings under the C-c n r sub-prefix.
+(with-eval-after-load 'citar
+  (define-prefix-command 'my-pks-citar-map)
+  (define-key my-pks-prefix-map (kbd "r") 'my-pks-citar-map)
+  (let ((m my-pks-citar-map))
+    (define-key m "i" #'citar-insert-citation)      ; [cite:@key] in org
+    (define-key m "o" #'citar-open)                 ; fuzzy-pick → PDF/note
+    (define-key m "f" #'citar-open-files)           ; open associated PDF
+    (define-key m "n" #'citar-open-notes)           ; open/create literature note
+    (define-key m "r" #'citar-open-entry)           ; jump to .bib entry
+    (define-key m "a" #'citar-add-file-to-library))) ; attach PDF to citekey
 
 (use-package dashboard
   :ensure nil
