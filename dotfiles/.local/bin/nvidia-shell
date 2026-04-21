@@ -1,0 +1,31 @@
+#!/bin/sh
+# Generic `guix shell` wrapper that adds NVIDIA OpenGL.
+#
+# Use for any GL-using program that you'd otherwise launch with `guix shell`.
+# Example: nvidia-shell -L systole slicer-all-5.8 slicer-sofa -- Slicer
+#
+# Programs built against vanilla Mesa (DT_RUNPATH) can't load
+# nvidia-drm_dri.so on NVIDIA systems and fall back to llvmpipe (software
+# rendering). Fix: prepend nvda's lib dir to LD_LIBRARY_PATH so libglvnd's
+# libGL.so takes priority over Mesa's, then dispatch to libGLX_nvidia.so
+# via __GLX_VENDOR_LIBRARY_NAME.
+#
+# Source nvda from the SYSTEM profile, not `guix build nvda`. NVIDIA's
+# userspace driver must match the kernel module version exactly. The
+# system profile's nvda is built from the same channel snapshot as the
+# loaded kernel module (during `guix system reconfigure`), so it cannot
+# drift. `guix build nvda` resolves against the user's possibly-stale
+# channel and silently produces a mismatched driver, which then fails
+# to load and falls back to llvmpipe.
+
+NVDA_LIB=/run/current-system/profile/lib
+
+if [ ! -e "$NVDA_LIB/libGLX_nvidia.so" ]; then
+    echo "nvidia-shell: NVIDIA driver not in system profile — is this an NVIDIA host?" >&2
+    exit 1
+fi
+
+exec env \
+    LD_LIBRARY_PATH="$NVDA_LIB:$LD_LIBRARY_PATH" \
+    __GLX_VENDOR_LIBRARY_NAME=nvidia \
+    guix shell nvda "$@"

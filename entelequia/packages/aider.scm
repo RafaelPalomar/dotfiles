@@ -198,13 +198,13 @@ logic as JSON.")
 (define-public python-posthog
   (package
     (name "python-posthog")
-    (version "7.9.6")
+    (version "7.12.0")
     (source
      (origin
        (method url-fetch)
        (uri (pypi-uri "posthog" version))
        (sha256
-        (base32 "1grbvvahmnv4qca3ks2afqqmk6bi2y3r6iddqzb25rawi1iwn3jf"))))
+        (base32 "0kn1vfjd35shcwqisy6ygjn552gjwqc4rmw4nwbjyr3yp03v51ck"))))
     (build-system pyproject-build-system)
     (native-inputs (list python-setuptools))
     (propagated-inputs
@@ -446,17 +446,17 @@ abstract syntax tree context, making it easier to understand code structure.")
   ;; Rust/PyO3 extension — installed from pre-built manylinux cp311 wheel.
   (package
     (name "python-jiter")
-    (version "0.13.0")
+    (version "0.14.0")
     (source
      (origin
        (method url-fetch)
        (uri (string-append
-             "https://files.pythonhosted.org/packages/6e/09/"
-             "9fe4c159358176f82d4390407a03f506a8659ed13ca3ac93a843402acecf/"
+             "https://files.pythonhosted.org/packages/ad/5e/"
+             "0ddeb7096aca099114abe36c4921016e8d251e6f35f5890240b31f1f60ae/"
              "jiter-" version
              "-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"))
        (sha256
-        (base32 "062h1gjaa2lsmym48y0iq7308czjn8gf3a1n7baz61aydl947ar4"))))
+        (base32 "0wx3yf0iwifh648jnk93x1lmj96mspd2dmax0pf50akccid1s02w"))))
     (build-system trivial-build-system)
     (arguments
      `(#:modules ((guix build utils))
@@ -619,13 +619,13 @@ OpenAI, Anthropic, Azure, Cohere, and 100+ other providers.")
 (define-public python-aider-chat
   (package
     (name "python-aider-chat")
-    (version "0.86.1")
+    (version "0.86.2")
     (source
      (origin
        (method url-fetch)
        (uri (pypi-uri "aider_chat" version))
        (sha256
-        (base32 "1fqvh3xlgng26p81f82zbjm8ls0g2zq83ixcqh5dkzad1b98kr28"))))
+        (base32 "0ncih4cvm2by99p9a9nz7xdihw0il7350bgq7b0z02an5wr9v2pk"))))
     (build-system pyproject-build-system)
     (native-inputs (list python-setuptools))
     (propagated-inputs

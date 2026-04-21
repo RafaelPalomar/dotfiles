@@ -67,33 +67,33 @@ and others.")
 
 (define-public nerd-font-commitmono
   (%nerd-font-package #:font-name "CommitMono"
-                      #:version "3.3.0"
-                      #:hash "0bxk8mqalg2sf8pnm85p083imcjcnzz4h5lg0920dljqbz95w1gj"))
+                      #:version "3.4.0"
+                      #:hash "08vzlrx5wdz1czifrmjv5nl68fiq01ki8nb4xa53j153ar08qrgs"))
 
 (define-public nerd-font-iosevka
   (%nerd-font-package #:font-name "Iosevka"
-                      #:version "3.3.0"
-                      #:hash "10w24pir4flr0zhm0n6v6kblgmcx7dpnqv2xkp8d0rgh3rnlwpm5"))
+                      #:version "3.4.0"
+                      #:hash "0bz0jykmb5k9bippxz7hqz12iw772w9ik2ki1k8w6g4kiyxyxisi"))
 
 (define-public nerd-font-fantasque-sans-mono
   (%nerd-font-package #:font-name "FantasqueSansMono"
-                      #:version "3.3.0"
-                      #:hash "1r9z57k5k191lb19i85qg42zawnm1vwrrvnq7nvabywcwq66d6l4"))
+                      #:version "3.4.0"
+                      #:hash "0hfdd89n2dkz3affvmlh57pwr15rv0krws4clxcgy7x640jgxii9"))
 
 (define-public nerd-font-noto
   (%nerd-font-package #:font-name "Noto"
-                      #:version "3.3.0"
-                      #:hash "14mna22dam0kx0axi53rjvkr97wlv161a9w2ap771890cjxnw70k"))
+                      #:version "3.4.0"
+                      #:hash "1fa4nn8ghprfnv3hq6r43lq1qjlmfwi5nkrj6kpa78w8nyhki47b"))
 
 (define-public nerd-font-droid-sans-mono
   (%nerd-font-package #:font-name "DroidSansMono"
-                      #:version "3.3.0"
-                      #:hash "18hfqhrqfb8z3r4gkmjlv6l9xvgrpkd97ahk2j8fx89qbpa3mab0"))
+                      #:version "3.4.0"
+                      #:hash "123f62fyxdw01njcj7r8ipfd0rff9c7jys005y337j0734s2j0h3"))
 
 (define-public nerd-font-terminus
   (%nerd-font-package #:font-name "Terminus"
-                      #:version "3.3.0"
-                      #:hash "0msqm9rnc5rzmwmfs2sx534hqz3apmfja00m6iib8627nr30n2yl"))
+                      #:version "3.4.0"
+                      #:hash "13kdsnl4irjwglwsgi1i72k42r80wklmmsk4d8wkh04jgd8raamm"))
 
 (define-public nerd-font-jetbrains
   (%nerd-font-package #:font-name "JetBrainsMono"
@@ -176,33 +176,33 @@ and others.")
 
 (define-public nerd-font-commitmono
   (%nerd-font-package #:font-name "CommitMono"
-                      #:version "3.3.0"
-                      #:hash "0bxk8mqalg2sf8pnm85p083imcjcnzz4h5lg0920dljqbz95w1gj"))
+                      #:version "3.4.0"
+                      #:hash "08vzlrx5wdz1czifrmjv5nl68fiq01ki8nb4xa53j153ar08qrgs"))
 
 (define-public nerd-font-iosevka
   (%nerd-font-package #:font-name "Iosevka"
-                      #:version "3.3.0"
-                      #:hash "10w24pir4flr0zhm0n6v6kblgmcx7dpnqv2xkp8d0rgh3rnlwpm5"))
+                      #:version "3.4.0"
+                      #:hash "0bz0jykmb5k9bippxz7hqz12iw772w9ik2ki1k8w6g4kiyxyxisi"))
 
 (define-public nerd-font-fantasque-sans-mono
   (%nerd-font-package #:font-name "FantasqueSansMono"
-                      #:version "3.3.0"
-                      #:hash "1r9z57k5k191lb19i85qg42zawnm1vwrrvnq7nvabywcwq66d6l4"))
+                      #:version "3.4.0"
+                      #:hash "0hfdd89n2dkz3affvmlh57pwr15rv0krws4clxcgy7x640jgxii9"))
 
 (define-public nerd-font-noto
   (%nerd-font-package #:font-name "Noto"
-                      #:version "3.3.0"
-                      #:hash "14mna22dam0kx0axi53rjvkr97wlv161a9w2ap771890cjxnw70k"))
+                      #:version "3.4.0"
+                      #:hash "1fa4nn8ghprfnv3hq6r43lq1qjlmfwi5nkrj6kpa78w8nyhki47b"))
 
 (define-public nerd-font-droid-sans-mono
   (%nerd-font-package #:font-name "DroidSansMono"
-                      #:version "3.3.0"
-                      #:hash "18hfqhrqfb8z3r4gkmjlv6l9xvgrpkd97ahk2j8fx89qbpa3mab0"))
+                      #:version "3.4.0"
+                      #:hash "123f62fyxdw01njcj7r8ipfd0rff9c7jys005y337j0734s2j0h3"))
 
 (define-public nerd-font-terminus
   (%nerd-font-package #:font-name "Terminus"
-                      #:version "3.3.0"
-                      #:hash "0msqm9rnc5rzmwmfs2sx534hqz3apmfja00m6iib8627nr30n2yl"))
+                      #:version "3.4.0"
+                      #:hash "13kdsnl4irjwglwsgi1i72k42r80wklmmsk4d8wkh04jgd8raamm"))
 
 (define-public nerd-font-jetbrains
   (%nerd-font-package #:font-name "JetBrainsMono"

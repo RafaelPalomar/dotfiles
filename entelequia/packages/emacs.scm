@@ -12,14 +12,14 @@
 (define-public emacs-denote-silo
   (package
     (name "emacs-denote-silo")
-    (version "0.1.1")
+    (version "0.2.0")
     (source
      (origin
        (method url-fetch)
        (uri (string-append "https://elpa.gnu.org/packages/denote-silo-"
                            version ".tar"))
        (sha256
-        (base32 "1jxr52npjiwisambwav6rasndjdxhll8x278q8cr7giq71am7c8b"))))
+        (base32 "10n4xv179dl6zz1k28lcbrgyqx8k3hfh3isd7q3qg1vcahlw04vl"))))
     (build-system emacs-build-system)
     (propagated-inputs (list upstream:emacs-denote))
     (home-page "https://github.com/protesilaos/denote-silo")

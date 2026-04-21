@@ -1,21 +1,5 @@
 #!/bin/sh
-# Wrapper to launch 3D Slicer in a Guix shell with NVIDIA OpenGL support.
-#
-# Slicer is built against vanilla Mesa (DT_RUNPATH). On NVIDIA systems,
-# Mesa's DRI3 backend can't load nvidia-drm_dri.so and rendering fails.
-# Fix: prepend nvda's lib dir to LD_LIBRARY_PATH so libglvnd's libGL.so
-# takes priority over Mesa's, then dispatch to libGLX_nvidia.so via
-# __GLX_VENDOR_LIBRARY_NAME.
+# Launch 3D Slicer in a Guix shell with NVIDIA OpenGL support.
+# See `nvidia-shell` for the GL setup rationale.
 
-NVDA_LIB=$(guix build nvda 2>/dev/null)/lib
-
-if [ ! -d "$NVDA_LIB" ]; then
-    echo "slicer: could not locate nvda package in the store" >&2
-    exit 1
-fi
-
-exec env \
-    LD_LIBRARY_PATH="$NVDA_LIB:$LD_LIBRARY_PATH" \
-    __GLX_VENDOR_LIBRARY_NAME=nvidia \
-    guix shell nvda slicer-all-5.8 slicer-igt pluslib plusapp \
-    -- Slicer "$@"
+exec nvidia-shell slicer-all-5.8 slicer-igt pluslib plusapp -- Slicer "$@"

@@ -26,7 +26,7 @@
         (branch "master"))
       (channel
         (name 'tailscale)
-        (url "https://github.com/umanwizard/guix-tailscale")
+        (url "https://codeberg.org/rafaelpalomar/guix-tailscale.git")
         (branch "main"))
       (channel
         (name 'guix-systole)
