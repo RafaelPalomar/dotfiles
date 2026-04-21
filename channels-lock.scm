@@ -49,4 +49,4 @@
         (url "https://github.com/OUH-MESHLab/guix-openclaw")
         (branch "main")
         (commit
-          "48cf5f50e29ab4b7bab9c3bde79a5b93fd076b31")))
+          "4b8f5ed7449b937d7f17d01706c575476fa72d13")))
