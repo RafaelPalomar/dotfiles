@@ -1,0 +1,8 @@
+{
+  "DefaultSearchProviderEnabled": true,
+  "DefaultSearchProviderSearchURL": "https://searxng.drake-karat.ts.net/search?q={searchTerms}",
+  "DefaultSearchProviderSuggestURL": "https://searxng.drake-karat.ts.net/autocompleter",
+  "DefaultSearchProviderName": "SearXNG",
+  "DefaultSearchProviderKeyword": "s",
+  "DefaultSearchProviderIconURL": "https://searxng.drake-karat.ts.net/favicon.ico"
+}
