@@ -237,7 +237,7 @@ logic as JSON.")
      (list python-asgiref
            python-httpx
            python-json-logic
-           python-pydantic
+           python-pydantic-2
            python-requests))
     (arguments (list #:tests? #f))
     (home-page "https://github.com/mixpanel/mixpanel-python")
@@ -538,7 +538,7 @@ via PyO3 bindings.")
            python-distro
            python-httpx
            python-jiter
-           python-pydantic
+           python-pydantic-2
            python-sniffio
            python-tqdm
            python-typing-extensions))
@@ -567,7 +567,7 @@ via PyO3 bindings.")
            python-docstring-parser
            python-httpx
            python-jiter
-           python-pydantic
+           python-pydantic-2
            python-sniffio
            python-typing-extensions))
     (arguments (list #:tests? #f))
@@ -599,7 +599,7 @@ providing access to Claude models.")
            python-jinja2
            python-jsonschema
            python-openai
-           python-pydantic
+           python-pydantic-2
            python-dotenv
            python-tiktoken
            python-tokenizers))
@@ -664,7 +664,7 @@ OpenAI, Anthropic, Azure, Cohere, and 100+ other providers.")
            python-posthog
            python-prompt-toolkit
            python-psutil
-           python-pydantic
+           python-pydantic-2
            python-pydub
            python-pygments
            python-pypandoc
