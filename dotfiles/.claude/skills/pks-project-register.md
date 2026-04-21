@@ -53,7 +53,19 @@ EOF
 )"
    ```
 
-7. Print the resulting path. Offer to "seed the Log with recent
+7. **Drop a `.pks-project-id` marker at the project root.** This is
+   what the commit/stop hooks walk up to find; without the marker the
+   hooks fall back to basename-guessing which only works when the
+   repo's directory name matches the note title.
+
+   ```
+   echo "<DENOTE-ID>" > "$CWD/.pks-project-id"
+   ```
+
+   Commit the marker to the repo so every machine with this checkout
+   sees the same project.  Single line, plays well with any VCS.
+
+8. Print the resulting path.  Offer to "seed the Log with recent
    memory context about this project" if memory already has relevant
    entries (check `/home/rafael/.claude/projects/*/memory/` for files
    whose names mention the project).

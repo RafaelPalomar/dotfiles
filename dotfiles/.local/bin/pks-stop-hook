@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Claude Code Stop hook — fires when Claude is about to end a turn.
+# If the current project is registered and its project note's mtime
+# is older than the most recent commit in the repo, the session
+# likely closed without logging a durable change — emit a reminder.
+# A 5-minute grace window prevents the commit → log → commit-of-log
+# sequence from re-triggering.
+#
+# Exit 0 always — hook failure must not wedge Claude.
+set -euo pipefail
+trap 'exit 0' ERR
+
+PAYLOAD="$(cat)"
+CWD="$(printf '%s' "$PAYLOAD" | jq -r '.cwd // empty' 2>/dev/null || true)"
+[ -n "$CWD" ] || CWD="$PWD"
+
+command -v denotecli >/dev/null 2>&1 || exit 0
+[ -d "$HOME/pks/projects" ]          || exit 0
+# Walk up for the .pks-project-id marker; no marker -> silent.
+find_pks_id() {
+  local d="$1"
+  while [ "$d" != "/" ] && [ -n "$d" ]; do
+    if [ -f "$d/.pks-project-id" ]; then
+      head -n1 "$d/.pks-project-id" | tr -d '[:space:]'
+      return 0
+    fi
+    d="$(dirname "$d")"
+  done
+  return 1
+}
+proj_id="$(find_pks_id "$CWD" || true)"
+[ -n "$proj_id" ] || exit 0
+
+[ -d "$CWD/.git" ] || [ -f "$CWD/.git" ] || exit 0
+
+note_obj="$(denotecli read "$proj_id" \
+                      --dirs "$HOME/pks/projects" 2>/dev/null || echo '{}')"
+note_path="$( printf '%s' "$note_obj" | jq -r '.path  // empty' 2>/dev/null || true)"
+note_title="$(printf '%s' "$note_obj" | jq -r '.title // empty' 2>/dev/null || true)"
+[ -n "$note_path" ] || exit 0
+[ -f "$note_path" ] || exit 0
+proj="${note_title:-$(basename "$note_path" .org)}"
+
+note_mtime=$(stat -c %Y "$note_path"                 2>/dev/null || echo 0)
+commit_epoch=$(git -C "$CWD" log -1 --format=%ct     2>/dev/null || echo 0)
+
+GRACE=300   # 5 minutes
+[ "$commit_epoch" -gt $(( note_mtime + GRACE )) ] || exit 0
+
+lag=$(( commit_epoch - note_mtime ))
+SUBJ="$(git -C "$CWD" log -1 --pretty=format:'%h %s' HEAD 2>/dev/null || echo '(unknown)')"
+
+cat <<EOF
+<pks-stop-hook project="$proj" lag-min="$((lag/60))">
+Current turn is ending.  Project \`$proj\` has commits newer than
+its PKS Log:
+  last commit:   $SUBJ
+  commit time:   $(date -d "@$commit_epoch" '+%Y-%m-%d %H:%M' 2>/dev/null)
+  note mtime:    $(date -d "@$note_mtime" '+%Y-%m-%d %H:%M' 2>/dev/null)
+
+If the recent work includes a durable decision or pattern, append to:
+  $note_path
+via \`pks-project-log\` before you stop.
+
+If the lag is from trivial commits (typos, formatting), no action
+needed — the commit-side hook has already filtered obvious noise.
+</pks-stop-hook>
+EOF

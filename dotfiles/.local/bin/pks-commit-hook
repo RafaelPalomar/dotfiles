@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# Claude Code PostToolUse hook — fires after every Bash tool call.
+# If the command was a `git commit` in a working directory whose
+# project is registered in the PKS, and the commit looks substantive,
+# emit a nudge on stdout asking Claude to offer `pks-project-log`.
+# Output is injected by Claude Code into the next turn as a system
+# reminder.
+#
+# Exit 0 always (non-fatal); missing tools / absent PKS → silent.
+set -euo pipefail
+
+# Everything is best-effort — a broken hook must not wedge Claude.
+trap 'exit 0' ERR
+
+PAYLOAD="$(cat)"
+
+CMD="$(printf '%s' "$PAYLOAD" | jq -r '.tool_input.command // empty' 2>/dev/null || true)"
+CWD="$(printf '%s' "$PAYLOAD" | jq -r '.cwd // empty'           2>/dev/null || true)"
+[ -n "$CWD" ] || CWD="$PWD"
+
+# Only act on `git commit` invocations (allow sudo, variable flags)
+case "$CMD" in
+  *"git commit"*|*"git -C "*"commit "*) ;;
+  *) exit 0 ;;
+esac
+
+command -v denotecli >/dev/null 2>&1 || exit 0
+[ -d "$HOME/pks/projects" ]          || exit 0
+
+# Find the project marker (.pks-project-id) by walking up from CWD.
+# Contents: a single denote timestamp identifier.
+find_pks_id() {
+  local d="$1"
+  while [ "$d" != "/" ] && [ -n "$d" ]; do
+    if [ -f "$d/.pks-project-id" ]; then
+      head -n1 "$d/.pks-project-id" | tr -d '[:space:]'
+      return 0
+    fi
+    d="$(dirname "$d")"
+  done
+  return 1
+}
+
+proj_id="$(find_pks_id "$CWD" || true)"
+note_path=""; note_title=""
+if [ -n "$proj_id" ]; then
+  # Direct ID lookup — returns a single object (not array).
+  note_obj="$(denotecli read "$proj_id" \
+                        --dirs "$HOME/pks/projects" 2>/dev/null || echo '{}')"
+  note_path="$( printf '%s' "$note_obj" | jq -r '.path  // empty' 2>/dev/null || true)"
+  note_title="$(printf '%s' "$note_obj" | jq -r '.title // empty' 2>/dev/null || true)"
+else
+  # Fallback: basename-of-CWD title search for projects without a marker.
+  proj_name="$(basename "$CWD")"
+  note_json="$(denotecli search "$proj_name" \
+                         --dirs "$HOME/pks/projects" \
+                         --tags project \
+                         --title-only --max 1 2>/dev/null || echo '[]')"
+  note_path="$( printf '%s' "$note_json" | jq -r '.[0].path  // empty' 2>/dev/null || true)"
+  note_title="$(printf '%s' "$note_json" | jq -r '.[0].title // empty' 2>/dev/null || true)"
+fi
+[ -n "$note_path" ] || exit 0
+proj="${note_title:-$(basename "$note_path" .org)}"
+
+# Commit stats — crude triviality filter
+STATS="$(git -C "$CWD" show --shortstat HEAD 2>/dev/null | tail -1 || true)"
+FILES="$(printf '%s' "$STATS" | grep -oE '[0-9]+ files? changed' | grep -oE '[0-9]+' || echo 0)"
+INS="$(  printf '%s' "$STATS" | grep -oE '[0-9]+ insertions?'    | grep -oE '[0-9]+' || echo 0)"
+DEL="$(  printf '%s' "$STATS" | grep -oE '[0-9]+ deletions?'     | grep -oE '[0-9]+' || echo 0)"
+TOTAL=$(( INS + DEL ))
+
+# Trivial: single file AND < 20 lines total
+if [ "$FILES" -lt 2 ] && [ "$TOTAL" -lt 20 ]; then
+  exit 0
+fi
+
+# Skip if commit only touches PKS paths (it IS the log-commit; don't loop)
+CHANGED="$(git -C "$CWD" show --name-only --pretty=format: HEAD 2>/dev/null | sed '/^$/d' || true)"
+only_pks=1
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  case "$f" in
+    pks/*|Nextcloud/PKS/*) ;;
+    *) only_pks=0; break ;;
+  esac
+done <<<"$CHANGED"
+[ "$only_pks" -eq 1 ] && exit 0
+
+# Emit nudge — goes into Claude's context as a system reminder
+SUBJ="$(git -C "$CWD" log -1 --pretty=format:'%h %s' HEAD 2>/dev/null || echo '(unknown)')"
+cat <<EOF
+<pks-commit-hook project="$proj" commit="$SUBJ" files="$FILES" lines="+$INS -$DEL">
+Substantive commit in a PKS-registered project.  If it captures a
+*durable* change — architectural decision with justification,
+rejected approach (with why), pattern that crystallised, non-obvious
+invariant — offer \`pks-project-log\` to append to:
+  $note_path
+
+Skip the nudge for routine fixes (typos, formatting, lint,
+dependency bumps).
+</pks-commit-hook>
+EOF
