@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# pks-conflicts — report Nextcloud conflict files polluting ~/pks.
+# Invoked manually or by the weekly mcron job in
+# entelequia/home/services/pks.scm.  Exits 1 if conflicts exist so a
+# cron alert can fire; exits 0 when clean.
+set -euo pipefail
+
+PKS="${PKS:-$HOME/pks}"
+
+if [ ! -d "$PKS" ]; then
+  echo "[pks-conflicts] $PKS not present — nothing to scan" >&2
+  exit 0
+fi
+
+ts="$(date -Iseconds)"
+
+# Nextcloud conflict markers look like:
+#   "title (conflicted copy from einstein 2026-04-21).org"
+# or older variants with parentheses and timestamps.
+mapfile -t hits < <(
+  find -L "$PKS" -type f \
+       \( -iname "*conflicted copy*" \
+          -o -iname "*conflict*-*" \) \
+       -not -path "*/.git/*" \
+       -not -path "*/.sync/*" 2>/dev/null
+)
+
+if [ "${#hits[@]}" -eq 0 ]; then
+  echo "[$ts] clean — 0 Nextcloud conflict files in $PKS"
+  exit 0
+fi
+
+echo "[$ts] found ${#hits[@]} conflict file(s):"
+for f in "${hits[@]}"; do
+  printf '  %s\n' "$f"
+done
+echo
+echo "[$ts] Inspect each file, choose which copy to keep, then delete"
+echo "       the other. Denote IDs only resolve when filenames match"
+echo "       the canonical YYYYMMDDTHHMMSS--title__kw.ext pattern."
+exit 1

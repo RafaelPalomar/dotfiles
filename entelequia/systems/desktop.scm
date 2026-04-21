@@ -4,6 +4,7 @@
   #:use-module (entelequia home services encrypted-usb)
   #:use-module (entelequia home services containers)
   #:use-module (entelequia home services github-sync)
+  #:use-module (entelequia home services pks)
   #:use-module (entelequia packages polybar-themes)
   #:use-module (gnu packages package-management)
   #:use-module (entelequia packages fonts)
@@ -76,6 +77,10 @@
 
    ;; GitHub to org-mode synchronization (every 60 minutes)
    (service home-github-sync-service-type)
+
+   ;; PKS silo bootstrap (~/Nextcloud/PKS/ tree + ~/pks symlink)
+   ;; and weekly Nextcloud-conflict scanner.
+   (service home-pks-service-type)
 
    (service home-pipewire-service-type
             (home-pipewire-configuration (enable-pulseaudio? #t)))
