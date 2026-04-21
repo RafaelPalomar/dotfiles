@@ -37,7 +37,7 @@
         (url "https://github.com/systoleos/guix-systole")
         (branch "main")
         (commit
-          "c1bf0d4b739caf5d1b6bc1036c4d87319bff90b5"))
+          "4ba2e6d4d1d4ed5cfa499e9c63e03fe26ba8f196"))
       (channel
         (name 'systole-artwork)
         (url "https://github.com/systoleos/guix-systole-artwork")
