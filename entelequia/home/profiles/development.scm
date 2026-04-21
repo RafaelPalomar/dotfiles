@@ -2,6 +2,7 @@
   #:use-module (gnu packages)
   #:use-module (entelequia packages aider)
   #:use-module (entelequia packages claude-code)
+  #:use-module (entelequia packages denotecli)
   #:use-module (entelequia packages mermaid-cli)
   #:use-module (guix-openclaw packages openclaw)
   #:use-module (systole packages claude-skills)
@@ -48,6 +49,7 @@
           ))
    ;; Local packages
    (list claude-code
+         denotecli
          mermaid-cli
          python-aider-chat
          openclaw
