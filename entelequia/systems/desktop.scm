@@ -127,14 +127,31 @@ fi")
                                        "# GPG TTY setup for GPG agent
 export GPG_TTY=$(tty)
 export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
-gpgconf --launch gpg-agent 2>/dev/null")))))
+gpgconf --launch gpg-agent 2>/dev/null")
+                           ;; OAuth2 credentials for `auth-email-*` aliases.
+                           ;; Decrypted on demand from sops/rafael.yaml via
+                           ;; the user's personal GPG key.  Safe to ship:
+                           ;; if the file isn't present or sops cannot
+                           ;; decrypt, the block is a no-op.
+                           (plain-file "bashrc-oauth-env"
+                                       "# OAuth2 client creds for `auth-email-ntnu` / `auth-email-uio` aliases.
+# Values live encrypted in ~/.dotfiles/sops/rafael.yaml; decrypted once
+# per shell via the user's personal GPG key (gpg-agent caches the pin).
+__sops_oauth_file=\"$HOME/.dotfiles/sops/rafael.yaml\"
+if [ -z \"$OAUTH_CLIENT_ID\" ] \\
+   && [ -r \"$__sops_oauth_file\" ] \\
+   && command -v sops >/dev/null 2>&1; then
+    OAUTH_CLIENT_ID=$(sops -d --extract '[\"oauth\"][\"client_id\"]'     \"$__sops_oauth_file\" 2>/dev/null)
+    OAUTH_CLIENT_SECRET=$(sops -d --extract '[\"oauth\"][\"client_secret\"]' \"$__sops_oauth_file\" 2>/dev/null)
+    [ -n \"$OAUTH_CLIENT_ID\" ]     && export OAUTH_CLIENT_ID
+    [ -n \"$OAUTH_CLIENT_SECRET\" ] && export OAUTH_CLIENT_SECRET
+fi
+unset __sops_oauth_file
+")))))
 
    (simple-service 'slicer-env-vars
                    home-environment-variables-service-type
-                   `(("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")
-                     ;; OAuth2 credentials for email authentication
-                     ("OAUTH_CLIENT_ID" . "08162f7c-0fd2-4200-a84a-f25a4db0b584")
-                     ("OAUTH_CLIENT_SECRET" . "TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82")))
+                   `(("SLICER_GUIX_PROFILE" . "$HOME/.slicer-guix-profile-6")))
 
    ;; User environment variables
    (simple-service 'user-env-vars

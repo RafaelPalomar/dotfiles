@@ -43,3 +43,9 @@ creation_rules:
       pgp: >-
         1902E1477A9D19FD73BBF7F47050A7747D28D4A9,
         6513C7248D7BECE2EC1BD34B70350DAD507FA72F
+
+    # User-scope secrets (no machine key needed — decrypted interactively
+    # via the user's personal GPG key, not via a systemd-style activation).
+    - path_regex: sops/rafael\.yaml$
+      pgp: >-
+        6513C7248D7BECE2EC1BD34B70350DAD507FA72F

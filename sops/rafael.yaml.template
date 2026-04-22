@@ -1,0 +1,25 @@
+# User-scope secrets (rafael).
+#
+# Decrypted on demand by bash at shell startup via `sops -d` against the
+# personal GPG key.  System services never see these; they are only
+# present inside an interactive bash session.
+#
+# Setup on a fresh machine:
+#   1. cp sops/rafael.yaml.template sops/rafael.yaml
+#   2. edit sops/rafael.yaml, fill in real values
+#   3. sops --encrypt --in-place sops/rafael.yaml
+#   4. git add sops/rafael.yaml && git commit     # now encrypted
+#
+# To rotate a value:
+#   sops sops/rafael.yaml                         # opens $EDITOR in cleartext
+#
+# If sops cannot decrypt (key unavailable), the bashrc fragment silently
+# skips the export — nothing else in the environment fails.
+
+oauth:
+    # Microsoft Entra / Azure AD app registration used by `auth-email-*`
+    # aliases via neomutt's mutt_oauth2.py --authorize flow.  Not needed
+    # for day-to-day mbsync: refresh tokens are stored in `pass` under
+    # email/<domain>.gpg by mutt_oauth2.py after the one-time authorise.
+    client_id: "PUT-AZURE-APP-CLIENT-ID-HERE"
+    client_secret: "PUT-AZURE-APP-CLIENT-SECRET-HERE"
