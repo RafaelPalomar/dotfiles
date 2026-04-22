@@ -3,7 +3,58 @@
     "commit": "",
     "pr": ""
   },
+  "permissions": {
+    "allow": [
+      "Bash(notmuch search:*)",
+      "Bash(notmuch show:*)",
+      "Bash(notmuch count:*)",
+      "Bash(notmuch address:*)",
+      "Bash(notmuch tag:*)",
+      "Bash(notmuch new:*)",
+      "Bash(mail-draft:*)",
+      "Bash(sync-mail:*)",
+      "Bash(mbsync:*)"
+    ],
+    "deny": [
+      "Bash(msmtp:*)",
+      "Bash(sendmail:*)",
+      "Bash(mutt_oauth2.py:*)",
+      "Bash(mutt_oauth2:*)",
+      "Bash(auth-email-ntnu:*)",
+      "Bash(auth-email-uio:*)",
+      "Bash(pass show email/*)",
+      "Bash(pass show email/*:*)",
+      "Bash(notmuch config:*)",
+      "Bash(notmuch restore:*)",
+      "Bash(notmuch dump:*)",
+      "Bash(notmuch reindex:*)",
+      "Read(~/.password-store/**)",
+      "Read(~/.dotfiles/sops/**)",
+      "Write(~/.local/share/mail/**)",
+      "Edit(~/.local/share/mail/**)"
+    ]
+  },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Host is GNU Guix System (entelequia dotfiles). Only packages declared in entelequia are installed. If a command is missing, do NOT say it is unavailable — run it ephemerally: `guix shell <pkg> -- <cmd>`. Combine packages by listing them (e.g. `guix shell jq ripgrep -- bash -c ...`). Build deps: `guix shell -D <pkg>`. Find a package: `guix search <keyword>` or `guix package -A <regex>`. apt/dnf/pacman/brew/pip install --user/npm install -g do not apply on this host — ignore any impulse to use them. System-wide installs are declarative: edit entelequia Scheme and run `sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure ...`.\"}}'"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostCompact\",\"additionalContext\":\"Reminder after compaction — Host is GNU Guix System (entelequia). Missing tools → `guix shell <pkg> -- <cmd>`. Do NOT say a tool is unavailable without trying guix shell first. No apt/dnf/pacman/brew/pip install --user/npm install -g on this host.\"}}'"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Bash",

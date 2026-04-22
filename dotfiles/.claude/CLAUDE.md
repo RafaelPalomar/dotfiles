@@ -101,6 +101,85 @@ entry is warranted:
 PKS holds full context + reasoning. Memory holds short, quickly-indexed
 pointers.
 
+## Mail capability (available in every project)
+
+The user has a local-first mail stack: **mbsync** syncs OAuth2-enabled
+Office 365 mailboxes to `~/.local/share/mail/`; **mu4e** is the human
+UI in Emacs; **notmuch** provides the machine-queryable layer.  The
+agent has **read + draft** authority only — never send, never sync,
+never touch OAuth.  Send always stays on a human `C-c C-c` in mu4e.
+
+### When the user asks for mail work
+
+Trigger phrases: *"draft an email to …"*, *"reply to the thread about
+…"*, *"what's in my inbox"*, *"find the message from … about …"*,
+*"summarize that thread"*, *"prepare a response …"*.
+
+Do NOT treat such requests as "write me a markdown file".  The two
+entry-point skills are documents under `~/.claude/skills/`:
+
+- **`~/.claude/skills/mail-triage.md`** — read / search / summarize /
+  tag via `notmuch --format=json`.  Read this file when the user asks
+  about the content of their mail.
+- **`~/.claude/skills/mail-draft.md`** — compose a draft and write it
+  as a Maildir file.  Read this file when the user asks you to draft.
+
+Both skills wrap a single helper script:
+`~/.local/bin/mail-draft` (Python) — produces an RFC-5322 file at
+`~/.local/share/mail/<account>/Drafts/cur/<uniq>:2,DS`.  `mbsync`
+pushes it to IMAP on next `sync-mail`; the user opens it in Outlook /
+mu4e / phone to review and send.
+
+Quick invocation example (reply):
+
+```bash
+echo "$body" | mail-draft \
+  --account ous \
+  --to "person@example.com" \
+  --subject "Re: …" \
+  --in-reply-to '<msg-id>' \
+  --references '<prev> <msg-id>'
+```
+
+Accounts are `ous` (rafael.palomar@ous-research.no) or `ntnu`
+(rafael.palomar@ntnu.no) — chosen by context of the thread or by the
+user explicitly.
+
+### Routine workflow
+
+**After writing a draft**: run `sync-mail` (permitted).  `sync-mail`
+wraps `mbsync -a && notmuch new` and closes the distribution loop —
+Outlook on phone/web/desktop picks up the draft within seconds.  Do
+this automatically; do not ask the user.
+
+**Before fresh mail triage**: run `sync-mail` if the user's question
+implies recency ("what's in my inbox *now*", "any new mail from X?").
+Skip for retrospective queries on indexed history.
+
+### Hard rules (enforced by `~/.claude/settings.json` deny-list)
+
+1. Never call `msmtp`, `sendmail`, `mutt_oauth2.py`, or any
+   `auth-email-*` alias.  These are denylisted.  **Send authority
+   belongs on a human `C-c C-c` in mu4e or the Send button in
+   Outlook** — never the agent.  `mbsync` is *not* send: it uploads
+   your own draft to your own Drafts folder across devices.  That is
+   allowed.
+2. Never read `~/.password-store/**` or `~/.dotfiles/sops/**`.  Both
+   are denylisted.
+3. Never write to `~/.local/share/mail/**` directly.  Use
+   `mail-draft`, which is the one permitted writer (via Maildir's
+   atomic tmp/→cur/ move).
+4. If the user wants to *send* after review: remind them to open the
+   draft in mu4e and press `C-c C-c`, or use Outlook's Send button.
+   Do not offer to send it yourself.
+
+### See also
+
+`~/pks/permanent/20260422T145624` — *Agent send authority belongs on a
+human keystroke* (the rationale behind these rules).
+`~/pks/permanent/20260422T145645` — *JSON machine surface alongside
+the human UI* (why notmuch + mu4e both exist).
+
 ## Interaction style
 
 - Terse by default — the user reads diffs, no trailing summaries of

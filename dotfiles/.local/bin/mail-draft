@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""mail-draft: write a Maildir draft file for later review & send in mu4e.
+
+Produces an RFC-5322 message and deposits it under the target account's
+`Drafts/cur/` directory with Maildir flags ":2,DS" (Draft + Seen).
+mbsync pushes it to the IMAP Drafts folder on next sync; the user
+reviews it in mu4e (or any other IMAP client) and sends from there.
+
+Never sends. Never touches SMTP. Never reads credentials.
+
+Usage:
+    mail-draft --account ous --to "a@b.com" --subject "Re: foo" \\
+               --in-reply-to '<msg-id>' < body.txt
+
+    echo "Hello" | mail-draft --account ntnu --to me@you.com \\
+                              --subject "Hi" --cc "c@d.com"
+
+Arguments:
+    --account        ous | ntnu   (required, chooses From + signature + Drafts path)
+    --to             comma-separated list (required)
+    --cc             comma-separated list (optional)
+    --bcc            comma-separated list (optional)
+    --subject        Subject header (required)
+    --in-reply-to    Message-ID of the message being replied to (optional)
+    --references     space-separated Message-ID chain (optional)
+    --no-signature   omit the account signature
+    --maildir        override Maildir root (default ~/.local/share/mail)
+
+Body is read from stdin (UTF-8, text/plain; format=flowed).
+
+Exits non-zero on error; prints the absolute path of the written draft
+on success (one line).
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import random
+import socket
+import sys
+import time
+from email.message import EmailMessage
+from email.utils import formatdate, make_msgid
+from pathlib import Path
+
+ACCOUNTS = {
+    "ous": {
+        "from_addr": "rafael.palomar@ous-research.no",
+        "from_name": "Rafael Palomar",
+        "maildir":  "rafael.palomar@ous-research.no",
+        "signature": (
+            "Prof. Rafael Palomar, Ph.D.\n"
+            "__________________________________\n"
+            "Head of Medical Software Research Laboratory (MESH|Lab)\n"
+            "The Intervention Centre, Oslo University Hospital (OUH)\n"
+            "Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)\n"
+            "N-0372 Oslo, Norway\n"
+            "rafael.palomar@ous-research.no\n"
+            "https://ivs.no\n"
+        ),
+    },
+    "ntnu": {
+        "from_addr": "rafael.palomar@ntnu.no",
+        "from_name": "Rafael Palomar",
+        "maildir":  "rafael.palomar@ntnu.no",
+        "signature": (
+            "Prof. Rafael Palomar, Ph.D.\n"
+            "__________________________________\n"
+            "Associate Professor\n"
+            "Norwegian University of Science and Technology (NTNU)\n"
+            "Teknologiveien 22, 2815 Gjøvik, Norway\n"
+            "rafael.palomar@ntnu.no\n"
+            "https://ntnu.no\n"
+        ),
+    },
+}
+
+
+def maildir_filename(base: Path) -> Path:
+    """Generate a unique Maildir filename under <base>/cur with Draft+Seen flags."""
+    ts = int(time.time())
+    pid = os.getpid()
+    counter = random.randint(1, 99999)
+    host = socket.gethostname().replace("/", "_").replace(":", "_")
+    return base / "cur" / f"{ts}.{pid}_{counter}.{host}:2,DS"
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--account", required=True, choices=sorted(ACCOUNTS),
+                   help="Which identity to send from (decides From, Drafts path, signature).")
+    p.add_argument("--to", required=True, help="Comma-separated recipient list.")
+    p.add_argument("--cc", default=None)
+    p.add_argument("--bcc", default=None)
+    p.add_argument("--subject", required=True)
+    p.add_argument("--in-reply-to", default=None,
+                   help="Message-ID being replied to (angle brackets optional).")
+    p.add_argument("--references", default=None,
+                   help="Space-separated Message-ID chain for threading.")
+    p.add_argument("--no-signature", action="store_true")
+    p.add_argument("--maildir", default=os.path.expanduser("~/.local/share/mail"),
+                   help="Maildir root (default ~/.local/share/mail).")
+    return p.parse_args()
+
+
+def normalise_msgid(s: str) -> str:
+    s = s.strip()
+    if not s:
+        return s
+    if not s.startswith("<"):
+        s = "<" + s
+    if not s.endswith(">"):
+        s = s + ">"
+    return s
+
+
+def main() -> int:
+    args = parse_args()
+    acct = ACCOUNTS[args.account]
+
+    drafts_dir = Path(args.maildir) / acct["maildir"] / "Drafts"
+    for sub in ("cur", "new", "tmp"):
+        (drafts_dir / sub).mkdir(parents=True, exist_ok=True)
+
+    body = sys.stdin.read()
+    if body and not body.endswith("\n"):
+        body += "\n"
+    if not args.no_signature:
+        body = body + "\n-- \n" + acct["signature"]
+
+    msg = EmailMessage()
+    msg["From"] = f'{acct["from_name"]} <{acct["from_addr"]}>'
+    msg["To"] = args.to
+    if args.cc:
+        msg["Cc"] = args.cc
+    if args.bcc:
+        msg["Bcc"] = args.bcc
+    msg["Subject"] = args.subject
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain=acct["from_addr"].split("@", 1)[1])
+    if args.in_reply_to:
+        irt = normalise_msgid(args.in_reply_to)
+        msg["In-Reply-To"] = irt
+        refs = args.references.strip() if args.references else irt
+        msg["References"] = refs
+    msg["User-Agent"] = "mail-draft/1 (local draft; sent from mu4e)"
+    msg.set_content(body, subtype="plain", cte="8bit")
+    # Hint for format=flowed / plain text rendering on mobile / institutional clients.
+    del msg["Content-Type"]
+    msg.add_header("Content-Type", "text/plain",
+                   charset="utf-8", format="flowed")
+
+    target = maildir_filename(drafts_dir)
+    tmp = drafts_dir / "tmp" / target.name
+    tmp.write_bytes(bytes(msg))
+    # Atomic move tmp → cur (Maildir spec: write to tmp/, hardlink or rename to cur/).
+    tmp.rename(target)
+    print(target)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
