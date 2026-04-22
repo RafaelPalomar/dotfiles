@@ -1153,145 +1153,149 @@ If no active region, use the whole buffer."
   :commands (mu4e)
   :defer t
   :init
-  ;; General mu4e settings that need to be set before mu4e loads
-  (setq mu4e-maildir "~/.local/share/mail"
+  ;; --- Core settings (must be set before mu4e loads) --------------
+  (setq mail-user-agent 'mu4e-user-agent
+        mu4e-root-maildir "~/.local/share/mail"
         mu4e-attachment-dir "~/Downloads"
-        mu4e-get-mail-command  "mbsync -a"
-        mu4e-update-interval 300
-        mu4e-index-cleanup t
-        mu4e-index-update-error-warning t
-        mu4e-hide-index-messages t
+
+        ;; Fetch + index
+        mu4e-get-mail-command "sync-mail"
+        mu4e-update-interval 600            ; 10 min; gentler on O365
         mu4e-index-update-in-background t
-        mu4e-change-filenames-when-moving t
-        mu4e-index-lazy-check nil
+        mu4e-index-update-error-warning t
+        mu4e-index-lazy-check t             ; mtime-based; fast on 35k+ msgs
+        mu4e-index-cleanup t
+        mu4e-hide-index-messages t
+        mu4e-change-filenames-when-moving t ; play well with mbsync
+
+        ;; UI + context policy
         mu4e-confirm-quit nil
         mu4e-split-view 'single-window
+        mu4e-context-policy 'pick-first
+        mu4e-compose-context-policy 'ask
+        mu4e-compose-format-flowed t        ; soft-wrap for mobile/institutional
+
+        ;; Headers
         mu4e-headers-auto-update nil
         mu4e-headers-date-format "%d-%m"
         mu4e-headers-time-format "%H:%M"
         mu4e-headers-from-or-to-prefix '("" . "To ")
-        mu4e-headers-include-related t
-        mu4e-headers-skip-duplicates t
-        mu4e-headers-show-threads t
+        mu4e-search-include-related t
+        mu4e-search-skip-duplicates t
+        mu4e-search-threads t
         mu4e-headers-thread-connection-prefix '("├─" "│ ")
         mu4e-headers-thread-blank-prefix '("  " "  ")
         mu4e-headers-thread-single-orphan-prefix '("─>" "  ")
         mu4e-headers-thread-orphan-prefix '("┬>" "│ ")
         mu4e-headers-thread-last-child-prefix '("└>" "  ")
         mu4e-headers-thread-child-prefix '("├>" "│ ")
+        mu4e-headers-fields '((:human-date . 10)
+                              (:flags . 6)
+                              (:from-or-to . 22)
+                              (:thread-subject))
+
+        ;; Sending: msmtp selects account from envelope From.
         sendmail-program "msmtp"
-        send-mail-function 'smtpmail-send-it
+        message-send-mail-function 'message-send-mail-with-sendmail
         message-sendmail-f-is-evil t
         message-sendmail-extra-arguments '("--read-envelope-from")
-        message-send-mail-function 'message-send-mail-with-sendmail)
+        message-kill-buffer-on-exit t)
+
   :config
-  ;; Unbind conflicting keys if necessary
+  ;; --- Keybindings -------------------------------------------------
   (define-key mu4e-headers-mode-map (kbd "C--") nil)
-  (define-key mu4e-view-mode-map (kbd "C--") nil)
+  (define-key mu4e-view-mode-map    (kbd "C--") nil)
   (define-key mu4e-headers-mode-map (kbd "C-c c") 'mu4e-org-store-and-capture)
   (define-key mu4e-view-mode-map    (kbd "C-c c") 'mu4e-org-store-and-capture)
-
-  ;; Quick actions
   (define-key mu4e-headers-mode-map (kbd "C-c u") 'mu4e-update-mail-and-index)
-  (define-key mu4e-view-mode-map (kbd "C-c u") 'mu4e-update-mail-and-index)
+  (define-key mu4e-view-mode-map    (kbd "C-c u") 'mu4e-update-mail-and-index)
 
-  ;; Custom keybindings with Evil
+  ;; --- Evil tweaks -------------------------------------------------
   (with-eval-after-load 'evil
-    ;; Ensure 'a' is available in visual state in mu4e-view-mode
-    (evil-define-key 'visual mu4e-view-mode-map (kbd "a") 'mu4e-view-action)
-    ;; Similarly, for mu4e-headers-mode if needed
-    (evil-define-key 'visual mu4e-headers-mode-map (kbd "a") 'mu4e-headers-mark-for-*))
+    (evil-define-key 'visual mu4e-view-mode-map    (kbd "a") 'mu4e-view-action)
+    (evil-define-key 'visual mu4e-headers-mode-map (kbd "a") 'mu4e-headers-action))
 
-  ;; Helper functions for quick email-to-task capture
+  ;; --- Maildir shortcuts (press `j <key>` from main/headers) ------
+  (setq mu4e-maildir-shortcuts
+        '((:maildir "/rafael.palomar@ous-research.no/INBOX"   :key ?o)
+          (:maildir "/rafael.palomar@ntnu.no/INBOX"           :key ?n)
+          (:maildir "/rafael.palomar@ous-research.no/Sent"    :key ?s)
+          (:maildir "/rafael.palomar@ous-research.no/Drafts"  :key ?d)
+          (:maildir "/rafael.palomar@ous-research.no/Archive" :key ?a)))
+
+  ;; --- Capture helpers --------------------------------------------
   (defun my/mu4e-capture-email-task ()
     "Capture email as a quick task."
-    (interactive)
-    (org-store-link nil)
-    (org-capture nil "me"))
-
+    (interactive) (org-store-link nil) (org-capture nil "me"))
   (defun my/mu4e-capture-action-item ()
     "Capture email as an action item."
-    (interactive)
-    (org-store-link nil)
-    (org-capture nil "ma"))
-
+    (interactive) (org-store-link nil) (org-capture nil "ma"))
   (defun my/mu4e-capture-defer ()
     "Defer email to read later."
-    (interactive)
-    (org-store-link nil)
-    (org-capture nil "md"))
-
+    (interactive) (org-store-link nil) (org-capture nil "md"))
   (defun my/mu4e-capture-waiting ()
     "Mark email as waiting for response."
-    (interactive)
-    (org-store-link nil)
-    (org-capture nil "mw"))
+    (interactive) (org-store-link nil) (org-capture nil "mw"))
 
-  ;; Quick capture keybindings for mu4e
-  (define-key mu4e-headers-mode-map (kbd "C-c t") 'my/mu4e-capture-email-task)
-  (define-key mu4e-view-mode-map (kbd "C-c t") 'my/mu4e-capture-email-task)
-  (define-key mu4e-headers-mode-map (kbd "C-c a") 'my/mu4e-capture-action-item)
-  (define-key mu4e-view-mode-map (kbd "C-c a") 'my/mu4e-capture-action-item)
-  (define-key mu4e-headers-mode-map (kbd "C-c d") 'my/mu4e-capture-defer)
-  (define-key mu4e-view-mode-map (kbd "C-c d") 'my/mu4e-capture-defer)
-  (define-key mu4e-headers-mode-map (kbd "C-c w") 'my/mu4e-capture-waiting)
-  (define-key mu4e-view-mode-map (kbd "C-c w") 'my/mu4e-capture-waiting)
+  (dolist (map (list mu4e-headers-mode-map mu4e-view-mode-map))
+    (define-key map (kbd "C-c t") 'my/mu4e-capture-email-task)
+    (define-key map (kbd "C-c a") 'my/mu4e-capture-action-item)
+    (define-key map (kbd "C-c d") 'my/mu4e-capture-defer)
+    (define-key map (kbd "C-c w") 'my/mu4e-capture-waiting))
 
-  ;; Reset variables, as our configuration is based on contexts
-  (setq mu4e-contexts nil
-        mu4e-drafts-folder nil
-        mu4e-compose-reply-to-address nil
-        mu4e-compose-signature t
-        mu4e-compose-signature-auto-include t
-        mu4e-sent-folder nil
-        mu4e-trash-folder nil)
-
-  ;; Set mu4e signature
-  (setq mu4e-compose-signature "Prof. Rafael Palomar, Ph.D.
-__________________________________
-Head of Medical Software Research Laboratory (MESH|Lab)
-The Intervention Centre, Oslo University Hospital (OUH)
-Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)
-N-0372 Oslo, Norway
-rafael.palomar@ous-research.no
-https://ivs.no
-
-Associate Professor
-Norwegian University of Science and Technology (NTNU)
-Teknologiveien 22, 2815 Gjøvik, Norway
-rafael.palomar@ntnu.no
-https://ntnu.no
---")
-
-  ;; Define mu4e contexts
+  ;; --- Contexts (per-context From + signature + folders) ----------
+  ;; mu4e-compose-signature (set per-context below) is still the
+  ;; canonical way to declare a signature in mu4e 1.12; the old
+  ;; `mu4e-compose-signature-auto-include' flag was obsoleted.
   (setq mu4e-contexts
         (list
-         ;; NTNU Account
-         (make-mu4e-context
-          :name "NTNU"
-          :match-func
-          (lambda (msg)
-            (when msg
-              (string-prefix-p "/rafael.palomar@ntnu.no" (mu4e-message-field msg :maildir))))
-          :vars '((user-mail-address      . "rafael.palomar@ntnu.no")
-                  (user-full-name         . "Rafael Palomar")
-                  (mu4e-drafts-folder     . "/rafael.palomar@ntnu.no/Drafts")
-                  (mu4e-sent-folder       . "/rafael.palomar@ntnu.no/Sent")
-                  (mu4e-trash-folder      . "/rafael.palomar@ntnu.no/Trash")
-                  (mu4e-refile-folder     . "/rafael.palomar@ntnu.no/Archive")))
-         ;; OUS-Research Account
          (make-mu4e-context
           :name "OUS-Research"
           :match-func
           (lambda (msg)
             (when msg
-              (string-prefix-p "/rafael.palomar@ous-research.no" (mu4e-message-field msg :maildir))))
-          :vars '((user-mail-address      . "rafael.palomar@ous-research.no")
-                  (user-full-name         . "Rafael Palomar")
-                  (mu4e-drafts-folder     . "/rafael.palomar@ous-research.no/Drafts")
-                  (mu4e-sent-folder       . "/rafael.palomar@ous-research.no/Sent")
-                  (mu4e-trash-folder      . "/rafael.palomar@ous-research.no/Trash")
-                  (mu4e-refile-folder     . "/rafael.palomar@ous-research.no/Archive"))))))
+              (string-prefix-p "/rafael.palomar@ous-research.no"
+                               (mu4e-message-field msg :maildir))))
+          :vars
+          `((user-mail-address       . "rafael.palomar@ous-research.no")
+            (user-full-name          . "Rafael Palomar")
+            (mu4e-drafts-folder      . "/rafael.palomar@ous-research.no/Drafts")
+            (mu4e-sent-folder        . "/rafael.palomar@ous-research.no/Sent")
+            (mu4e-trash-folder       . "/rafael.palomar@ous-research.no/Trash")
+            (mu4e-refile-folder      . "/rafael.palomar@ous-research.no/Archive")
+            (mu4e-compose-signature
+             . ,(concat
+                 "Prof. Rafael Palomar, Ph.D.\n"
+                 "__________________________________\n"
+                 "Head of Medical Software Research Laboratory (MESH|Lab)\n"
+                 "The Intervention Centre, Oslo University Hospital (OUH)\n"
+                 "Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)\n"
+                 "N-0372 Oslo, Norway\n"
+                 "rafael.palomar@ous-research.no\n"
+                 "https://ivs.no\n--"))))
+         (make-mu4e-context
+          :name "NTNU"
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-prefix-p "/rafael.palomar@ntnu.no"
+                               (mu4e-message-field msg :maildir))))
+          :vars
+          `((user-mail-address       . "rafael.palomar@ntnu.no")
+            (user-full-name          . "Rafael Palomar")
+            (mu4e-drafts-folder      . "/rafael.palomar@ntnu.no/Drafts")
+            (mu4e-sent-folder        . "/rafael.palomar@ntnu.no/Sent")
+            (mu4e-trash-folder       . "/rafael.palomar@ntnu.no/Trash")
+            (mu4e-refile-folder      . "/rafael.palomar@ntnu.no/Archive")
+            (mu4e-compose-signature
+             . ,(concat
+                 "Prof. Rafael Palomar, Ph.D.\n"
+                 "__________________________________\n"
+                 "Associate Professor\n"
+                 "Norwegian University of Science and Technology (NTNU)\n"
+                 "Teknologiveien 22, 2815 Gjøvik, Norway\n"
+                 "rafael.palomar@ntnu.no\n"
+                 "https://ntnu.no\n--")))))))
 
 (use-package mu4e-dashboard
   :ensure nil
@@ -1331,30 +1335,24 @@ https://ntnu.no
   (mu4e-alert-enable-notifications)
   (mu4e-alert-enable-mode-line-display))
 
-;; Helper functions for org-mode email composition
-(defun my-mu4e-compose-new-with-org-mode ()
-  "Compose a new email with org-mode formatting."
-  (interactive)
-  (mu4e-compose-new)
-  (org-mu4e-compose-org-mode))
+;; Org → HTML email via org-mime (replaces removed `org-mu4e`).
+;; Compose in plain text/org syntax; press `C-c M-o` (or `SPC m h`) in
+;; the message buffer to convert to multipart/alternative + inline HTML
+;; before sending.
+(with-eval-after-load 'org-mime
+  (define-key message-mode-map (kbd "C-c M-o") 'org-mime-htmlize))
 
-(defun my-mu4e-compose-reply-with-org-mode ()
-  "Reply to an email with org-mode formatting."
-  (interactive)
-  (mu4e-compose-reply)
-  (org-mu4e-compose-org-mode))
-
-;; Add mu4e bookmarks for quick navigation
+;; mu4e bookmarks for quick navigation
 (with-eval-after-load 'mu4e
   (setq mu4e-bookmarks
-        '((:name "Unread messages" :query "flag:unread AND NOT flag:trashed" :key ?u)
-          (:name "Today's messages" :query "date:today..now" :key ?t)
-          (:name "Last 7 days" :query "date:7d..now" :hide-unread t :key ?w)
-          (:name "Messages with images" :query "mime:image/*" :key ?p)
-          (:name "Flagged messages" :query "flag:flagged" :key ?f)
-          (:name "All NTNU" :query "maildir:/rafael.palomar@ntnu.no/*" :key ?n)
-          (:name "All OUS" :query "maildir:/rafael.palomar@ous-research.no/*" :key ?o)
-          (:name "Large messages (>5MB)" :query "size:5M..500M" :key ?l))))
+        '((:name "Unread"       :query "flag:unread AND NOT flag:trashed" :key ?u)
+          (:name "Today"        :query "date:today..now"                  :key ?t)
+          (:name "Last 7 days"  :query "date:7d..now" :hide-unread t      :key ?w)
+          (:name "With images"  :query "mime:image/*"                     :key ?p)
+          (:name "Flagged"      :query "flag:flagged"                     :key ?f)
+          (:name "NTNU"         :query "maildir:/rafael.palomar@ntnu.no/*"          :key ?n)
+          (:name "OUS"          :query "maildir:/rafael.palomar@ous-research.no/*"  :key ?o)
+          (:name "Large (>5MB)" :query "size:5M..500M"                    :key ?l))))
 
 (my/leader-keys
   "m"    '(:ignore t :which-key "Mail")
@@ -1362,12 +1360,45 @@ https://ntnu.no
   "mq"   '(mu4e-quit :which-key "Quit mu4e")
 
   "mc"  '(:ignore t :which-key "Compose")
-  "mcc" '(mu4e-compose-new :which-key "Compose new email (plain text)")
-  "mcC" '(my-mu4e-compose-new-with-org-mode :which-key "Compose new email with Org-mode")
+  "mcc" '(mu4e-compose-new :which-key "Compose new")
+  "mh"  '(org-mime-htmlize :which-key "Htmlize compose (org → HTML)")
+
   "mr"  '(:ignore t :which-key "Reply")
-  "mrr" '(mu4e-compose-reply :which-key "Reply (plain text)")
-  "mrR" '(my-mu4e-compose-reply-with-org-mode :which-key "Reply with Org-mode")
+  "mrr" '(mu4e-compose-reply :which-key "Reply")
   "mra" '(mu4e-compose-wide-reply :which-key "Reply all"))
+
+(use-package notmuch
+  :ensure nil
+  :commands (notmuch notmuch-search notmuch-hello)
+  :init
+  (setq notmuch-show-logo nil
+        notmuch-search-oldest-first nil
+        notmuch-show-all-tags-list t
+        notmuch-archive-tags '("-inbox" "-unread")
+        notmuch-hello-sections '(notmuch-hello-insert-saved-searches
+                                 notmuch-hello-insert-search
+                                 notmuch-hello-insert-recent-searches)
+        notmuch-saved-searches
+        '((:name "inbox"   :query "tag:inbox and tag:unread"                       :key "i")
+          (:name "unread"  :query "tag:unread"                                     :key "u")
+          (:name "today"   :query "date:today.."                                   :key "t")
+          (:name "flagged" :query "tag:flagged"                                    :key "f")
+          (:name "ntnu"    :query "path:rafael.palomar@ntnu.no/**"                 :key "n")
+          (:name "ous"     :query "path:rafael.palomar@ous-research.no/**"         :key "o"))))
+
+(use-package consult-notmuch
+  :ensure nil
+  :after notmuch
+  :commands (consult-notmuch consult-notmuch-tree))
+
+(my/leader-keys
+  "mn"  '(:ignore t :which-key "Notmuch")
+  "mnn" '(notmuch :which-key "Notmuch hello")
+  "mns" '(notmuch-search :which-key "Search")
+  "mni" '((lambda () (interactive) (notmuch-search "tag:inbox")) :which-key "Inbox")
+  "mnu" '((lambda () (interactive) (notmuch-search "tag:unread")) :which-key "Unread")
+  "mnc" '(consult-notmuch :which-key "Consult search")
+  "mnt" '(consult-notmuch-tree :which-key "Consult tree"))
 
 (with-eval-after-load 'tramp
   (require 'tramp-container)
@@ -1666,7 +1697,24 @@ See `my-denote-add-to-agenda'.")
            (denote-directory (if inside-pks pks-link denote-directory)))
       (apply orig-fun args)))
   (advice-add 'org-update-dblock     :around #'my-denote-rescope-dblock-update)
-  (advice-add 'org-update-all-dblocks :around #'my-denote-rescope-dblock-update))
+  (advice-add 'org-update-all-dblocks :around #'my-denote-rescope-dblock-update)
+
+  ;; Same rescoping applies to link following: `denote-link-ol-follow'
+  ;; resolves [[denote:ID]] via `denote-get-path-by-id', which scans
+  ;; `denote-directory' recursively.  With denote-directory pinned to
+  ;; ~/pks/fleeting/, cross-silo links (permanent/, literature/, etc.)
+  ;; fail silently.  Widen to ~/pks/ when following from a PKS buffer.
+  (defun my-denote-rescope-link-follow (orig-fun &rest args)
+    (let* ((file (buffer-file-name))
+           (pks-link (expand-file-name "~/pks/"))
+           (pks-real (file-truename pks-link))
+           (inside-pks (and file
+                            (let ((true (file-truename file)))
+                              (or (string-prefix-p pks-link true)
+                                  (string-prefix-p pks-real true)))))
+           (denote-directory (if inside-pks pks-link denote-directory)))
+      (apply orig-fun args)))
+  (advice-add 'denote-link-ol-follow :around #'my-denote-rescope-link-follow))
 
 ;; consult-denote: Vertico/Marginalia-style fuzzy search + grep across
 ;; the PKS corpus with live preview.  Scoped globally to ~/pks/ so one
