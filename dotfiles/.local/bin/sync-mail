@@ -1,0 +1,13 @@
+#!/bin/sh
+# sync-mail: fetch new mail via mbsync, then index with notmuch.
+#
+# Used as the canonical "refresh mail" command by:
+#   - the `mbsync-all` shell alias (bash)
+#   - mu4e's `mu4e-get-mail-command' (Emacs shell — no alias expansion)
+#
+# Exits non-zero on any failure so mu4e's index-update-error-warning fires.
+
+set -e
+
+mbsync -a
+notmuch new

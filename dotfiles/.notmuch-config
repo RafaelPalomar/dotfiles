@@ -1,0 +1,38 @@
+# Notmuch configuration.
+#
+# Notmuch shares the Maildir with mu (mu4e): both read the same files.
+# mu4e stays the primary human UI; notmuch is the machine-queryable layer
+# used by scripts and Claude skills via `notmuch search/show --format=json`.
+#
+# After mbsync, run `notmuch new` to index freshly-delivered messages.
+# The `mbsync-all` bash alias wraps both steps.
+
+[database]
+path=/home/rafael/.local/share/mail
+
+[user]
+name=Rafael Palomar
+primary_email=rafael.palomar@ous-research.no
+other_email=rafael.palomar@ntnu.no;rafaelpalomaravalos@gmail.com
+
+[new]
+# Tags applied automatically to each newly-indexed message.
+tags=unread;inbox
+# Ignore mbsync bookkeeping files so they don't appear as "new messages".
+ignore=.mbsyncstate;.uidvalidity;.mbsyncstate.journal;.mbsyncstate.lock;.mbsyncstate.new
+
+[search]
+# Tags excluded from default searches.  Agents that want *everything*
+# must pass `--exclude=false`.
+exclude_tags=deleted;spam;trash
+
+[maildir]
+# Let notmuch flip Maildir flags (S/R/F) on tag changes so mbsync can
+# push them to IMAP and other clients see replies / flags / reads.
+synchronize_flags=true
+
+[index]
+# Do not try to decrypt encrypted mail when indexing — slows things down,
+# touches GPG keys on autopilot, and we don't want the Xapian index to
+# hold plaintext of encrypted threads anyway.
+decrypt=false

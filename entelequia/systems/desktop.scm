@@ -107,7 +107,7 @@
             (home-bash-configuration
              (aliases '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id $OAUTH_CLIENT_ID --client-secret $OAUTH_CLIENT_SECRET ~/.password-store/email/ntnu.no.gpg --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
                         ("auth-email-uio" . "mutt_oauth2.py --provider microsoft --client-id $OAUTH_CLIENT_ID --client-secret $OAUTH_CLIENT_SECRET ~/.password-store/email/uio.no.gpg --authorize --authflow localhostauthcode --email rafael.palomar@ous-research.no")
-                        ("mbsync-all" . "mbsync -a")
+                        ("mbsync-all" . "sync-mail")
                         ("sys-reconfigure" . "sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure -L ~/.dotfiles ~/.dotfiles/entelequia/system/machines/$(hostname).scm")
                         ("sys-update" . "git -C ~/.dotfiles pull && sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure -L ~/.dotfiles ~/.dotfiles/entelequia/system/machines/$(hostname).scm")))
              (bashrc (list (plain-file "bashrc-direnv"
