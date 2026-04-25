@@ -34,6 +34,6 @@
       (port 2222)    ; change to 2222 after first deploy (entelequia moves SSH to port 2222)
       (identity "/home/rafael/.ssh/monk-access")
       (host-key "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFm8sUFl89D1klI8WViVpXCKjjEa35qudJkyLSo9gncG")
-      (allow-downgrades? #f))))))
+      (allow-downgrades? #t))))))
 
 alucard-deployment
