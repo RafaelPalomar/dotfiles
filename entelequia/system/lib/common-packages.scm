@@ -112,15 +112,16 @@
 ;;; System monitoring and utility packages
 
 (define base-monitoring-packages
+  ;; btop and picom moved to home/services/desktop.scm (desktop hosts)
+  ;; and home/profiles/server.scm (server hosts) so .desktop files aren't
+  ;; duplicated in the user's app menu.
   '("htop"
     "git"
     "vim"
     "direnv"
-    "btop"
     "radeontop"
     "coreutils"
     "grep"
-    "picom"
     "sed"
     "powertop"
     "acpi"))
