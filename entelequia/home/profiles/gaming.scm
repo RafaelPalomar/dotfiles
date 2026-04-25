@@ -1,7 +1,11 @@
 (define-module (entelequia home profiles gaming)
   #:use-module (entelequia packages games)
-  #:use-module (gnu packages linux)  ; For dualsensectl
+  #:use-module (gnu packages linux)       ; For dualsensectl
   #:use-module (gnu packages luanti)
+  #:use-module (gnu packages emulators)   ; For scummvm
+  #:use-module (gnu packages compression) ; For innoextract
+  #:use-module (gnu packages wine)        ; For wine64-staging
+  #:use-module (nongnu packages gog)      ; For lgogdownloader
   #:export (gaming-home-packages))
 
 ;;; Adding a new game:
@@ -25,10 +29,21 @@
 (define (gaming-home-packages)
   (list gog-crypt-of-the-necrodancer
         gog-death-road-to-canada
+        gog-duskers
+        gog-papers-please
         gog-terraria
         gog-wizard-of-legend
         gog-slay-the-spire
         gog-torchlight-2
+        gog-they-are-billions
+        gog-9-kings
+        gog-he-is-coming
+        gog-gobliiins
+        gog-gobliins-2
+        gog-goblins-quest-3
+        scummvm
+        innoextract
+        wine64-staging
         coq-caves-of-qud
         bay12-dwarf-fortress
         luanti-mineclonia-csm
@@ -40,4 +55,5 @@
         ;; luanti-mobs-monster
         ;; luanti-moreores
         ;; luanti-unifieddyes
-        dualsensectl))
+        dualsensectl
+        lgogdownloader))

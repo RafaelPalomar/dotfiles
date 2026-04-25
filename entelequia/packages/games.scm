@@ -1,5 +1,6 @@
 (define-module (entelequia packages games)
   #:use-module (guix packages)
+  #:use-module (guix download)
   #:use-module (guix build-system trivial)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (gnu packages fontutils)  ; freetype
@@ -17,12 +18,17 @@
   #:use-module (gnu packages glib)       ; glib
   #:use-module (gnu packages pulseaudio) ; pulseaudio (libpulse-simple)
   #:use-module (guix git-download)
+  #:use-module (guix gexp)
   #:use-module (guix utils)
   #:use-module (guix build-system cmake)
   #:use-module (guix build-system copy)
   #:use-module (guix build-system luanti)
   #:export (make-game-launcher
             make-game-fhs-launcher
+            make-scummvm-launcher
+            make-wine-game-launcher
+            make-proton-game-launcher
+            proton-ge-10-34
             ;; GOG games
             gog-crypt-of-the-necrodancer
             gog-terraria
@@ -30,6 +36,14 @@
             gog-slay-the-spire
             gog-death-road-to-canada
             gog-torchlight-2
+            gog-duskers
+            gog-papers-please
+            gog-gobliiins
+            gog-gobliins-2
+            gog-goblins-quest-3
+            gog-they-are-billions
+            gog-9-kings
+            gog-he-is-coming
             ;; Direct-download games
             coq-caves-of-qud
             bay12-dwarf-fortress))
@@ -223,6 +237,442 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
     (home-page "https://www.gnu.org/software/guix/")
     (license license:expat)))
 
+;;; Tier 4 — ScummVM-backed launcher
+;;;
+;;; For classic adventure games whose data files are handled by ScummVM.
+;;; Emits a wrapper that invokes `scummvm -p $GAMEDIR <target>`, relying on
+;;; scummvm being on PATH (present in gaming-home-packages).  The game data
+;;; lives in GAME-SUBDIR relative to $HOME; SCUMMVM-TARGET is the short
+;;; engine-prefixed game ID (e.g. "gob1", "gob2", "gob3").
+
+(define* (make-scummvm-launcher launcher-name game-subdir scummvm-target
+                                 #:key (desktop-name launcher-name)
+                                       (desktop-icon "applications-games")
+                                       (extra-args '()))
+  "Return a package that installs a wrapper under bin/LAUNCHER-NAME which
+invokes scummvm on the data in ~/GAME-SUBDIR, launching SCUMMVM-TARGET."
+  (package
+    (name launcher-name)
+    (version "1.0")
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils) (ice-9 format))
+         (let* ((out      (assoc-ref %outputs "out"))
+                (bin      (string-append out "/bin"))
+                (launcher (string-append bin "/" ,launcher-name)))
+           (mkdir-p bin)
+           (call-with-output-file launcher
+             (lambda (port)
+               (format port "#!/bin/sh~%")
+               (format port "# ScummVM launcher: ~a (target ~a)~%"
+                       ,launcher-name ,scummvm-target)
+               (format port "GAMEDIR=\"${HOME}/~a\"~%" ,game-subdir)
+               (format port "exec scummvm -p \"${GAMEDIR}\"")
+               ,@(map (lambda (a) `(format port " ~a" ,a)) extra-args)
+               (format port " ~a \"$@\"~%" ,scummvm-target)))
+           (chmod launcher #o755)
+           (let* ((apps    (string-append out "/share/applications"))
+                  (desktop (string-append apps "/" ,launcher-name ".desktop")))
+             (mkdir-p apps)
+             (call-with-output-file desktop
+               (lambda (port)
+                 (format port "[Desktop Entry]~%")
+                 (format port "Version=1.0~%")
+                 (format port "Type=Application~%")
+                 (format port "Name=~a~%" ,desktop-name)
+                 (format port "Exec=~a~%" ,launcher-name)
+                 (format port "Icon=~a~%" ,desktop-icon)
+                 (format port "Categories=Game;AdventureGame;~%")
+                 (format port "Terminal=false~%"))))))))
+    (inputs '())
+    (supported-systems '("x86_64-linux"))
+    (synopsis (string-append "ScummVM launcher for " launcher-name))
+    (description
+     (string-append
+      "Wrapper that invokes scummvm on the game data in ~/"
+      game-subdir
+      ".  Requires scummvm on PATH (provided by gaming-home-packages)."))
+    (home-page "https://www.gnu.org/software/guix/")
+    (license license:expat)))
+
+;;; Tier 5 — Wine launcher for Windows-only games (or native Linux
+;;; builds that don't render on current Mesa/driver combos).
+;;;
+;;; Emits a wrapper that sets WINEPREFIX and invokes `wine <EXE>`,
+;;; relying on wine64-staging being on PATH (provided via
+;;; gaming-home-packages).  The prefix is expected to be set up
+;;; once by the user with a one-shot setup script that runs
+;;; `wineboot --init` and extracts the game; the launcher only
+;;; invokes the already-installed .exe.
+;;;
+;;; PREFIX-SUBDIR is relative to $HOME (e.g. ".wine-coq").
+;;; EXE-RELPATH is relative to $WINEPREFIX/drive_c/ (e.g.
+;;;   "CavesOfQud/CoQ.exe").
+
+(define* (make-wine-game-launcher launcher-name prefix-subdir exe-relpath
+                                   #:key (desktop-name launcher-name)
+                                         (desktop-icon "applications-games")
+                                         (extra-env '())
+                                         (extra-args '()))
+  "Return a package that installs a wrapper invoking `wine <EXE>`
+with WINEPREFIX set to ~/PREFIX-SUBDIR, running ~/PREFIX-SUBDIR/drive_c/EXE-RELPATH."
+  (package
+    (name launcher-name)
+    (version "1.0")
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils) (ice-9 format))
+         (let* ((out      (assoc-ref %outputs "out"))
+                (bin      (string-append out "/bin"))
+                (launcher (string-append bin "/" ,launcher-name)))
+           (mkdir-p bin)
+           (call-with-output-file launcher
+             (lambda (port)
+               (format port "#!/bin/sh~%")
+               (format port "# Wine launcher: ~a~%" ,launcher-name)
+               (format port "export WINEPREFIX=\"${HOME}/~a\"~%" ,prefix-subdir)
+               (format port "EXE=\"${WINEPREFIX}/drive_c/~a\"~%" ,exe-relpath)
+               (format port "if [ ! -f \"${EXE}\" ]; then~%")
+               (format port "  echo \"!! ~a not found at ${EXE}\" >&2~%"
+                       ,exe-relpath)
+               (format port "  echo \"   Run the one-shot wine setup for this game first.\" >&2~%")
+               (format port "  exit 1~%")
+               (format port "fi~%")
+               ,@(map (lambda (pair)
+                        `(format port "export ~a=\"~a\"~%"
+                                 ,(car pair) ,(cdr pair)))
+                      extra-env)
+               (format port "cd \"$(dirname \"${EXE}\")\"~%")
+               (format port "exec wine \"${EXE}\"")
+               ,@(map (lambda (a) `(format port " ~a" ,a)) extra-args)
+               (format port " \"$@\"~%")))
+           (chmod launcher #o755)
+           (let* ((apps    (string-append out "/share/applications"))
+                  (desktop (string-append apps "/" ,launcher-name ".desktop")))
+             (mkdir-p apps)
+             (call-with-output-file desktop
+               (lambda (port)
+                 (format port "[Desktop Entry]~%")
+                 (format port "Version=1.0~%")
+                 (format port "Type=Application~%")
+                 (format port "Name=~a~%" ,desktop-name)
+                 (format port "Exec=~a~%" ,launcher-name)
+                 (format port "Icon=~a~%" ,desktop-icon)
+                 (format port "Categories=Game;~%")
+                 (format port "Terminal=false~%"))))))))
+    (inputs '())
+    (supported-systems '("x86_64-linux"))
+    (synopsis (string-append "Wine launcher for " launcher-name))
+    (description
+     (string-append
+      "Wrapper that invokes wine on the Windows build of "
+      launcher-name ".  Requires wine64-staging on PATH (provided by "
+      "gaming-home-packages) and a pre-initialised prefix at ~/"
+      prefix-subdir "."))
+    (home-page "https://www.gnu.org/software/guix/")
+    (license license:expat)))
+
+;;; Tier 6 — Proton-GE launcher for Unity / modern-Windows games
+;;;
+;;; Some Windows titles (notably Unity 6 / IL2CPP builds that use the new
+;;; Input System) call Win32 `EnableMouseInPointer`, which upstream wine
+;;; stubs as ERROR_CALL_NOT_IMPLEMENTED — Unity then falls back to
+;;; Windows.Gaming.Input which does not handle mouse, and clicks never
+;;; reach the game even though cursor movement and keyboard work.
+;;;
+;;; Proton-GE patches these APIs, so it is the right compat layer for
+;;; this class of game.  Proton is distributed as a prebuilt tarball of
+;;; ELF binaries expecting /lib64/ld-linux-x86-64.so.2 et al — we ship
+;;; it unchanged into the store and satisfy the runtime expectations at
+;;; launch time with `guix shell --container --emulate-fhs`.
+
+;;; Channels file pinned to guix + nonguix only — used by the launcher's
+;;; `guix time-machine -C ...` invocation so the inferior guix has nongnu
+;;; on its load path.  We can't use the full channels-lock.scm because
+;;; guix-xlibre's pinned commit was rebased away on codeberg (any user
+;;; who hasn't already cached it can no longer fetch).  guix + nonguix
+;;; are sufficient for the proton FHS profile.
+;;;
+;;; The store path of this file is baked into the launcher script.
+
+(define proton-fhs-channels
+  (plain-file "proton-fhs-channels.scm"
+              "(use-modules (guix channels))
+(list (channel
+        (name 'guix)
+        (url \"https://git.guix.gnu.org/guix.git\")
+        (branch \"master\")
+        (commit \"6a483ed7c607b01003edb9cb118c9f89c9d457e9\")
+        (introduction
+          (make-channel-introduction
+            \"9edb3f66fd807b096b48283debdcddccfea34bad\"
+            (openpgp-fingerprint
+              \"BBB0 2DDF 2CEA F6A8 0D1D  E643 A2A0 6DF2 A33A 54FA\"))))
+      (channel
+        (name 'nonguix)
+        (url \"https://gitlab.com/nonguix/nonguix\")
+        (branch \"master\")
+        (commit \"f5338f63fce69622ce06f93fe02524967e1f30d4\")
+        (introduction
+          (make-channel-introduction
+            \"897c1a470da759236cc11798f4e0a5f7d4d59fbc\"
+            (openpgp-fingerprint
+              \"2A39 3FFF 68F4 EF7A 3D29  12AF 6F51 20A0 22FB B2D5\")))))
+"))
+
+;;; Manifest baked into the launcher: same package list the inline `guix
+;;; shell` had before, plus `nvidia-driver` (which carries libglvnd as a
+;;; propagated input).  `time-machine -C proton-fhs-channels -- shell -m
+;;; <this-manifest>` gives a profile that puts nvidia libs at
+;;; /usr/lib/libGL.so.1 etc. inside the FHS container — the missing
+;;; piece that LD_LIBRARY_PATH alone could not provide.
+
+(define proton-fhs-manifest
+  (plain-file "proton-fhs-manifest.scm"
+              "(use-modules (gnu packages gl)
+             (gnu packages vulkan)
+             (gnu packages xorg)
+             (gnu packages xdisorg)
+             (gnu packages linux)
+             (gnu packages base)
+             (gnu packages bash)
+             (gnu packages commencement)
+             (gnu packages fontutils)
+             (gnu packages audio)
+             (gnu packages pulseaudio)
+             (gnu packages python)
+             (nongnu packages nvidia))
+(packages->manifest
+ (list mesa vulkan-loader
+       libx11 libxcursor libxrandr libxi libxext libxrender
+       libxfixes libxcomposite libxdamage libxxf86vm libxkbcommon
+       gcc-toolchain freetype fontconfig
+       alsa-lib pulseaudio eudev
+       bash coreutils grep sed findutils which
+       python python-wrapper
+       nvidia-driver))
+"))
+
+(define-public proton-ge-10-34
+  (package
+    (name "proton-ge")
+    (version "10-34")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://github.com/GloriousEggroll/proton-ge-custom/releases/"
+             "download/GE-Proton10-34/GE-Proton10-34.tar.gz"))
+       (sha256
+        (base32 "0gbpipk3x7hqslp2y2h4aiv1jmxcxqbhf3z0iycp6g43dav81iai"))))
+    (build-system copy-build-system)
+    (arguments
+     '(#:install-plan
+       '(("." "share/proton-ge/"))
+       #:phases
+       (modify-phases %standard-phases
+         ;; Proton ships prebuilt ELFs with /lib64/ld-linux-x86-64.so.2 as
+         ;; interpreter; none of these Guix-side post-processing phases
+         ;; should touch them — they run inside a FHS container at launch.
+         (delete 'strip)
+         (delete 'validate-runpath)
+         (delete 'patch-shebangs))))
+    (supported-systems '("x86_64-linux"))
+    (home-page "https://github.com/GloriousEggroll/proton-ge-custom")
+    (synopsis "GloriousEggroll's custom Proton build (prebuilt tarball)")
+    (description
+     "Proton-GE is a community-patched Proton (wine + DXVK + vkd3d +
+various game fixes) distributed as a prebuilt tarball.  This package
+ships the unmodified tarball contents under share/proton-ge/; games
+are launched via @code{make-proton-game-launcher}, which wraps the
+invocation in @code{guix shell --container --emulate-fhs} to provide
+the prebuilt binaries with the standard Linux runtime layout they
+expect.")
+    ;; Proton-GE is distributed under multiple licenses (LGPL for wine,
+    ;; various for bundled patches).  Mark as a mix rather than trying to
+    ;; enumerate.
+    (license (list license:lgpl2.1+ license:expat))))
+
+(define* (make-proton-game-launcher launcher-name game-subdir exe-relpath
+                                     #:key
+                                       (compat-subdir
+                                        (string-append "Games/proton-prefixes/"
+                                                       launcher-name))
+                                       (desktop-name launcher-name)
+                                       (desktop-icon "applications-games")
+                                       (extra-env '())
+                                       (extra-args '()))
+  "Return a package that installs a wrapper under bin/LAUNCHER-NAME
+which runs ~/GAME-SUBDIR/EXE-RELPATH under Proton-GE inside a
+guix-shell FHS container.
+
+GAME-SUBDIR is the directory containing the extracted Windows game,
+relative to $HOME (e.g. \"Games/9Kings\").
+EXE-RELPATH is the .exe relative to GAME-SUBDIR (e.g. \"9Kings.exe\").
+COMPAT-SUBDIR is Proton's per-game compat data dir, relative to $HOME;
+Proton creates <COMPAT-SUBDIR>/pfx/ on first launch.
+
+The generated script references a pinned Proton-GE store path and
+invokes @code{guix shell --container --emulate-fhs} with the runtime
+deps wine/Proton pulls in (libX*, mesa, vulkan-loader, gcc:lib for
+libgcc_s, freetype, fontconfig, ALSA/Pulse, python3).  Sync primitives
+fsync/esync are disabled; Proton falls back to wineserver-sync, which
+is adequate for single-player titles and sidesteps shm/memfd setup
+inside the container."
+  (package
+    (name launcher-name)
+    (version "1.0")
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils) (ice-9 format))
+         (let* ((out      (assoc-ref %outputs "out"))
+                (bin      (string-append out "/bin"))
+                (launcher (string-append bin "/" ,launcher-name))
+                (proton   (assoc-ref %build-inputs "proton-ge"))
+                (channels (assoc-ref %build-inputs "channels"))
+                (manifest (assoc-ref %build-inputs "manifest")))
+           (mkdir-p bin)
+           (call-with-output-file launcher
+             (lambda (port)
+               (format port "#!/bin/sh~%")
+               (format port "# Proton-GE launcher: ~a~%" ,launcher-name)
+               (format port "set -e~%")
+               (format port "GAMEDIR=\"${HOME}/~a\"~%" ,game-subdir)
+               (format port "EXE=\"${GAMEDIR}/~a\"~%" ,exe-relpath)
+               (format port "COMPAT=\"${HOME}/~a\"~%" ,compat-subdir)
+               (format port "if [ ! -f \"${EXE}\" ]; then~%")
+               (format port "  echo \"!! ~a not found at ${EXE}\" >&2~%"
+                       ,exe-relpath)
+               (format port "  echo \"   Install the game files into ${GAMEDIR} first.\" >&2~%")
+               (format port "  exit 1~%")
+               (format port "fi~%")
+               (format port "mkdir -p \"${COMPAT}\" \"${HOME}/.steam/steam\"~%")
+               ,@(map (lambda (pair)
+                        `(format port "export ~a=\"~a\"~%"
+                                 ,(car pair) ,(cdr pair)))
+                      extra-env)
+               ;; NVIDIA passthrough via baked manifest + time-machine.
+               ;; nvidia-driver lives in nonguix; system guix doesn't
+               ;; carry that channel.  We ship a 2-channel
+               ;; (proton-fhs-channels) and a manifest including
+               ;; nvidia-driver alongside mesa+wine-deps.  At runtime
+               ;; `guix time-machine -C channels -- shell -m manifest`
+               ;; produces an FHS profile where /usr/lib/libGL.so.1
+               ;; resolves to nvidia (via libglvnd dispatch) on hosts
+               ;; with /dev/nvidia0, mesa otherwise.
+               ;;
+               ;; First-run cost on a fresh user: ~10 min while
+               ;; time-machine fetches the channels and builds the
+               ;; inferior guix.  Cached after that — subsequent
+               ;; launches are instant.  A pre-warm hook in the deploy
+               ;; would eliminate even that first hit.
+               (format port "CHANNELS=\"~a\"~%" channels)
+               (format port "MANIFEST=\"~a\"~%" manifest)
+               (display "GPU_EXPOSE=\"\"\n" port)
+               (display "if [ -e /dev/nvidia0 ]; then\n" port)
+               (display "  for dev in /dev/nvidia0 /dev/nvidiactl /dev/nvidia-modeset /dev/nvidia-uvm /dev/nvidia-uvm-tools; do\n" port)
+               (display "    [ -e \"$dev\" ] && GPU_EXPOSE=\"$GPU_EXPOSE --expose=$dev\"\n" port)
+               (display "  done\n" port)
+               (display "fi\n" port)
+               (display "exec /run/current-system/profile/bin/guix time-machine -C \"$CHANNELS\" -- \\\n" port)
+               (display "  shell --container --emulate-fhs --network \\\n" port)
+               (display "  --preserve='^DISPLAY$' \\\n" port)
+               (display "  --preserve='^XAUTHORITY$' \\\n" port)
+               (display "  --preserve='^DBUS_SESSION_BUS_ADDRESS$' \\\n" port)
+               (display "  --preserve='^XDG_RUNTIME_DIR$' \\\n" port)
+               (display "  --preserve='^PULSE' \\\n" port)
+               (display "  --share=\"${HOME}\" \\\n" port)
+               (display "  --share=/tmp \\\n" port)
+               (display "  --share=/dev/shm \\\n" port)
+               (display "  --share=\"/run/user/$(id -u)\" \\\n" port)
+               (display "  --expose=/dev/dri \\\n" port)
+               (display "  --expose=/dev/input \\\n" port)
+               (display "  --expose=/dev/snd \\\n" port)
+               (display "  --expose=/sys \\\n" port)
+               (display "  $GPU_EXPOSE \\\n" port)
+               ;; Proton lives in the store; expose so the container
+               ;; sees it (container namespaces /gnu/store).
+               (format port "  --expose=~a \\\n" proton)
+               (display "  -m \"$MANIFEST\" \\\n" port)
+               (format port "  -- sh -c '\\\n")
+               (format port "      export STEAM_COMPAT_CLIENT_INSTALL_PATH=\"$HOME/.steam/steam\";\\\n")
+               (format port "      export STEAM_COMPAT_DATA_PATH=\"$HOME/~a\";\\\n"
+                       ,compat-subdir)
+               (format port "      export WINEFSYNC=0;\\\n")
+               (format port "      export WINEESYNC=0;\\\n")
+               ;; Disable Xalia (Proton's accessibility/SDL helper) — its
+               ;; SDL_VideoInit fails inside the Guix FHS container with
+               ;; "Video driver  not supported" and aborts the launch.
+               ;; The game itself doesn't need Xalia; it only matters for
+               ;; Steam Deck on-screen-keyboard hints.
+               ;; Disable Xalia (Proton's accessibility/SDL helper) — its
+               ;; SDL_VideoInit fails inside the Guix FHS container with
+               ;; "Video driver  not supported" and aborts the launch.
+               ;; The game itself doesn't need Xalia; it only matters for
+               ;; Steam Deck on-screen-keyboard hints.
+               (format port "      export PROTON_USE_XALIA=0;\\\n")
+               ;; NVIDIA: tell libglvnd to dispatch to the NVIDIA
+               ;; backend.  The manifest already places nvidia-driver
+               ;; libs at /usr/lib via the FHS profile; libglvnd's
+               ;; libGL.so.1 picks the vendor based on this env var
+               ;; (and the GLX context's screen vendor info).
+               (format port "      if [ -e /dev/nvidia0 ]; then export __GLX_VENDOR_LIBRARY_NAME=nvidia; fi;\\\n")
+               ;; Point wine's winepulse.drv at PipeWire's Pulse compat
+               ;; socket; otherwise ALSA is tried first and fails for lack
+               ;; of /dev/snd card probing inside the container.
+               (format port "      export PULSE_SERVER=\"unix:$XDG_RUNTIME_DIR/pulse/native\";\\\n")
+               (format port "      export PULSE_RUNTIME_PATH=\"$XDG_RUNTIME_DIR/pulse\";\\\n")
+               (format port "      cd \"$HOME/~a\";\\\n" ,game-subdir)
+               (format port "      exec python3 ~a/share/proton-ge/proton run \"./~a\"" proton ,exe-relpath)
+               ,@(map (lambda (a) `(format port " ~a" ,a)) extra-args)
+               (format port " \"$@\"'~%")))
+           (chmod launcher #o755)
+           (let* ((apps    (string-append out "/share/applications"))
+                  (desktop (string-append apps "/" ,launcher-name ".desktop")))
+             (mkdir-p apps)
+             (call-with-output-file desktop
+               (lambda (port)
+                 (format port "[Desktop Entry]~%")
+                 (format port "Version=1.0~%")
+                 (format port "Type=Application~%")
+                 (format port "Name=~a~%" ,desktop-name)
+                 (format port "Exec=~a~%" ,launcher-name)
+                 (format port "Icon=~a~%" ,desktop-icon)
+                 (format port "Categories=Game;~%")
+                 (format port "Terminal=false~%"))))))))
+    (inputs
+     `(("proton-ge" ,proton-ge-10-34)
+       ;; Baked into the launcher's script: minimal channels-lock and
+       ;; full FHS manifest including nvidia-driver.  Both live in
+       ;; /gnu/store on every machine that installs the launcher
+       ;; (curie included — small files, KB scale).  The actual
+       ;; nvidia-driver package is fetched lazily on first launch via
+       ;; time-machine; AMD-only hosts never trigger that fetch.
+       ("channels" ,proton-fhs-channels)
+       ("manifest" ,proton-fhs-manifest)))
+    (supported-systems '("x86_64-linux"))
+    (synopsis (string-append "Proton-GE launcher for " launcher-name))
+    (description
+     (string-append
+      "Wrapper that runs " launcher-name " under Proton-GE inside a "
+      "'guix shell --container --emulate-fhs' environment.  Proton creates "
+      "its compat prefix at ~/" compat-subdir "/pfx/ on first launch.  The "
+      "game's extracted Windows files are expected at ~/" game-subdir "."))
+    (home-page "https://www.gnu.org/software/guix/")
+    (license license:expat)))
+
 ;;;
 ;;; Per-game package definitions
 ;;;
@@ -379,6 +829,102 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
    #:desktop-name "Torchlight 2"
    #:desktop-icon "~/GOG Games/Torchlight 2/support/icon.png"))
 
+;;; Duskers — Tier 1
+;;;
+;;; Unity 5-era game (2016).  ScreenSelector.so (GTK2 dialog) appears first;
+;;; main binary needs mesa + X11 libs (libGL, libX11, libXcursor, libXrandr).
+;;; Audio: FMOD engine embedded in the binary dlopen()s libasound.so.2 and
+;;; libpulse-simple.so.0 at runtime — alsa-lib + pulseaudio provide both.
+;;; Same engine/plugin pattern as Wizard of Legend with FMOD audio bolted on.
+;;; eudev is mandatory: Unity dlopen()s libudev.so for gamepad hotplug, and
+;;; without it the game hangs silently after the joystick-config parse phase
+;;; (no window ever maps, process stalls in udev enumeration).
+
+(define-public gog-duskers
+  (make-game-launcher
+   "duskers"
+   "GOG Games/Duskers/game"
+   "Duskers_linux.x86_64"
+   (list mesa
+         libx11
+         libxrandr
+         libxfixes
+         libxcursor
+         libxi
+         libxinerama
+         libxxf86vm
+         libxext
+         libxscrnsaver
+         gtk+-2
+         alsa-lib
+         pulseaudio
+         eudev
+         `(,gcc "lib"))
+   #:desktop-name "Duskers"
+   #:desktop-icon "~/GOG Games/Duskers/support/icon.png"))
+
+;;; Papers, Please — Tier 1
+;;;
+;;; Modern Unity game (UnityPlayer.so + GameAssembly.so in the game dir).
+;;; ldd on the main binary only flags libgcc_s.so.1; UnityPlayer.so dlopen()s
+;;; X11/mesa/audio at runtime.  Bundled libs (UnityPlayer.so, GameAssembly.so)
+;;; sit next to the binary so ${GAMEDIR} must be on LD_LIBRARY_PATH.
+;;; Audio: UnityPlayer.so dlopen()s libasound.so.2 (ALSA) and
+;;; libpulse-simple.so.0 (PulseAudio) — alsa-lib + pulseaudio are required.
+;;; pipewire-pulse on the host translates libpulse-simple calls transparently.
+
+(define-public gog-papers-please
+  (make-game-launcher
+   "papers-please"
+   "GOG Games/Papers Please/game"
+   "PapersPlease"
+   (list mesa
+         libx11
+         libxrandr
+         libxfixes
+         libxcursor
+         libxi
+         libxext
+         alsa-lib
+         pulseaudio
+         `(,gcc "lib"))
+   #:extra-lib-dirs '("${GAMEDIR}")
+   #:desktop-name "Papers, Please"
+   #:desktop-icon "~/GOG Games/Papers Please/support/icon.png"))
+
+;;; Gobliiins (1991) — Tier 4 (ScummVM / GOB engine)
+;;;
+;;; GOG ships only a Windows installer bundling Windows ScummVM.  On Linux
+;;; we extract the game data (INTRO.STK, Track1.mp3, GOB.LIC, FDD/) via
+;;; innoextract into ~/Games/Gobliiins and run it with the host scummvm.
+;;; ScummVM auto-detects 5 language variants (en/de/fr/it/es) — it will
+;;; prompt on first launch if no preference is set.
+
+(define-public gog-gobliiins
+  (make-scummvm-launcher
+   "gobliiins"
+   "Games/Gobliiins"
+   "gob1"
+   #:desktop-name "Gobliiins"))
+
+;;; Gobliins 2 - The Prince Buffoon (1992) — Tier 4 (ScummVM / GOB engine)
+
+(define-public gog-gobliins-2
+  (make-scummvm-launcher
+   "gobliins-2"
+   "Games/Gobliins2"
+   "gob2"
+   #:desktop-name "Gobliins 2 - The Prince Buffoon"))
+
+;;; Goblins Quest 3 (1993) — Tier 4 (ScummVM / GOB engine)
+
+(define-public gog-goblins-quest-3
+  (make-scummvm-launcher
+   "goblins-quest-3"
+   "Games/GoblinsQuest3"
+   "gob3"
+   #:desktop-name "Goblins Quest 3"))
+
 ;;; Death Road to Canada — Tier 1
 
 (define-public gog-death-road-to-canada
@@ -394,43 +940,106 @@ EXTRA-EXPOSE is a list of device/path strings for --expose."
    #:desktop-name "Death Road To Canada"
    #:desktop-icon "~/GOG Games/Death Road to Canada/support/icon.png"))
 
+;;; They Are Billions — Tier 6 (Proton-GE)
+;;;
+;;; Windows-only on GOG (no Linux build).  SlimDX / DirectX 9 + .NET 4.6
+;;; game with GOG Galaxy integration.  wine-staging 10.x trips on two
+;;; issues: (a) Mono's DotNetZip can't decrypt TAB's password-protected
+;;; .dat files ("game data files corrupted"); (b) Real .NET 4.6+ on a
+;;; 32-bit prefix throws BadImageFormatException because GalaxyCSharp
+;;; P/Invokes Galaxy64.dll (64-bit).  Proton-GE sidesteps both: its
+;;; patched wine-mono handles the encrypted zips, and its protonfix for
+;;; Steam AppID 644930 installs gdiplus + WINE_MONO_HIDETYPES=1 which
+;;; applies to the GOG version equally since protonfixes matches on
+;;; EXE name.
+;;;
+;;; Install:
+;;;   mkdir -p ~/Games/TheyAreBillions
+;;;   innoextract -d ~/Games/TheyAreBillions \
+;;;     ~/Games/gog-installers/setup_they_are_billions_1.1.4.10_*_64bit*.exe
+;;;
+;;; Run the 64-bit binary — Galaxy64.dll is 64-bit only.
+
+(define-public gog-they-are-billions
+  (make-proton-game-launcher
+   "they-are-billions"
+   "Games/TheyAreBillions"
+   "TheyAreBillions.exe"
+   #:desktop-name "They Are Billions"
+   #:desktop-icon "applications-games"))
+
+;;; 9 Kings — Tier 6 (Proton-GE)
+;;;
+;;; Unity 6 / IL2CPP strategy-deckbuilder; Windows-only on GOG.  Upstream
+;;; wine-staging 10.0/11.0 stubs EnableMouseInPointer, so Unity's new
+;;; Input System falls through to Windows.Gaming.Input for pointer events
+;;; and mouse clicks are silently dropped (cursor movement + keyboard
+;;; still work — deceptive).  Proton-GE patches this; the game then plays
+;;; correctly with mouse + keyboard.
+;;;
+;;; Setup (one-time, before first launch):
+;;;   mkdir -p ~/Games/9Kings
+;;;   innoextract -d ~/Games/9Kings \
+;;;     ~/Games/gog-installers/9_kings/setup_9_kings_*.exe
+;;;
+;;; The 9Kings/ root inside the extracted tree contains 9Kings.exe.
+
+(define-public gog-9-kings
+  (make-proton-game-launcher
+   "9-kings"
+   "Games/9Kings"
+   "9Kings.exe"
+   #:desktop-name "9 Kings"
+   #:desktop-icon "applications-games"))
+
+;;; He is Coming — Tier 6 (Proton-GE)
+;;;
+;;; Unity 2022/IL2CPP roguelike-deckbuilder (Eager Monkey), Windows-only
+;;; on GOG.  Bundles Galaxy64.dll + EOSSDK + Firebase — same class of
+;;; .NET/Win32 stubs that trip wine-staging on TAB.  Routed through
+;;; Tier 6 by default, same as 9 Kings.
+;;;
+;;; Setup (one-time, before first launch):
+;;;   mkdir -p ~/Games/HeIsComing
+;;;   innoextract -d ~/Games/HeIsComing \
+;;;     ~/Games/gog-installers/setup_he_is_coming_*.exe
+;;;
+;;; Binary name has spaces: "He is coming.exe" (lowercase 'c').
+
+(define-public gog-he-is-coming
+  (make-proton-game-launcher
+   "he-is-coming"
+   "Games/HeIsComing"
+   "He is coming.exe"
+   #:desktop-name "He is Coming"
+   #:desktop-icon "applications-games"))
+
 ;;; ── Direct-download games ────────────────────────────────────────────────
 
-;;; Caves of Qud — Tier 1
+;;; Caves of Qud — Tier 5 (Wine) on curie
 ;;;
-;;; Modern Unity game (UnityPlayer.so separate shared lib, MonoBleedingEdge).
-;;; Installed at ~/Games/CavesOfQud (direct download, no GOG installer).
-;;; UnityPlayer.so dlopen()s X11/OpenGL/audio at runtime — no bundled libs.
-;;; libdecor-0.so.0 and libdecor-cairo.so are bundled in the game root and
-;;; found automatically via ${GAMEDIR}/lib-less GAMEDIR itself on the path.
+;;; The native Linux build (Unity 2021 LTS, build 2.0.210) does not
+;;; render on AMD Radeon gfx1150 (RDNA 3.5) with Mesa 25.2.3 — audio
+;;; and game cursor work, but the main framebuffer stays black across
+;;; every launcher variant tried (see project_coq_black_screen.md
+;;; memory for the full diagnostic log).  The Windows build under
+;;; wine-staging 11.0 renders correctly via wined3d (DX11 → OpenGL).
+;;;
+;;; Setup: one-time `~/.dotfiles/scripts/coq-wine-setup.sh <zip>`
+;;; creates the prefix at ~/.wine-coq and extracts the game into
+;;; drive_c/CavesOfQud/.  Requires wine64-staging on PATH (present in
+;;; gaming-home-packages).
+;;;
+;;; Revisit: when a future Mesa / Unity / CoQ combination fixes the
+;;; native rendering, swap this back to the native Tier 1 launcher —
+;;; the broken native config is preserved in git history (tag
+;;; coq-native-broken or commit immediately preceding this change).
 
 (define-public coq-caves-of-qud
-  (make-game-launcher
+  (make-wine-game-launcher
    "caves-of-qud"
-   "Games/CavesOfQud"
-   "CoQ.x86_64"
-   (list mesa
-         libx11
-         libxrandr
-         libxfixes
-         libxcursor
-         libxi
-         libxext
-         pipewire
-         `(,gcc "lib"))
-   ;; Start at 1280x720 — at full 1920x1200 the console renderer hits
-   ;; Unity's 65000-vertex mesh limit and crashes on first frame.
-   ;; CoQ reads OptionDisplayResolution=Unset and calls Screen.SetResolution
-   ;; to native desktop size, overriding Unity PlayerPrefs and -screen-* args.
-   ;; Workaround: temporarily switch the X11 display to 1280x720 so CoQ
-   ;; detects that as native, then restore on exit.
-   #:default-args '("-screen-width" "1280" "-screen-height" "720")
-   #:pre-launch
-   '("_COQ_DISPLAY=$(xrandr | awk '/ connected/{print $1; exit}')"
-     "_COQ_PREV_MODE=$(xrandr | awk '/*/{print $1; exit}')"
-     "xrandr --output \"${_COQ_DISPLAY}\" --mode 1280x720")
-   #:post-launch
-   '("xrandr --output \"${_COQ_DISPLAY}\" --mode \"${_COQ_PREV_MODE}\"")
+   ".wine-coq"
+   "CavesOfQud/CoQ.exe"
    #:desktop-name "Caves of Qud"
    #:desktop-icon "applications-games"))
 
