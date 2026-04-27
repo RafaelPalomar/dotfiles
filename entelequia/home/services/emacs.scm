@@ -78,9 +78,12 @@
         emacs-org-appear
         emacs-org-mime
         emacs-org-modern
+        emacs-org-noter
+        emacs-org-pdftools
         emacs-org-reveal
         emacs-org-super-agenda
         emacs-paredit
+        emacs-pdf-tools
         emacs-perspective
         emacs-persp-projectile
         emacs-prescient
@@ -89,6 +92,7 @@
         emacs-rainbow-delimiters
         emacs-restart-emacs
         emacs-rg
+        emacs-saveplace-pdf-view
         emacs-svg-lib
         emacs-swiper
         emacs-tabspaces

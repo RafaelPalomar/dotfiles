@@ -1739,6 +1739,11 @@ See `my-denote-add-to-agenda'.")
   (let ((denote-directory (expand-file-name "~/pks/")))
     (call-interactively #'consult-denote-grep)))
 
+;; C-c n prefix keymap (Protesilaos-style).  Define BEFORE any
+;; `with-eval-after-load' form that references it: those bodies fire
+;; immediately if denote is already loaded.
+(define-prefix-command 'my-pks-prefix-map)
+
 (with-eval-after-load 'denote
   (define-key my-pks-prefix-map (kbd ".") #'my-pks-consult-find)
   (define-key my-pks-prefix-map (kbd "?") #'my-pks-consult-grep))
@@ -1798,8 +1803,9 @@ See `my-denote-add-to-agenda'.")
              (shell-quote-argument id)
              (shell-quote-argument (string-join kw ","))))))
 
-;; C-c n prefix keymap (Protesilaos-style).
-(define-prefix-command 'my-pks-prefix-map)
+;; Bind the C-c n prefix once denote is available.  The prefix map
+;; itself is created earlier in this file; binding it here keeps the
+;; top-level binding gated on denote being usable.
 (with-eval-after-load 'denote
   (global-set-key (kbd "C-c n") 'my-pks-prefix-map)
   (let ((m my-pks-prefix-map))
@@ -1862,6 +1868,55 @@ See `my-denote-add-to-agenda'.")
     (define-key m "n" #'citar-open-notes)           ; open/create literature note
     (define-key m "r" #'citar-open-entry)           ; jump to .bib entry
     (define-key m "a" #'citar-add-file-to-library))) ; attach PDF to citekey
+
+(use-package pdf-tools
+  :ensure nil
+  :magic ("%PDF" . pdf-view-mode)
+  :config
+  (pdf-loader-install)
+  (setq-default pdf-view-display-size 'fit-page)
+  (setq pdf-annot-activate-created-annotations t))
+
+(use-package saveplace-pdf-view
+  :ensure nil
+  :after pdf-tools
+  :config
+  (save-place-mode 1))
+
+(use-package org-noter
+  :ensure nil
+  :commands (org-noter)
+  :custom
+  (org-noter-notes-search-path '("~/pks/literature/"))
+  (org-noter-always-create-frame nil)
+  (org-noter-doc-split-fraction '(0.6 . 0.4))
+  (org-noter-auto-save-last-location t)
+  (org-noter-kill-frame-at-session-end nil))
+
+(use-package org-pdftools
+  :ensure nil
+  :init
+  ;; Upstream bug: org-pdftools.el calls bare cl names (`find-if',
+  ;; `getf') but only does `(require 'cl-lib)', so the symbols are
+  ;; void at runtime in modern Emacs.  `find-if' bites at link
+  ;; abbreviation; `getf' bites following a link via C-c C-o
+  ;; (`org-pdftools-open-pdftools').  Alias before invocation.
+  (unless (fboundp 'find-if) (defalias 'find-if 'cl-find-if))
+  (unless (fboundp 'getf)    (defalias 'getf    'cl-getf))
+  :hook (org-mode . org-pdftools-setup-link))
+
+;; org-noter-pdftools ships in the same Guix package as org-pdftools.
+;; It teaches org-noter to use pdf-tools' precise (page . scroll)
+;; locations instead of bare page numbers — without it, M-i writes
+;; `:NOTER_PAGE: 1' as an integer and re-reads fail with
+;; "wrong type argument: listp, 1".
+(use-package org-noter-pdftools
+  :ensure nil
+  :after (org-noter org-pdftools)
+  :config
+  (with-eval-after-load 'pdf-annot
+    (add-hook 'pdf-annot-activate-handler-functions
+              #'org-noter-pdftools-jump-to-note)))
 
 (use-package dashboard
   :ensure nil
