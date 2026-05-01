@@ -1,13 +1,23 @@
 #!/bin/sh
 # sync-mail: fetch new mail via mbsync, then index with notmuch.
 #
-# Used as the canonical "refresh mail" command by:
+# Refreshes two indexes:
+#   1. ~/.local/share/mail/.notmuch — your full DB, used by mu4e and
+#      your own `notmuch` invocations.
+#   2. ~/.local/share/mail-agent/.notmuch — the allowlisted DB
+#      queried by `notmuch-agent` (Claude Code).  Only folders listed
+#      in sync-mail-agent-index are indexed there.
+#
+# Used by:
 #   - the `mbsync-all` shell alias (bash)
 #   - mu4e's `mu4e-get-mail-command' (Emacs shell — no alias expansion)
 #
-# Exits non-zero on any failure so mu4e's index-update-error-warning fires.
+# Claude Code is NOT permitted to run this script; refreshing mail is
+# a human-initiated step.  Exits non-zero on any failure so mu4e's
+# index-update-error-warning fires.
 
 set -e
 
 mbsync -a
 notmuch new
+sync-mail-agent-index

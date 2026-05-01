@@ -1,0 +1,84 @@
+#!/bin/sh
+# sync-mail-agent-index — rebuild the agent's allowlisted mail view
+# and reindex its notmuch DB.
+#
+# The agent root at ~/.local/share/mail-agent/ is a symlink tree:
+# one directory per account, containing per-folder symlinks into the
+# real maildir at ~/.local/share/mail/.  Only folders listed in
+# ALLOW_FOLDERS below are linked; everything else (Sensitive, Junk,
+# Deleted Items, Calendar, ...) is simply absent.  notmuch-agent
+# indexes this tree, and because the non-allowlisted folders aren't
+# reachable from the agent root, no query flag — including
+# --exclude=false — can surface them.
+#
+# Invariants:
+#   - idempotent: safe to re-run as often as you want.
+#   - never writes into ~/.local/share/mail/: only reads + symlinks.
+#   - removes stale symlinks (folder removed on the server) and
+#     stale account dirs (account removed from mbsync config).
+#
+# Invoked by sync-mail after `mbsync -a && notmuch new`.  Run
+# manually after editing ALLOW_FOLDERS below.
+
+set -eu
+
+MAIL_ROOT="$HOME/.local/share/mail"
+AGENT_ROOT="$HOME/.local/share/mail-agent"
+
+# --- Allowlist --------------------------------------------------------
+# Folders the agent is permitted to see, matched by basename against
+# each account's directory listing.  Anything not on this list stays
+# invisible to Claude.
+#
+# Add with deliberation; this is the policy boundary between Claude
+# and your mail.  After editing, run `sync-mail-agent-index` once to
+# rebuild, then the change is permanent until the next edit.
+ALLOW_FOLDERS='
+INBOX
+Archive
+Drafts
+Kladd
+Sent
+Sent Items
+'
+# ----------------------------------------------------------------------
+
+if [ ! -d "$MAIL_ROOT" ]; then
+  echo "sync-mail-agent-index: $MAIL_ROOT not found; mbsync not configured?" >&2
+  exit 1
+fi
+
+mkdir -p "$AGENT_ROOT"
+
+# 1. Drop account dirs whose source no longer exists.
+for d in "$AGENT_ROOT"/*/; do
+  [ -d "$d" ] || continue
+  name=$(basename "$d")
+  if [ ! -d "$MAIL_ROOT/$name" ]; then
+    rm -rf "$d"
+  fi
+done
+
+# 2. Refresh allowlisted symlinks for each account.
+for account_path in "$MAIL_ROOT"/*/; do
+  [ -d "$account_path" ] || continue
+  account=$(basename "$account_path")
+  account_agent="$AGENT_ROOT/$account"
+  mkdir -p "$account_agent"
+
+  # Purge existing symlinks (preserves any .notmuch/ that may exist,
+  # though it normally lives at $AGENT_ROOT/.notmuch, not here).
+  find "$account_agent" -maxdepth 1 -mindepth 1 -type l -exec rm -- {} +
+
+  # Recreate symlinks for any allowlisted folder that exists upstream.
+  printf '%s\n' "$ALLOW_FOLDERS" | while IFS= read -r folder; do
+    [ -z "$folder" ] && continue
+    src="$account_path$folder"
+    if [ -d "$src" ]; then
+      ln -s "$src" "$account_agent/$folder"
+    fi
+  done
+done
+
+# 3. Reindex.  --quiet keeps sync-mail's output legible.
+exec env NOTMUCH_CONFIG="$HOME/.notmuch-config-agent" notmuch new --quiet

@@ -1,0 +1,37 @@
+#!/bin/sh
+# notmuch-agent: read-only wrapper around notmuch that uses the
+# filtered agent database at ~/.local/share/mail-agent.
+#
+# Claude Code is permitted to call `notmuch-agent <subcommand>`; raw
+# `notmuch` is denied by ~/.claude/settings.json.  That isolation is
+# the hard boundary between the agent and your mail — the Sensitive
+# folder (and any other folder not in sync-mail-agent-index's
+# allowlist) is physically absent from this DB.
+#
+# This wrapper refuses any subcommand that could mutate the DB or
+# reach outside of read/search/tag.  Database refresh belongs to
+# sync-mail-agent-index, which is run by sync-mail (user-initiated).
+
+set -eu
+
+case "${1-}" in
+  search|show|count|address|tag)
+    exec env NOTMUCH_CONFIG="$HOME/.notmuch-config-agent" notmuch "$@"
+    ;;
+  help|--help|-h|"")
+    cat <<'EOF'
+notmuch-agent — filtered notmuch for Claude Code
+
+Allowed subcommands: search, show, count, address, tag.
+Uses the DB at ~/.local/share/mail-agent; Sensitive and other
+non-allowlisted folders are not indexed.
+
+For everything else, use `notmuch` in your own shell.
+EOF
+    exit 0
+    ;;
+  *)
+    printf 'notmuch-agent: subcommand %q not permitted (read/search/tag only)\n' "$1" >&2
+    exit 2
+    ;;
+esac

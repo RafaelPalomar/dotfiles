@@ -1,0 +1,39 @@
+# Notmuch configuration — AGENT-ONLY filtered database.
+#
+# This is the DB queried by `notmuch-agent`, the only notmuch entry
+# point exposed to Claude Code.  It indexes ~/.local/share/mail-agent/,
+# which is a symlink tree containing only the folders allowlisted in
+# `sync-mail-agent-index`.  The Sensitive folder and every other
+# non-allowlisted folder are physically absent from this database — no
+# query flag can surface them.
+#
+# The human-facing DB at ~/.local/share/mail/.notmuch (see
+# .notmuch-config) is unaffected; mu4e and your own `notmuch` still
+# see everything.
+#
+# Refreshed automatically by `sync-mail` via `sync-mail-agent-index`.
+
+[database]
+path=/home/rafael/.local/share/mail-agent
+
+[user]
+name=Rafael Palomar
+primary_email=rafael.palomar@ous-research.no
+other_email=rafael.palomar@ntnu.no;rafaelpalomaravalos@gmail.com
+
+[new]
+tags=unread;inbox
+ignore=.mbsyncstate;.uidvalidity;.mbsyncstate.journal;.mbsyncstate.lock;.mbsyncstate.new
+
+[search]
+exclude_tags=deleted;spam;trash
+
+[maildir]
+# CRITICAL: never flip S/R/F flags in the underlying maildir — the
+# files are symlinked from the user's real maildir, and renaming
+# them would corrupt the human-side state.  Agent tags live only in
+# this DB's Xapian index.
+synchronize_flags=false
+
+[index]
+decrypt=false

@@ -5,8 +5,9 @@ description: Compose a mail draft and write it as an RFC-5322 file into the appr
 
 # mail-draft
 
-Creates a draft in the local Maildir. `mbsync` (on next `sync-mail`)
-pushes it to the IMAP Drafts folder; the human sends it from mu4e.
+Creates a draft in the local Maildir. On the user's next `sync-mail`,
+`mbsync` pushes it to the IMAP Drafts folder; the human reviews and
+sends from mu4e or Outlook.
 
 ## When to invoke
 
@@ -20,21 +21,24 @@ triggering a sync, or authorising OAuth.
 ## Hard rules
 
 1. **NEVER** call `msmtp`, `sendmail`, `smtpmail`, or any command that
-   opens a socket to a mail *SMTP* server.  Send authority belongs on
+   opens a socket to a mail *SMTP* server. Send authority belongs on
    a human keystroke in mu4e / Outlook — never the agent.
 2. **NEVER** call `mutt_oauth2.py` / `auth-email-*` or touch
    `~/.password-store/**` / `~/.dotfiles/sops/**` — auth is off-limits.
-3. **ALWAYS** use the `mail-draft` helper script (see below). Do not
+3. **NEVER** call `mbsync`, `sync-mail`, `sync-mail-agent-index`, or
+   raw `notmuch`. All four are denylisted. Syncing the draft to IMAP
+   is a human-initiated step; the agent's job ends at writing the
+   Maildir file.
+4. **ALWAYS** use the `mail-draft` helper script (see below). Do not
    hand-construct RFC-5322 in shell; the helper handles encoding,
    Message-ID generation, Maildir flags, and atomic move via `tmp/`.
-4. **Always confirm** the draft contents with the user before writing
+5. **Always confirm** the draft contents with the user before writing
    if the body exceeds a couple of sentences. A wrong draft can be
    edited; a surprise draft is friction.
-5. **Always close the loop with `sync-mail`** after writing a draft
-   (see Workflow below).  `mbsync` uploads the draft to Exchange's
-   IMAP Drafts folder — this is self-publication to your own Drafts,
-   not a send — so Outlook on phone/web/desktop sees it within
-   seconds.
+6. **Never draft to / quote from / reference** anything in the
+   Sensitive folder. The agent's DB doesn't index Sensitive, so this
+   should be automatic — but if the user asks you to reply to a
+   thread you can't see, surface that rather than guessing.
 
 ## The helper
 
@@ -58,7 +62,7 @@ Body is read from stdin. The helper:
 ## Workflow (reply)
 
 1. Use `mail-triage` first to find the thread:
-   `notmuch show --format=json --entire-thread 'thread:<id>'`
+   `notmuch-agent show --format=json --entire-thread 'thread:<id>'`
 2. From the thread JSON, extract:
    - The **last** message's `Message-ID` header → `--in-reply-to`.
    - The `References` header of the last message, appended with its
@@ -91,21 +95,13 @@ Body is read from stdin. The helper:
    BODY
    ```
 
-6. **Run `sync-mail`** to push the draft to IMAP Drafts + reindex
-   notmuch:
+6. **Tell the user** the draft path and that their next `sync-mail`
+   will upload it to IMAP Drafts. Do not run `sync-mail` yourself —
+   it is denylisted. One-line reminder is enough:
 
-   ```bash
-   sync-mail     # = mbsync -a && notmuch new
-   ```
-
-   Typical output: `Far: +1 *0 #0 -0` on the relevant channel = your
-   draft was uploaded.  This is self-publication, not a send — safe
-   and expected after every `mail-draft`.
-
-7. Report the returned path + a one-line summary to the user.  Mention
-   where they'll see it (Outlook Drafts on the matching account, or
-   `SPC m m` → Drafts in mu4e).  Remind them the draft is *not sent*
-   until they hit Send / `C-c C-c` in the client.
+   > Draft written to `~/.local/share/mail/ous/Drafts/cur/…:2,DS`.
+   > Run `sync-mail` in your shell to upload it to Outlook Drafts;
+   > review there or in mu4e, then `C-c C-c` / Send when ready.
 
 ## Workflow (new message)
 
@@ -114,8 +110,7 @@ Body is read from stdin. The helper:
 2. Construct subject, recipients, body.
 3. Skip `--in-reply-to` / `--references`.
 4. Same helper invocation.
-5. **Run `sync-mail`** to push (same as step 6 in the reply workflow).
-6. Report path + where the user will see it.
+5. Same reminder to the user about `sync-mail`.
 
 ## Format guidance
 
@@ -139,9 +134,10 @@ Body is read from stdin. The helper:
   to run `guix home reconfigure`.
 - Account's Drafts directory doesn't exist → helper creates it. If it
   still fails, maildir root is wrong; inspect `~/.local/share/mail/`.
-- `notmuch` doesn't see the draft immediately after writing → that's
-  expected. `notmuch new` picks it up; the user's mu4e indexes it on
-  next `u`. The draft is already safely in Maildir.
+- `notmuch-agent` doesn't see the draft immediately after writing →
+  expected. The draft is in Maildir, but the agent's index is only
+  refreshed when the user runs `sync-mail`. The draft is already
+  safely on disk.
 
 ## What NOT to do
 
@@ -149,6 +145,10 @@ Body is read from stdin. The helper:
   opens a compose buffer in the user's Emacs; useful interactively but
   side-steps the review step.
 - Do not write files directly to `Drafts/new/` or `Drafts/cur/` by
-  hand — Maildir's atomicity requires writing to `tmp/` first.
+  hand — Maildir's atomicity requires writing to `tmp/` first, and
+  the Write/Edit tools are denylisted on `~/.local/share/mail/**`
+  regardless.
 - Do not set `X-Mailer: Claude` or similar identifiers that leak
   agent authorship to the recipient. The draft is yours after review.
+- Do not run `sync-mail` yourself "to close the loop". It is
+  denylisted by design; the human does it.
