@@ -1,5 +1,6 @@
 (define-module (entelequia home services desktop)
   #:use-module (entelequia packages python-xyz)
+  #:use-module (entelequia packages pass-secret-service)
   #:use-module (gnu)
   #:use-module (gnu system)
   #:use-module (gnu home services)
@@ -78,6 +79,7 @@
 
         ;; Authentication
         password-store
+        pass-secret-service  ;; Expose pass via org.freedesktop.secrets D-Bus
         rbw          ;; Bitwarden CLI with agent
         python-rofi-rbw  ;; Rofi frontend for Bitwarden
         xdotool      ;; For autotype functionality
@@ -208,6 +210,23 @@
                          (or (getenv "XDG_STATE_HOME")
                              (string-append (getenv "HOME") "/.local/state"))
                          "/nm-applet.log")))
+    (stop #~(make-kill-destructor))
+    (respawn? #t))
+
+   ;; pass-secret-service: registers org.freedesktop.secrets on the D-Bus
+   ;; session bus, backed by the user's pass store.  Qt Keychain (Nextcloud
+   ;; client) and libsecret consumers persist credentials transparently into
+   ;; ~/.password-store, decrypted on demand by gpg-agent.
+   (shepherd-service
+    (documentation "pass-backed Secret Service D-Bus daemon")
+    (provision '(pass-secret-service))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append pass-secret-service
+                                   "/bin/pass_secret_service"))
+              #:log-file (string-append
+                         (or (getenv "XDG_STATE_HOME")
+                             (string-append (getenv "HOME") "/.local/state"))
+                         "/pass-secret-service.log")))
     (stop #~(make-kill-destructor))
     (respawn? #t))))
 
