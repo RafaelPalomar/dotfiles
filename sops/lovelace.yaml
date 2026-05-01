@@ -20,6 +20,7 @@ tailscale:
     qbt_authkey: ENC[AES256_GCM,data:iY++dAgGFM1f4DtZSUD4QJrkp2eARP4i3M15qWZ/K1KA93zyY5+Z+R0qc5sf5E/ImmdS0kEK6MaEevyKbQ==,iv:kQ1lsE6rbAke4v7xpQVMah7lpZKioogweiY6LAWK5rY=,tag:7V23f/QoJB+qhSTytZ/2ww==,type:str]
     prometheus_authkey: ENC[AES256_GCM,data:7lhEmNdZqUk5DsPnDE3KGMjt2HVQzcD+h0RYJoQtQmfZ+1Jwoj/p/Jn/JPHMzsctnjRIUy8WbTkihRxb7JU=,iv:6zgzwakQjtL6DeH3yWtEt0gpeQS52WKZAw0cCwKIXS4=,tag:5qVASfa/rCWe7I+CPzzdMw==,type:str]
     grafana_authkey: ENC[AES256_GCM,data:Nl092WE/k9sR4+/3fFzpb0ebmjWVZdfLwivUBiFDQ9yJa0i3pTuv5L7vF40CXogGgaitTAUZVB4e4+FPtDQ=,iv:deIRYOh96+GFq8/T9oMJOWYf/Pt++lRZUNubHU4y+3I=,tag:uKvrnEjsTqNHB5bG9lwQEA==,type:str]
+    habitica_authkey: ENC[AES256_GCM,data:qVbM/4eWKXYDfprouEtn0VsJPuu2vMLbDfkFnr9ToWrOsJS1SveZLxCh0DdGA/CW1GgUc7gWUHrWr36Wig==,iv:Tkufvj2IAJuwE8MQvv4LAQ1wlkv8ApnFbnRpM4kNdQ4=,tag:QMi94sQ2sV/r/uPvSedRwA==,type:str]
 mullvad:
     pihole_wg_private_key: ENC[AES256_GCM,data:L5FJJfIaEAVYlYVGAhjANlPUCOG5DVnV5+3wh4yZXFLd0mpPJBSRzLLLEt4=,iv:U+TUVjBLKV0wuPOXrCeMoIbK5+z2WldwrQvxDNlaEHY=,tag:h/LfpiTYHuSMxtt8KIQtrg==,type:str]
     qbt_wg_private_key: ENC[AES256_GCM,data:0PpXUSPh6Ipw4PsJHVR8bX5ImHMeWvse2bENm4pjZ/ij+4aRpZOLes9DEDQ=,iv:rYtdPl51P3oxtYwZgsAmlcLP5L2xMEiaKnBjxVAIV1A=,tag:J/6VimgFaA/AFWnA2AZUMQ==,type:str]
@@ -36,14 +37,17 @@ borg:
     #ENC[AES256_GCM,data:7T69sC885ErdnIXZJGVAjCUC9GAT+ANcAlbnMiFGUcanbM5i4jA24tEGM+dKBzCNELa+Od28WOpAaU/TWIGEQ69fotDg3V2QJ8IcxIbpRQ==,iv:a3jpt6DBcigpDQVonKCXTEgNBv8BTcEf/uIvwSUR6lc=,tag:25BFc4uXckqpnE8983kNxA==,type:comment]
     ssh_private_key: ENC[AES256_GCM,data:zkqVf2f4lb2mnfmHU4skI6Stklx6MPckJKwXFpgsO093GD0HvJ4kjNKdZgc1IenSs/oqEQJSOLHMJl4Gw7MKyN8OrL6lLEyuI0Nx4rwssOqTIypqH6MKELUFlkAJFGcec6hfwhyDPDfBovqxbzc0zHUDRFhEQx3/9x/nqp90dqAaIB6zDakzKWqi7uv0VxWrMi7AHEE28PorNYb4qJbVqUlVLf3Sfl8i9JUHU3qYNBAq+9uUggkVf/zuNgzGjJ6msxmuji8M0jj6lx/DM2zbqb3Q8D6Vfaq+b0zC3+slk7hWee8AUl3fQxDAIlYfjHh9nsaI9ZHPtjtfWZZ6jDcfx1+IKwPnvrPOpAPtSNHtiPkoVJgY6T1tVJA/AHgqVwbDBlwvjbLfzWfx8GiS+w5RfVujaHKh8x9NVgSULXgQ02ZMSsN6twq2wJhk3peTa7Kr4joITF1++dQmqA3mjSD/EUYRXTjoRzgtBJuPttGN74hlTP7l/XgIAXejOKEHpgzo1ytA2nhiBH8aO6AOjU93Sz91HTcVdeOEL2xK,iv:8FMq1DJn/EgUu1P85gw/Wf/iQTuhrQXCH5r6dD6LtVc=,tag:6iFyS4PtOa0n4nALA27McQ==,type:str]
     keyfile: ENC[AES256_GCM,data:OhfJYkwgpUSKFbrWOvR8sOyuBmQ390H+H1tCwzQFEmOrgjmh5B+abs5lqn4owprknxwB8DifLWouLq63wqBHVfwT+QGN/B1qGEjwBY7J4IZZANSyEvEITKaaTt9oOmQWIhGzp3cbtZnQR9Ev12F3PbA3zjQRApZXFSgv85O6F7DDR7sftOOLVwxKjVm0VzjNV49oZNxl/ztQp4ihVBaiJsLDKJKgYT8PKMP1VJVHH1zUgy/xZo5t3oslilJPu+kB+cuMG7pgAGG6Qio6aIM5PcWwbDuJSNge3G+Ua+BzbgnFyUCp2s+aTpfkIRhKfCsxjba1TRxsxdcRU9TtLUtz4bBOijtpOnOMmma9eliQGxfeuGWPTGJoC3cRF1nunD5NCA0MU3yu+yx4Q/p8LuoVyxUtVk/X4IqfmlOVLLq9dEkCVvtRwPWAXGIn9YgAI9GVoiG2to/wLm//Ml9ygvzxoOTmzFd3h2fXWoX3dqeDJHPtd+FwffEnnedbNMTK5hnTK4TLRZ+ir+kHHY0qysQrMlWy84DpsSOMpcny38b7LflwZk3KJtSRAtsUKSuFpdmb5gxPd65PAfs3O2BRs1zKSTdFzqIaVa776t0JYBLNiLz4ZkYhFdxyuyv8x6pKu1Te066WeA4m5leFD2w+TQLzLZmhkHd88eFVTV+xaAVQfMYWwBJRw0LDIbMy7nP9/oDtTojFKZDqbVC8i/rCvelj5bmLPREW/l0RTg==,iv:vq0yCxVtuhAWUGrZo+rPmmYeljaaRgFEk66FwOKwYX8=,tag:Mzj26gYMuhub9Dle5r+byQ==,type:str]
+habitica:
+    session_secret: ENC[AES256_GCM,data:lYKSuq8aDe3L8v96ugMGkGbGDDy+J15ThLMUq65yu8KGoEGrTPmkJRLpWB8AKHz7X4ZwZiYeQli408fa0iaQGWXxtgBh/FZF12+UnT7Q+/oSynkXa7b2v07wM02ML8gq6ZIAHlCZ1R2sKvhO7J3FA+aDoytE8Tk6lgK+PgkqKbg=,iv:/+7XW5NEtATLeiiFrq1cxrsob/IOgH9IjjlwUmtfZKs=,tag:EFXkBJRXQ2DXqylCp0iX1Q==,type:str]
+    session_secret_key: ENC[AES256_GCM,data:32ZcYMJmlrQFppomik4nSnTbefLZefPxc4DB8k2Y0fnlrB5xn0ZJUGmyFpdANEpizSiwGA7wTiidEFrSf4jcAw==,iv:NYNkfEXmGQZp6s4eaTNrgOJGqUeL3huOnQO73QbiLR8=,tag:OFSl1PInE/TrugSlSnCprQ==,type:str]
 sops:
     kms: []
     gcp_kms: []
     azure_kv: []
     hc_vault: []
     age: []
-    lastmodified: "2026-03-30T06:18:21Z"
-    mac: ENC[AES256_GCM,data:nq40bGbaNc0WMYHgED9zYQ22rDPKjYl9L1IPH1Brc0F/R/o9biivcwWqAu5GVbCrUwjGlp0iUfd3Is6Rr9IsAy8yJXwNJyiPv6K5b9DrCRCjSlEeXRh8X2h16Ltp31TXLosjgpDU0sOXGlnPW72FTuQdJ/qE8jG4Jz/6rVX9QHY=,iv:6BYoQZjrOcZ5EzbmFMlANJpKZn6DzTTOR4DynATnZiI=,tag:DdZxrYYcq678Y13IjCGxRA==,type:str]
+    lastmodified: "2026-05-01T13:16:52Z"
+    mac: ENC[AES256_GCM,data:IVal4dNYUQ/zk8q8BGgLxSqIn7v4BPPXPDwNJQRkUt0odLL7PuHwRzfQKej+SIZIPxgCgxk+WAQe6oCoIi8INdRg5vFZCSS6qMI/lJBJ7ux+AA9i56kjlXSzqwxj/GenjS33soNp1hfZBtmIfpWiQzHAp9b0EjrLRSwOw1gl7wU=,iv:0CoETC2J0OLTX6tJuOpbsk/rRmqLP2a7xExHuHb1+N4=,tag:5usqla+WppGvGzcBBQ8xNA==,type:str]
     pgp:
         - created_at: "2026-03-20T12:38:18Z"
           enc: |-

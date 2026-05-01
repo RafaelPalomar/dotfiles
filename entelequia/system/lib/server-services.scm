@@ -28,7 +28,9 @@
             podman-prune-service
             make-ts-sidecar
             make-ts-ready-service
-            make-app-container))
+            make-app-container
+            %habitica-commit
+            habitica-rs-init-service))
 
 ;;; Server services for lovelace
 ;;;
@@ -89,21 +91,26 @@
                           "/data/tailscale/wallabag"
                           "/data/tailscale/rss-bridge"
                           "/data/tailscale/searxng"
+                          "/data/tailscale/searxng-kids"
                           "/data/tailscale/pihole"
                           "/data/tailscale/qbt"
                           "/data/tailscale/prometheus"
                           "/data/tailscale/grafana"
+                          "/data/tailscale/habitica"
                           "/data/freshrss"
                           "/data/nextcloud"
                           "/data/wallabag"
                           "/data/rss-bridge"
                           "/data/searxng"
+                          "/data/searxng-kids"
                           "/data/pihole"
                           "/data/qbittorrent"
                           "/data/gluetun-pihole"
                           "/data/gluetun-qbt"
                           "/data/prometheus"
                           "/data/grafana"
+                          "/data/habitica"
+                          "/data/habitica/db"
                           ;; /data/nextcloud/config: non-recursive chown to rafael so
                           ;; container root (= host rafael in rootless Podman) can write.
                           ;; Subdirs are owned by container abc (host uid 232071); do NOT
@@ -140,13 +147,16 @@
                    activation-service-type
                    #~(begin
                        (use-modules (guix build utils))
+                       ;; Container abc user (PUID=1000) maps to host uid 232071
+                       ;; via rootless Podman subuid remap. The directory and file
+                       ;; must be owned by abc so Nextcloud's PHP runtime can write
+                       ;; into config/ (e.g. for trusted-domain updates, upgrades).
                        (let* ((conf-dir "/data/nextcloud/config/www/nextcloud/config")
                               (conf-file (string-append conf-dir "/proxy.config.php"))
-                              (pw  (getpwnam "rafael"))
-                              (uid (passwd:uid pw))
-                              (gid (passwd:gid pw)))
+                              (abc-uid 232071)
+                              (abc-gid 232071))
                          (mkdir-p conf-dir)
-                         (chown conf-dir uid gid)
+                         (chown conf-dir abc-uid abc-gid)
                          (call-with-output-file conf-file
                            (lambda (port)
                              (display "<?php\n$CONFIG = array (\n" port)
@@ -156,7 +166,7 @@
                              (display "  'overwriteprotocol' => 'https',\n" port)
                              (display "  'overwrite.cli.url' => 'https://nextcloud.drake-karat.ts.net',\n" port)
                              (display ");\n" port)))
-                         (chown conf-file uid gid)
+                         (chown conf-file abc-uid abc-gid)
                          (chmod conf-file #o644))))))
 
 ;;;
@@ -497,6 +507,14 @@ hooks:
                      (provision '(podman-prune))
                      (requirement '(rootless-podman-shared-root-fs user-processes))
                      (one-shot? #t)
+                     ;; CRITICAL: respawn? defaults to #t in shepherd-service.
+                     ;; A one-shot transitions to "stopped" after it exits, and
+                     ;; with respawn? #t shepherd respawns it every few seconds —
+                     ;; each respawn runs `podman rm -af`, killing every running
+                     ;; container.  Lock respawn off so the cleanup happens once
+                     ;; per boot.  Previously fixed in 8c34e57 by running a sleep
+                     ;; loop instead, then accidentally undone in 3b02e7e.
+                     (respawn? #f)
                      (start #~(make-forkexec-constructor
                                (list #$%podman-prune-script)
                                #:log-file "/var/log/podman-prune.log"))
@@ -732,6 +750,75 @@ hanging forever (mcron watchdog will retry)."
         base)))
 
 ;;;
+;;; Habitica image pin
+;;;
+;;; Upstream HabitRPG/habitica has no published OCI image; we build locally on
+;;; lovelace via scripts/build-habitica-image.sh, tagging with this commit SHA.
+;;; Bump the pin → re-run the build script on lovelace → guix deploy.
+(define %habitica-commit "a92999fc11a0fcfe24d74ddc952219ece5d73101")
+
+;;;
+;;; habitica-rs-init: one-shot that calls rs.initiate(...) on the mongo
+;;; container after first start. Idempotent — rs.status() succeeds on
+;;; subsequent boots and the script becomes a no-op. Required because
+;;; Habitica's server uses MongoDB change-streams, which only work when
+;;; the database is configured as a replica set.
+;;;
+(define habitica-rs-init-service
+  (simple-service
+   'habitica-rs-init
+   shepherd-root-service-type
+   (list
+    (shepherd-service
+     (provision '(habitica-rs-init))
+     (requirement '(habitica-mongo))
+     (one-shot? #t)
+     (start
+      #~(make-forkexec-constructor
+         (list
+          #$(program-file
+             "habitica-rs-init"
+             #~(begin
+                 (use-modules (ice-9 popen)
+                              (ice-9 rdelim))
+                 (let* ((pw   (getpwnam "rafael"))
+                        (uid  (passwd:uid pw))
+                        (gid  (passwd:gid pw))
+                        (ruid (string-append "/run/user/"
+                                             (number->string uid))))
+                   (setenv "XDG_RUNTIME_DIR" ruid)
+                   (setenv "HOME" (passwd:dir pw))
+                   (setenv "PATH"
+                           (string-append "/run/setuid-programs:"
+                                          (or (getenv "PATH") "")))
+                   (setgid gid)
+                   (setuid uid)
+                   (let ((podman   #$(file-append podman "/bin/podman"))
+                         (deadline (+ (current-time) 120))
+                         (script   "try { rs.status() } catch (e) { rs.initiate({_id:'rs', members:[{_id:0, host:'127.0.0.1:27017'}]}) }"))
+                     (let loop ()
+                       (let* ((port (open-pipe* OPEN_READ podman
+                                                "exec" "habitica-mongo"
+                                                "mongosh" "--quiet"
+                                                "--eval" script))
+                              (out  (read-string port))
+                              (rc   (status:exit-val (close-pipe port))))
+                         (cond
+                          ((zero? rc)
+                           (format #t "habitica-rs-init: ~a~%" out)
+                           #t)
+                          ((> (current-time) deadline)
+                           (format (current-error-port)
+                                   "habitica-rs-init: mongosh did not succeed within 120s~%")
+                           (exit 1))
+                          (else
+                           (sleep 2)
+                           (loop))))))))))
+         #:log-file "/var/log/habitica-rs-init.log"))
+     (documentation
+      "Initialize MongoDB replica set 'rs' for the Habitica server (idempotent).")))))
+
+;;;
 ;;; Application container configurations (oci-container-configuration records)
 ;;;
 
@@ -820,7 +907,82 @@ hanging forever (mcron watchdog will retry)."
           "/run/secrets/searxng/secret_key:/run/secrets/secret_key:ro")
     #:environment (list "SEARXNG_SETTINGS_PATH=/etc/searxng/settings.yml")
     #:extra-arguments
-    (list "--cap-drop=ALL" "--cap-add=CHOWN" "--cap-add=SETGID" "--cap-add=SETUID"))))
+    (list "--cap-drop=ALL" "--cap-add=CHOWN" "--cap-add=SETGID" "--cap-add=SETUID"))
+
+   ;; ── SearxNG (kids) ────────────────────────────────────────────────────
+   ;; Parallel SearxNG instance with strict SafeSearch + reduced engine set,
+   ;; on its own Tailscale node so kids' devices browse it via MagicDNS at
+   ;; http://searxng-kids:8080.  Settings live at /data/searxng-kids/.
+   ;; Shares the secret_key with the adult instance — the key is just for
+   ;; session-state HMAC; no privacy advantage to a separate one.
+   ;; Shares the same Tailscale auth key as the main searxng node — needs
+   ;; to be REUSABLE in Tailscale admin (re-generate if it was single-use).
+   ;; Port 8081 (not 8080) because make-ts-sidecar routes via host LAN IP
+   ;; and main searxng already claims host port 8080 via pasta.
+   (make-ts-sidecar "searxng-kids" #:serve-port 8081 #:secret-name "searxng")
+   (make-app-container
+    "searxng-kids" "searxng/searxng:latest"
+    #:volumes
+    (list "/data/searxng-kids:/etc/searxng:rw"
+          "/run/secrets/searxng/secret_key:/run/secrets/secret_key:ro")
+    #:environment (list "SEARXNG_SETTINGS_PATH=/etc/searxng/settings.yml"
+                        "SEARXNG_PORT=8081"
+                        "SEARXNG_BIND_ADDRESS=0.0.0.0")
+    #:extra-arguments
+    (list "--cap-drop=ALL" "--cap-add=CHOWN" "--cap-add=SETGID" "--cap-add=SETUID"))
+
+   ;; ── Habitica ──────────────────────────────────────────────────────────
+   ;; Three-container stack sharing one Tailscale netns:
+   ;;   ts-habitica   — tailnet TLS termination, proxies :443 → :3000
+   ;;   habitica-mongo — mongo:7.0, --replSet rs, binds 127.0.0.1:27017
+   ;;   habitica       — locally built image (see scripts/build-habitica-image.sh),
+   ;;                    serves API + built SPA on :3000
+   ;; A separate one-shot (habitica-rs-init) calls rs.initiate(...) once after
+   ;; mongo first comes up; see habitica-rs-init-service below.
+   ;; The image tag is pinned to %habitica-commit so deploys are reproducible:
+   ;; bumping the pin requires re-running build-habitica-image.sh on lovelace.
+   (make-ts-sidecar "habitica" #:serve-port 3000)
+   (make-app-container
+    "habitica-mongo" "docker.io/library/mongo:7.0"
+    #:ts-name "habitica"
+    #:volumes (list "/data/habitica/db:/data/db")
+    ;; --bind_ip 127.0.0.1: mongo only reachable inside the shared netns
+    ;; (i.e. by the habitica server container), never on the tailnet.
+    ;; --replSet rs: required by the Habitica server (uses change-streams).
+    #:command (list "--replSet" "rs" "--bind_ip" "127.0.0.1"))
+   (make-app-container
+    "habitica" (string-append "localhost/habitica:" %habitica-commit)
+    #:ts-name "habitica"
+    #:requirement '(habitica-rs-init)
+    #:volumes
+    (list "/run/secrets/habitica/session_secret:/run/secrets/session_secret:ro"
+          "/run/secrets/habitica/session_secret_key:/run/secrets/session_secret_key:ro")
+    #:environment
+    (list "NODE_ENV=production"
+          "PORT=3000"
+          "BASE_URL=https://habitica.drake-karat.ts.net"
+          "TRUSTED_DOMAINS=https://habitica.drake-karat.ts.net"
+          "ADMIN_EMAIL=rafpal@ous-hf.no"
+          ;; directConnection=true: single-node replica set; skip topology probe.
+          (string-append "NODE_DB_URI=mongodb://127.0.0.1:27017/habitrpg"
+                         "?replicaSet=rs&directConnection=true"))
+    ;; Read session secrets from sops-mounted files at boot. WORKDIR in
+    ;; Dockerfile-Dev is /usr/src/habitica; `npm start` runs gulp's prod server.
+    ;; The sed below is a runtime patch: upstream index.js gates @babel/register
+    ;; on NODE_ENV != production, expecting a pre-transpiled tree.  We run npm
+    ;; start against the source, so under Node 20 ESM-detect setupNconf.js
+    ;; loads as a real ES module and crashes on `__dirname`.  Forcing the
+    ;; babel runtime hook unconditionally avoids that without a 2.4 GB image
+    ;; rebuild.  Same patch is also applied at build time in
+    ;; scripts/build-habitica-image.sh; this keeps existing images working.
+    #:entrypoint "/bin/sh"
+    #:command (list "-c"
+                    (string-append
+                     "export SESSION_SECRET=$(cat /run/secrets/session_secret); "
+                     "export SESSION_SECRET_KEY=$(cat /run/secrets/session_secret_key); "
+                     "cd /usr/src/habitica && "
+                     "sed -i \"s/^if (process.env.NODE_ENV !== 'production') {/if (true) {/\" website/server/index.js && "
+                     "exec npm start")))))
 
 ;;;
 ;;; VPN-routed containers (Pi-hole + qBittorrent via Gluetun/Mullvad)
@@ -1060,7 +1222,9 @@ datasources:
          (make-ts-ready-service "wallabag")
          (make-ts-ready-service "rss-bridge")
          (make-ts-ready-service "searxng")
-         (make-ts-ready-service "grafana"))
+         (make-ts-ready-service "searxng-kids")
+         (make-ts-ready-service "grafana")
+         (make-ts-ready-service "habitica"))
    (list
     (service oci-service-type
              (oci-configuration

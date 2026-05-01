@@ -35,6 +35,6 @@
       (user "root")
       (port 2222)
       (host-key "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII+aryHkWazuE9/b3vaincnAU3w5Uow0q5rYe+Yyg/jQ")
-      (allow-downgrades? #f))))))
+      (allow-downgrades? #t))))))
 
 lovelace-deployment
