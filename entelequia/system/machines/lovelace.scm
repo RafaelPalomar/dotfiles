@@ -199,7 +199,8 @@
               luanti-lovelace-service
               borgmatic-lovelace-service
               lovelace-container-services
-              (list habitica-rs-init-service))
+              (list habitica-rs-init-service
+                    ts-netns-watchdog-service))
              #:ssh-authorized-keys
              `(("root"   ,(plain-file "lovelace-deploy.pub"
                                       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJd+gIEzNyO8gp3FnZnvMI/OhKm0/Hkr0UaDKXx38h7V openpgp:0x96CFC574"))

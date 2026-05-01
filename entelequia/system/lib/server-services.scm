@@ -30,7 +30,8 @@
             make-ts-ready-service
             make-app-container
             %habitica-commit
-            habitica-rs-init-service))
+            habitica-rs-init-service
+            ts-netns-watchdog-service))
 
 ;;; Server services for lovelace
 ;;;
@@ -817,6 +818,216 @@ hanging forever (mcron watchdog will retry)."
          #:log-file "/var/log/habitica-rs-init.log"))
      (documentation
       "Initialize MongoDB replica set 'rs' for the Habitica server (idempotent).")))))
+
+;;;
+;;; ts-netns-watchdog: keep shared-netns app containers aligned with their
+;;; ts-X tailscale sidecars, and clean up leaked `podman run --replace`
+;;; processes that pile up under churn.
+;;;
+;;; Background.  Each app container (e.g. nextcloud, habitica) joins the
+;;; netns of its ts-X sidecar via `--network container:ts-X`.  When ts-X is
+;;; restarted (`podman run --rm --replace`) its netns is destroyed and the
+;;; new ts-X owns a fresh one, but the app's running container is still
+;;; pointing at the old (now dead) netns and silently loses connectivity
+;;; (HTTP 502 from the tailscale serve proxy, MongooseError "users.findOne
+;;; buffering timed out" from habitica → mongo, etc.).  Shepherd doesn't
+;;; restart-on-dependency-restart, so the apps stay broken until something
+;;; kicks them.
+;;;
+;;; Separately, podman 5.x's `--replace` races itself when shepherd respawns
+;;; tightly: more than one `podman run --replace --name X` can end up alive
+;;; for the same name, contending for podman's container-name lock and each
+;;; failing with exit 125.  Observed in the wild as four concurrent
+;;; `podman run --replace --name habitica-mongo` processes after a
+;;; sops-induced cascade.
+;;;
+;;; The watchdog is a long-running shepherd service that, every 30 s:
+;;;   1. For each ts-X in TOPOLOGY, looks for duplicate
+;;;      `podman run --replace --name ts-X` (and same for each app); if
+;;;      more than one process matches, SIGKILLs all but the newest.
+;;;      Shepherd's tracked Main PID is the newest start; the older ones
+;;;      are leaks and not part of any healthy lifecycle.
+;;;   2. Reads ts-X's current podman container ID and compares against the
+;;;      last-seen value cached at /var/lib/ts-netns-watchdog/<name>.  On a
+;;;      mismatch, runs `herd restart` for each dependent service so the
+;;;      app's `podman run` is re-issued and resolves --network=container:
+;;;      ts-X to the new netns.
+;;;
+;;; Topology is hardcoded below (one entry per ts-X sidecar with its
+;;; netns dependents).  When you add a new make-ts-sidecar / make-app-container
+;;; pair, register it here too — otherwise the new app silently misses
+;;; netns recovery.
+;;;
+(define %ts-netns-watchdog-script
+  (program-file "ts-netns-watchdog"
+    #~(begin
+        (use-modules (ice-9 popen)
+                     (ice-9 rdelim)
+                     (ice-9 textual-ports)
+                     (srfi srfi-1)
+                     (srfi srfi-13))
+
+        ;; (ts-X . (dependent-shepherd-services...)).
+        ;; Keep in sync with %app-containers below.
+        (define topology
+          '(("ts-habitica"     . ("habitica" "habitica-mongo"))
+            ("ts-nextcloud"    . ("nextcloud"))
+            ("ts-freshrss"     . ("freshrss"))
+            ("ts-wallabag"     . ("wallabag"))
+            ("ts-rss-bridge"   . ("rss-bridge"))
+            ("ts-searxng"      . ("searxng"))
+            ("ts-searxng-kids" . ("searxng-kids"))
+            ("ts-grafana"      . ("grafana"))))
+
+        (define rafael-pw  (getpwnam "rafael"))
+        (define rafael-uid (passwd:uid rafael-pw))
+        (define rafael-gid (passwd:gid rafael-pw))
+        (define rafael-rt  (string-append "/run/user/"
+                                          (number->string rafael-uid)))
+        (define state-dir  "/var/lib/ts-netns-watchdog")
+        (define podman-bin #$(file-append podman "/bin/podman"))
+        (define herd-bin   "/run/current-system/profile/bin/herd")
+        (define pgrep-bin  #$(file-append procps "/bin/pgrep"))
+        (define timeout-bin #$(file-append coreutils "/bin/timeout"))
+
+        (unless (file-exists? state-dir)
+          (mkdir state-dir))
+
+        ;; Run COMMAND (a list of strings) as user rafael.  Returns stdout
+        ;; with surrounding whitespace stripped, or "" on failure.  We fork
+        ;; a child, drop privileges, exec — the parent stays root so it
+        ;; can talk to the system shepherd via herd later.
+        (define (rafael-stdout command)
+          (let* ((p   (pipe))
+                 (rd  (car p))
+                 (wr  (cdr p))
+                 (pid (primitive-fork)))
+            (cond
+             ((zero? pid)
+              (close-port rd)
+              (dup2 (port->fdes wr) 1)
+              (close-port wr)
+              (setenv "XDG_RUNTIME_DIR" rafael-rt)
+              (setenv "HOME" (passwd:dir rafael-pw))
+              (setenv "PATH"
+                      "/run/setuid-programs:/run/current-system/profile/bin")
+              (setgid rafael-gid)
+              (setuid rafael-uid)
+              (apply execlp (car command) command))
+             (else
+              (close-port wr)
+              (let ((out (get-string-all rd)))
+                (close-port rd)
+                (waitpid pid)
+                (string-trim-both (if (eof-object? out) "" out)))))))
+
+        ;; Wrap podman calls with `timeout 10` so a wedged podman daemon
+        ;; (lock contention from leaked --replace processes) can't stall
+        ;; the whole sweep.  Cleanup must run before the query so the
+        ;; query has a chance to succeed.
+        (define (container-id name)
+          (rafael-stdout
+           (list timeout-bin "10"
+                 podman-bin "ps" "--filter"
+                 (string-append "name=^" name "$")
+                 "--format" "{{.ID}}")))
+
+        (define (read-state name)
+          (let ((path (string-append state-dir "/" name)))
+            (if (file-exists? path)
+                (string-trim-both (call-with-input-file path get-string-all))
+                "")))
+
+        (define (write-state name id)
+          (let ((path (string-append state-dir "/" name)))
+            (call-with-output-file path
+              (lambda (port) (display id port)))))
+
+        ;; List PIDs (oldest first) of `podman run --replace --name $NAME`
+        ;; processes owned by rafael.  Uses `pgrep -o`/`-n` ordering by
+        ;; calling pgrep without -o so we get all matches; sort by stat-time.
+        (define (podman-run-pids name)
+          (let* ((out (rafael-stdout
+                      (list pgrep-bin "-u" "rafael" "-f"
+                            (string-append
+                             "podman run( --[a-z-]+)+ --name " name "( |$)"))))
+                 (lines (filter (lambda (s) (not (string-null? s)))
+                                (string-split out #\newline))))
+            ;; pgrep emits one PID per line; not stat-time sorted, but the
+            ;; numeric PID is monotonic on this kernel since boot, so
+            ;; sorting numerically gives oldest-first.
+            (sort (map string->number lines) <)))
+
+        ;; SIGKILL all but the newest matching `podman run --replace --name
+        ;; $NAME` process.  Newest PID = highest numeric PID under our
+        ;; assumption of monotonic PID assignment since boot.
+        (define (cleanup-leaked-runs name)
+          (let ((pids (podman-run-pids name)))
+            (when (> (length pids) 1)
+              (let ((stale (drop-right pids 1)))
+                (format #t "ts-netns-watchdog: ~a has ~a leaked podman runs (PIDs ~a); killing stale~%"
+                        name (length pids) pids)
+                (for-each
+                 (lambda (pid)
+                   (false-if-exception (kill pid SIGKILL)))
+                 stale)))))
+
+        (define (herd-restart-dep dep)
+          (format #t "ts-netns-watchdog: herd restart ~a~%" dep)
+          (system* herd-bin "restart" dep))
+
+        ;; Main loop — run forever, sleeping 30s between sweeps.
+        ;; first-run: record current state without triggering restarts (boot).
+        (let loop ((first-run? #t))
+          ;; Pass 1: leaked-process cleanup.  Must run before any podman
+          ;; query, since a wedged --replace lock will stall podman ps.
+          (for-each
+           (lambda (entry)
+             (let ((ts-name (car entry))
+                   (deps    (cdr entry)))
+               (cleanup-leaked-runs ts-name)
+               (for-each cleanup-leaked-runs deps)))
+           topology)
+          ;; Pass 2: netns-change detection.  Now that locks are clean,
+          ;; podman ps should respond promptly (10s timeout regardless).
+          (for-each
+           (lambda (entry)
+             (let* ((ts-name    (car entry))
+                    (deps       (cdr entry))
+                    (current-id (container-id ts-name))
+                    (last-id    (read-state ts-name)))
+               (unless (string-null? current-id)
+                 (cond
+                  (first-run?
+                   (write-state ts-name current-id))
+                  ((string-null? last-id)
+                   (write-state ts-name current-id))
+                  ((not (string=? current-id last-id))
+                   (format #t
+                           "ts-netns-watchdog: ~a netns changed (~a -> ~a); restarting ~a~%"
+                           ts-name last-id current-id deps)
+                   (write-state ts-name current-id)
+                   (for-each herd-restart-dep deps))))))
+           topology)
+          (force-output)
+          (sleep 30)
+          (loop #f)))))
+
+(define ts-netns-watchdog-service
+  (simple-service
+   'ts-netns-watchdog
+   shepherd-root-service-type
+   (list
+    (shepherd-service
+     (provision '(ts-netns-watchdog))
+     (requirement '(rootless-podman-shared-root-fs user-processes))
+     (respawn? #t)
+     (start #~(make-forkexec-constructor
+               (list #$%ts-netns-watchdog-script)
+               #:log-file "/var/log/ts-netns-watchdog.log"))
+     (stop #~(make-kill-destructor))
+     (documentation
+      "Recover shared-netns app containers when their ts-X sidecar is replaced.")))))
 
 ;;;
 ;;; Application container configurations (oci-container-configuration records)
