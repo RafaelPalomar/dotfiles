@@ -26,34 +26,42 @@
 ;;;   3. Add to gaming-home-packages below
 ;;;   4. guix home reconfigure
 
-(define (gaming-home-packages)
-  (list gog-crypt-of-the-necrodancer
-        gog-death-road-to-canada
-        gog-duskers
-        gog-papers-please
-        gog-terraria
-        gog-wizard-of-legend
-        gog-slay-the-spire
-        gog-torchlight-2
-        gog-they-are-billions
-        gog-9-kings
-        gog-he-is-coming
-        gog-gobliiins
-        gog-gobliins-2
-        gog-goblins-quest-3
-        scummvm
-        innoextract
-        wine64-staging
-        coq-caves-of-qud
-        bay12-dwarf-fortress
-        luanti-mineclonia-csm
-        luanti-halon
-        luanti-mobs-goblins
-        ;; Minetest Game only (depend on 'default' mod, incompatible with Mineclonia/VoxeLibre):
-        ;; luanti-mobs
-        ;; luanti-mobs-animal
-        ;; luanti-mobs-monster
-        ;; luanti-moreores
-        ;; luanti-unifieddyes
-        dualsensectl
-        lgogdownloader))
+(define* (gaming-home-packages #:key (exclude '()))
+  "Return the gaming home profile package list.
+
+EXCLUDE is a list of package-name strings to omit (e.g. for child
+profiles that shouldn't ship age-inappropriate titles)."
+  (filter
+   (lambda (pkg)
+     (not (member ((@ (guix packages) package-name) pkg) exclude)))
+   (list gog-crypt-of-the-necrodancer
+         gog-death-road-to-canada
+         gog-duskers
+         gog-papers-please
+         gog-terraria
+         gog-wizard-of-legend
+         gog-slay-the-spire
+         gog-torchlight-2
+         gog-they-are-billions
+         gog-9-kings
+         gog-he-is-coming
+         gog-gobliiins
+         gog-gobliins-2
+         gog-goblins-quest-3
+         scummvm
+         innoextract
+         wine64-staging
+         coq-caves-of-qud
+         coq-caves-of-qud-native
+         bay12-dwarf-fortress
+         luanti-mineclonia-csm
+         luanti-halon
+         luanti-mobs-goblins
+         ;; Minetest Game only (depend on 'default' mod, incompatible with Mineclonia/VoxeLibre):
+         ;; luanti-mobs
+         ;; luanti-mobs-animal
+         ;; luanti-mobs-monster
+         ;; luanti-moreores
+         ;; luanti-unifieddyes
+         dualsensectl
+         lgogdownloader)))

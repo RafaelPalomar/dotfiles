@@ -46,6 +46,7 @@
             gog-he-is-coming
             ;; Direct-download games
             coq-caves-of-qud
+            coq-caves-of-qud-native
             bay12-dwarf-fortress))
 
 ;;;
@@ -408,7 +409,7 @@ with WINEPREFIX set to ~/PREFIX-SUBDIR, running ~/PREFIX-SUBDIR/drive_c/EXE-RELP
               "(use-modules (guix channels))
 (list (channel
         (name 'guix)
-        (url \"https://git.guix.gnu.org/guix.git\")
+        (url \"https://codeberg.org/guix/guix.git\")
         (branch \"master\")
         (commit \"6a483ed7c607b01003edb9cb118c9f89c9d457e9\")
         (introduction
@@ -1041,6 +1042,28 @@ inside the container."
    ".wine-coq"
    "CavesOfQud/CoQ.exe"
    #:desktop-name "Caves of Qud"
+   #:desktop-icon "applications-games"))
+
+;;; Caves of Qud — native Tier 1 variant
+;;;
+;;; The original Linux binary works on Intel iGPUs (e.g. hopper UHD 620);
+;;; the wine variant above was a workaround for curie's gfx1150 + Mesa 25
+;;; black-screen issue.  Machines without that issue should prefer this
+;;; native launcher (faster, no Wine overhead).
+;;;
+;;; Bundled libdecor lives in the game dir; $ORIGIN RPATH handles it.
+
+(define-public coq-caves-of-qud-native
+  (make-game-launcher
+   "caves-of-qud-native"
+   "Games/CavesOfQud"
+   "CoQ.x86_64"
+   (list mesa
+         libxinerama libxext libxcursor libxrandr libxxf86vm
+         libxtst libxi libxrender libx11
+         pipewire
+         `(,gcc "lib"))
+   #:desktop-name "Caves of Qud (native)"
    #:desktop-icon "applications-games"))
 
 ;;; Dwarf Fortress — Tier 1
