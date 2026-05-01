@@ -18,7 +18,7 @@ set -euo pipefail
 
 MASTER_KEY_FP="${GPG_MASTER_KEY_FP:-6513C7248D7BECE2EC1BD34B70350DAD507FA72F}"
 GNUPGHOME="${GNUPGHOME:-$HOME/.gnupg}"
-SSHCONTROL="$HOME/.dotfiles/dotfiles/sshcontrol"
+SSHCONTROL="$HOME/.dotfiles/dotfiles/.gnupg/sshcontrol"
 DEPLOY_KEYS_DB="$HOME/.dotfiles/dotfiles/.gnupg/deploy-keys.conf"
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
