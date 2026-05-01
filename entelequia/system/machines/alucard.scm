@@ -10,6 +10,7 @@
   #:use-module (entelequia home profiles email)
   #:use-module (entelequia home profiles documentation)
   #:use-module (entelequia home profiles gaming)
+  #:use-module (entelequia home profiles python-learning)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -70,11 +71,15 @@
                      documentation-home-packages))
    (services desktop-home-services)))
 
-;; Leandro's home: same bspwm desktop setup as rafael
+;; Leandro's home: same bspwm desktop setup as rafael.
+;; Use native CoQ (alucard is NVIDIA — no gfx1150 black-screen issue);
+;; wine variant excluded to avoid the no-prefix error.
 (define leandro-home-env
   (home-environment
    (packages (append (base-home-packages)
-                     (gaming-home-packages)))
+                     (python-learning-home-packages)
+                     (gaming-home-packages
+                      #:exclude '("caves-of-qud"))))
    (services desktop-home-services)))
 
 ;;; Alucard-specific services
