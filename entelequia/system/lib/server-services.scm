@@ -497,9 +497,24 @@ hooks:
           ;;
           ;; coreutils timeout wraps podman so a hung rm -af cannot block the
           ;; service forever (120 s is generous for removing a handful of containers).
-          (execlp #$(file-append coreutils "/bin/timeout")
-                  "timeout" "120"
-                  #$(file-append podman "/bin/podman") "rm" "-af")))))
+          ;;
+          ;; CRITICAL: Do NOT exec into podman directly.  podman exits after
+          ;; rm -af completes — leaving this shepherd service in "stopped"
+          ;; state.  Shepherd then re-runs us every time a dependent service
+          ;; (any container) is started, because dependents require us.
+          ;; Each re-run executes `podman rm -af` AGAIN — killing every
+          ;; running container.  Same disaster the 8c34e57 fix addressed.
+          ;; Keep this process alive after the cleanup with a sleep loop so
+          ;; shepherd considers podman-prune "started forever"; further
+          ;; dependent starts see the requirement as already satisfied and
+          ;; do not re-trigger cleanup.
+          (let ((rc (system* #$(file-append coreutils "/bin/timeout")
+                             "120"
+                             #$(file-append podman "/bin/podman")
+                             "rm" "-af")))
+            (format #t "podman-prune: rm -af completed with status ~a~%" rc)
+            (force-output))
+          (let loop () (sleep 86400) (loop))))))
 
 (define podman-prune-service
   (list
@@ -509,14 +524,15 @@ hooks:
                     (shepherd-service
                      (provision '(podman-prune))
                      (requirement '(rootless-podman-shared-root-fs user-processes))
-                     (one-shot? #t)
-                     ;; CRITICAL: respawn? defaults to #t in shepherd-service.
-                     ;; A one-shot transitions to "stopped" after it exits, and
-                     ;; with respawn? #t shepherd respawns it every few seconds —
-                     ;; each respawn runs `podman rm -af`, killing every running
-                     ;; container.  Lock respawn off so the cleanup happens once
-                     ;; per boot.  Previously fixed in 8c34e57 by running a sleep
-                     ;; loop instead, then accidentally undone in 3b02e7e.
+                     ;; Not a one-shot.  The script runs `podman rm -af` once
+                     ;; and then sleeps forever — shepherd sees a long-lived
+                     ;; "running" service.  This blocks the cleanup from
+                     ;; re-running when a dependent container service starts.
+                     ;; History: marked one-shot? #t in 1bd8ce1; fixed by
+                     ;; sleep-loop in 8c34e57 ("Fix podman-prune re-run
+                     ;; killing containers on restart"); the fix was undone
+                     ;; in 3b02e7e and added back, then removed again, etc.
+                     ;; Keeping the sleep-loop pattern is what works.
                      (respawn? #f)
                      (start #~(make-forkexec-constructor
                                (list #$%podman-prune-script)
