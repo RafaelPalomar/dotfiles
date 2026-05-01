@@ -23,10 +23,16 @@ Arguments:
     --subject        Subject header (required)
     --in-reply-to    Message-ID of the message being replied to (optional)
     --references     space-separated Message-ID chain (optional)
+    --attach         path to a file to attach (may be repeated)
     --no-signature   omit the account signature
     --maildir        override Maildir root (default ~/.local/share/mail)
 
 Body is read from stdin (UTF-8, text/plain; format=flowed).
+
+When --attach is passed, the message becomes multipart/mixed with the
+text body as the first part and each attachment as a subsequent part.
+MIME type is auto-detected from the filename (mimetypes.guess_type);
+unknown types fall back to application/octet-stream.
 
 Exits non-zero on error; prints the absolute path of the written draft
 on success (one line).
@@ -35,6 +41,7 @@ on success (one line).
 from __future__ import annotations
 
 import argparse
+import mimetypes
 import os
 import random
 import socket
@@ -44,35 +51,41 @@ from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
 from pathlib import Path
 
+SIG_HEADER = (
+    "Prof. Rafael Palomar, Ph.D.\n"
+    "__________________________________\n"
+)
+
+OUS_BLOCK = (
+    "Head of Medical Software Research Laboratory (MESH|Lab)\n"
+    "The Intervention Centre, Oslo University Hospital (OUH)\n"
+    "Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)\n"
+    "N-0372 Oslo, Norway\n"
+    "rafael.palomar@ous-research.no\n"
+    "https://ivs.no\n"
+)
+
+NTNU_BLOCK = (
+    "Associate Professor\n"
+    "Norwegian University of Science and Technology (NTNU)\n"
+    "Teknologiveien 22, 2815 Gjøvik, Norway\n"
+    "rafael.palomar@ntnu.no\n"
+    "https://ntnu.no\n"
+)
+
 ACCOUNTS = {
     "ous": {
         "from_addr": "rafael.palomar@ous-research.no",
         "from_name": "Rafael Palomar",
         "maildir":  "rafael.palomar@ous-research.no",
-        "signature": (
-            "Prof. Rafael Palomar, Ph.D.\n"
-            "__________________________________\n"
-            "Head of Medical Software Research Laboratory (MESH|Lab)\n"
-            "The Intervention Centre, Oslo University Hospital (OUH)\n"
-            "Sognsvannsveien 20 (Rikshospitalet Building D-6.3002)\n"
-            "N-0372 Oslo, Norway\n"
-            "rafael.palomar@ous-research.no\n"
-            "https://ivs.no\n"
-        ),
+        # Both affiliations on every email; account's own role leads.
+        "signature": SIG_HEADER + OUS_BLOCK + "\n" + NTNU_BLOCK,
     },
     "ntnu": {
         "from_addr": "rafael.palomar@ntnu.no",
         "from_name": "Rafael Palomar",
         "maildir":  "rafael.palomar@ntnu.no",
-        "signature": (
-            "Prof. Rafael Palomar, Ph.D.\n"
-            "__________________________________\n"
-            "Associate Professor\n"
-            "Norwegian University of Science and Technology (NTNU)\n"
-            "Teknologiveien 22, 2815 Gjøvik, Norway\n"
-            "rafael.palomar@ntnu.no\n"
-            "https://ntnu.no\n"
-        ),
+        "signature": SIG_HEADER + NTNU_BLOCK + "\n" + OUS_BLOCK,
     },
 }
 
@@ -99,6 +112,8 @@ def parse_args() -> argparse.Namespace:
                    help="Message-ID being replied to (angle brackets optional).")
     p.add_argument("--references", default=None,
                    help="Space-separated Message-ID chain for threading.")
+    p.add_argument("--attach", action="append", default=None,
+                   help="Path to a file to attach (may be repeated).")
     p.add_argument("--no-signature", action="store_true")
     p.add_argument("--maildir", default=os.path.expanduser("~/.local/share/mail"),
                    help="Maildir root (default ~/.local/share/mail).")
@@ -146,11 +161,22 @@ def main() -> int:
         refs = args.references.strip() if args.references else irt
         msg["References"] = refs
     msg["User-Agent"] = "mail-draft/1 (local draft; sent from mu4e)"
-    msg.set_content(body, subtype="plain", cte="8bit")
     # Hint for format=flowed / plain text rendering on mobile / institutional clients.
-    del msg["Content-Type"]
-    msg.add_header("Content-Type", "text/plain",
-                   charset="utf-8", format="flowed")
+    msg.set_content(body, subtype="plain", cte="8bit",
+                    params={"format": "flowed"})
+
+    for attach_path in (args.attach or []):
+        path = Path(attach_path).expanduser()
+        if not path.is_file():
+            print(f"mail-draft: attachment not found: {path}", file=sys.stderr)
+            return 2
+        mime, _ = mimetypes.guess_type(path.name)
+        if mime is None:
+            mime = "application/octet-stream"
+        maintype, subtype = mime.split("/", 1)
+        msg.add_attachment(path.read_bytes(),
+                           maintype=maintype, subtype=subtype,
+                           filename=path.name)
 
     target = maildir_filename(drafts_dir)
     tmp = drafts_dir / "tmp" / target.name
