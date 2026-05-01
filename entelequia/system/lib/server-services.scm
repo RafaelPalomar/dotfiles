@@ -17,6 +17,7 @@
   #:use-module (entelequia packages games)
   #:use-module (guix gexp)
   #:use-module (guix packages)
+  #:use-module (srfi srfi-1)
   #:export (postgresql-lovelace-service
             smartd-lovelace-service
             luanti-lovelace-service
@@ -26,6 +27,7 @@
             lovelace-container-services
             lovelace-nfs-service
             podman-prune-service
+            make-podman-shepherd-service
             make-ts-sidecar
             make-ts-ready-service
             make-app-container
@@ -521,6 +523,149 @@ hooks:
                                #:log-file "/var/log/podman-prune.log"))
                      (documentation "Remove all containers from previous boot, then exit."))))))
 
+;;;
+;;; make-podman-shepherd-service: build a shepherd-service that runs IMAGE as
+;;; podman container NAME, replacing podman's `--replace` flag with explicit
+;;; `podman rm -f NAME` pre-cleanup followed by `podman run --rm`.
+;;;
+;;; Why bypass `oci-container-configuration`?
+;;;   `oci-container-execlp` produces `podman run --rm --replace --name X ...`.
+;;;   In podman 5.x, when shepherd respawns a container quickly, multiple
+;;;   `podman run --replace --name X` invocations end up alive at once.
+;;;   They contend for podman's container-name lock; some lose with exit 125
+;;;   (and shepherd respawns them — so the leak compounds).  In the wild we
+;;;   saw four concurrent `podman run --replace --name habitica-mongo`
+;;;   processes after a sops-induced cascade, with `ts-habitica` flapping
+;;;   continuously and the netns getting torn down under any container that
+;;;   shared it.  ts-netns-watchdog firefights the resulting leaks but does
+;;;   not address the cause.
+;;;
+;;; The fix here is to serialise: the start script does `podman rm -f NAME`
+;;; (no-op if absent; idempotent if present) and then `exec podman run --rm`
+;;; with no `--replace`.  Two starts can't collide because the first holds the
+;;; container-name lock for the whole rm+run sequence, and the second's `rm
+;;; -f` simply removes whatever the first finished.  Add a 5 s `respawn-delay`
+;;; on top so shepherd doesn't busy-loop on transient failures.
+(define* (make-podman-shepherd-service name image
+                                        #:key
+                                        (requirement '())
+                                        (entrypoint #f)
+                                        (env '())
+                                        (volumes '())
+                                        (network #f)
+                                        (ports '())
+                                        (extra-args '())
+                                        (command '())
+                                        (respawn-delay 5))
+  "Return a shepherd-service that runs IMAGE as rootless podman container
+NAME under user 'rafael'.  Volume entries may be plain strings
+\"/host/path:/container/path[:opt]\" or file-like objects (e.g. `plain-file`,
+`file-append`) that lower to /gnu/store paths concatenated with their mount
+target.  See module-level commentary for why this bypasses
+oci-container-configuration."
+  ;; Capture container name before any record-syntax `(name ...)` field can
+  ;; shadow it: Guix's define-record-type* field thunks make sibling field
+  ;; values visible within a constructor, so referencing `name` inside e.g.
+  ;; `(shepherd-action (name 'foo) (documentation ... name ...))` would
+  ;; resolve to the action's name field, not this parameter.
+  (let ((container-name name)
+        (container-image image))
+   (let ((start-script
+         (program-file
+          (string-append "podman-start-" name)
+          #~(begin
+              (let* ((pw   (getpwnam "rafael"))
+                     (uid  (passwd:uid pw))
+                     (gid  (passwd:gid pw))
+                     (ruid (string-append "/run/user/"
+                                          (number->string uid))))
+                (unless (file-exists? ruid)
+                  (mkdir ruid)
+                  (chown ruid uid gid)
+                  (chmod ruid #o700))
+                (setenv "XDG_RUNTIME_DIR" ruid)
+                (setenv "HOME" (passwd:dir pw))
+                ;; /run/setuid-programs first so podman picks up the setuid
+                ;; newuidmap/newgidmap wrappers (rootless podman needs them).
+                (setenv "PATH"
+                        "/run/setuid-programs:/run/current-system/profile/bin")
+                (setgid gid)
+                (setuid uid)
+                ;; Pre-cleanup: forcibly remove any prior container with this
+                ;; name.  No-op if absent; serial alternative to --replace.
+                ;; Wrapped in `timeout 30` so a wedged podman lock can't
+                ;; stall the start indefinitely.
+                (system* #$(file-append coreutils "/bin/timeout") "30"
+                         #$(file-append podman "/bin/podman")
+                         "rm" "-f" #$container-name)
+                ;; Argument list assembled inline so file-like volume entries
+                ;; (e.g. plain-file → /gnu/store path) are properly resolved.
+                (apply execlp
+                       #$(file-append podman "/bin/podman")
+                       "podman"
+                       (list "run" "--rm" "--name" #$container-name
+                             #$@(append-map
+                                 (lambda (e) (list "--env" e))
+                                 env)
+                             #$@(append-map
+                                 (lambda (v) (list "-v" v))
+                                 volumes)
+                             #$@(append-map
+                                 (lambda (p) (list "-p" p))
+                                 ports)
+                             #$@(if network (list "--network" network) '())
+                             #$@(if entrypoint
+                                    (list "--entrypoint" entrypoint)
+                                    '())
+                             #$@extra-args
+                             #$container-image
+                             #$@command)))))))
+    (shepherd-service
+     (provision (list (string->symbol container-name)))
+     ;; Always require the rootless-podman shepherd services that
+     ;; oci-container-configuration would have added implicitly: cgroup
+     ;; setup must be in place before any podman run, otherwise the
+     ;; container fails to start.
+     (requirement (cons* 'cgroups2-fs-owner
+                         'cgroups2-limits
+                         'rootless-podman-shared-root-fs
+                         'user-processes
+                         requirement))
+     (respawn? #t)
+     (respawn-delay respawn-delay)
+     ;; shepherd runs the start as root; the script setuids to rafael
+     ;; itself (it also has to mkdir /run/user/<uid> on first boot, which
+     ;; requires root).  Don't set #:user "rafael" here — that drops privs
+     ;; before the script runs, and then setuid/setgid inside the script
+     ;; fail with EPERM.
+     (start #~(make-forkexec-constructor
+               (list #$start-script)
+               #:log-file #$(string-append "/var/log/podman-"
+                                           container-name ".log")))
+     (stop #~(make-kill-destructor))
+     (actions
+      (list
+       (shepherd-action
+        (name 'command-line)
+        (documentation
+         (string-append "Print the start invocation of "
+                        container-name "."))
+        (procedure
+         #~(lambda _
+             (format #t "~a~%" #$start-script))))
+       (shepherd-action
+        (name 'pull)
+        (documentation
+         (string-append "Run `podman pull " container-image
+                        "` as user rafael."))
+        (procedure
+         #~(lambda _
+             (system* #$(file-append podman "/bin/podman")
+                      "pull" #$container-image))))))
+     (documentation
+      (string-append "Podman container " container-name
+                     " (serial start; no --replace)"))))))
+
 (define* (make-ts-sidecar name
                            #:key
                            (serve-port 8080)
@@ -538,8 +683,8 @@ hooks:
                            ;; Used to expose a container port to 192.168.88.46
                            ;; so sibling containers can reach it.
                            (ports '()))
-  "Return an oci-container-configuration for a Tailscale sidecar.
-   NAME is used for the provision name (ts-<name>).
+  "Return a shepherd-service for a Tailscale sidecar.
+   NAME is the bare service name; the shepherd provision becomes ts-<name>.
    TS_AUTHKEY is read from /run/secrets/tailscale/<secret-name>_authkey.
    Tailscale serve is configured via TS_SERVE_CONFIG with BACKEND-HOST:SERVE-PORT
    as the proxy backend, bypassing the TS_USERSPACE netstack loopback limitation."
@@ -569,53 +714,41 @@ hooks:
          (serve-config-file
           (plain-file (string-append "ts-serve-" name ".json")
                       serve-config-content)))
-    (oci-container-configuration
-     (user "rafael")
-     (image "tailscale/tailscale:latest")
-     (provision (string-append "ts-" name))
-     (requirement '(sops-secrets networking podman-prune))
-     (respawn? #t)
-     (ports ports)
-     (volumes
-      (list (string-append ts-state-dir ":/var/lib/tailscale")
-            ;; Mount the whole tailscale secrets directory (not just the specific
-            ;; file) so the container can start even when GPG decryption is still
-            ;; running.  The directory always exists; the key file appears once sops
-            ;; finishes.  The entrypoint waits for the file to be non-empty before
-            ;; calling containerboot.
-            "/run/secrets/tailscale:/run/secrets/tailscale:ro"
-            (cons serve-config-file "/etc/tailscale/serve-config.json:ro")))
-     (environment
-      (list "TS_USERSPACE=true"
-            "TS_STATE_DIR=/var/lib/tailscale"
-            ;; TS_AUTHKEY_FILE is read by the entrypoint wrapper below and
-            ;; re-exported as TS_AUTHKEY, which containerboot understands.
-            (string-append "TS_AUTHKEY_FILE=/run/secrets/tailscale/"
-                           secret-name "_authkey")
-            ;; TS_SERVE_CONFIG instead of TS_SERVE_PORT: explicit serve config JSON
-            ;; with backend-host avoids the netstack loopback routing issue.
-            "TS_SERVE_CONFIG=/etc/tailscale/serve-config.json"
-            ;; Register with a clean hostname (no "ts-" prefix — that's only for
-            ;; shepherd service namespacing, not the Tailscale node name).
-            (string-append "TS_HOSTNAME=" name)))
+    (make-podman-shepherd-service
+     (string-append "ts-" name)
+     "tailscale/tailscale:latest"
+     #:requirement '(sops-secrets networking podman-prune)
+     #:ports ports
+     #:volumes
+     (list (string-append ts-state-dir ":/var/lib/tailscale")
+           ;; Mount the whole tailscale secrets directory (not just the specific
+           ;; file) so the container can start even when GPG decryption is still
+           ;; running.  The directory always exists; the key file appears once sops
+           ;; finishes.  The entrypoint waits for the file to be non-empty before
+           ;; calling containerboot.
+           "/run/secrets/tailscale:/run/secrets/tailscale:ro"
+           ;; The plain-file lowers to a /gnu/store path; file-append
+           ;; concatenates the mount target so the resulting argv element is
+           ;; e.g. "/gnu/store/...-ts-serve-habitica.json:/etc/tailscale/...:ro".
+           (file-append serve-config-file
+                        ":/etc/tailscale/serve-config.json:ro"))
+     #:env
+     (list "TS_USERSPACE=true"
+           "TS_STATE_DIR=/var/lib/tailscale"
+           (string-append "TS_AUTHKEY_FILE=/run/secrets/tailscale/"
+                          secret-name "_authkey")
+           "TS_SERVE_CONFIG=/etc/tailscale/serve-config.json"
+           (string-append "TS_HOSTNAME=" name))
      ;; TS_USERSPACE=true uses gVisor netstack (no TUN device) so NET_ADMIN is not
      ;; needed and must be omitted: Podman 5.x passes -t none to pasta when
-     ;; NET_ADMIN is present, silently breaking host→container port forwarding
-     ;; on any restart (pasta only works at first boot otherwise).
-     ;; Wrapper entrypoint: wait for the auth key file before calling containerboot.
-     ;; sops GPG decryption can take >60 s on first boot; mounting the directory
-     ;; (not just the key file) means podman starts the container immediately while
-     ;; this loop waits for the key to arrive.
-     ;;
-     ;; tailscaled.state is persisted on the host at /data/tailscale/<name>/ so the
-     ;; node reconnects as the same Tailscale machine on every reboot — no new node
-     ;; registrations, no "navidrome-1 / navidrome-2 / ..." pollution.
-     (entrypoint "/bin/sh")
-     (command (list "-c"
-                    (string-append
-                     "while [ ! -s \"$TS_AUTHKEY_FILE\" ]; do sleep 1; done; "
-                     "export TS_AUTHKEY=$(cat \"$TS_AUTHKEY_FILE\"); "
-                     "exec /usr/local/bin/containerboot"))))))
+     ;; NET_ADMIN is present, silently breaking host→container port forwarding.
+     #:entrypoint "/bin/sh"
+     #:command
+     (list "-c"
+           (string-append
+            "while [ ! -s \"$TS_AUTHKEY_FILE\" ]; do sleep 1; done; "
+            "export TS_AUTHKEY=$(cat \"$TS_AUTHKEY_FILE\"); "
+            "exec /usr/local/bin/containerboot")))))
 
 (define (make-ts-ready-service ts-name)
   "Return a one-shot shepherd-service that polls the ts-TS-NAME sidecar
@@ -707,48 +840,31 @@ hanging forever (mcron watchdog will retry)."
                               (extra-arguments '())
                               (entrypoint #f)
                               (command '()))
-  "Return an oci-container-configuration sharing a Tailscale sidecar's network.
-   NAME is the provision name.  TS-NAME is the sidecar to share network with.
-   When SHARE-TS-NETNS? is #f, the container runs in its own pasta netns and
-   PORTS (list of \"HOST:CONTAINER\" mappings) are published on the host.
-   COMMAND overrides the image CMD (args passed to the container entrypoint).
-   ENTRYPOINT overrides the image ENTRYPOINT when non-#f."
-  (let ((base (if share-ts-netns?
-                  (oci-container-configuration
-                   (user "rafael")
-                   (image image)
-                   (provision name)
-                   (requirement (cons* (string->symbol
-                                        (string-append "ts-" ts-name "-ready"))
-                                       'sops-secrets
-                                       'podman-prune
-                                       requirement))
-                   (respawn? #t)
-                   (ports ports)
-                   (volumes volumes)
-                   (environment environment)
-                   (network (string-append "container:ts-" ts-name))
-                   (extra-arguments extra-arguments)
-                   (command command))
-                  (oci-container-configuration
-                   (user "rafael")
-                   (image image)
-                   (provision name)
-                   ;; Standalone pasta netns: no shared ts sidecar, no secrets
-                   ;; consumed, so don't depend on sops-secrets — otherwise every
-                   ;; respawn churns the sops secret chain and cascades.
-                   (requirement (cons* 'podman-prune requirement))
-                   (respawn? #t)
-                   (ports ports)
-                   (volumes volumes)
-                   (environment environment)
-                   (extra-arguments extra-arguments)
-                   (command command)))))
-    (if entrypoint
-        (oci-container-configuration
-         (inherit base)
-         (entrypoint entrypoint))
-        base)))
+  "Return a shepherd-service for an app container that shares a Tailscale
+sidecar's netns (or runs standalone when SHARE-TS-NETNS? is #f).  PORTS apply
+only in standalone mode; in shared mode the sidecar's pasta netns is reused
+and ports are exposed via the sidecar instead.  ENTRYPOINT overrides the
+image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
+  (make-podman-shepherd-service
+   name image
+   #:requirement
+   (if share-ts-netns?
+       (cons* (string->symbol (string-append "ts-" ts-name "-ready"))
+              'sops-secrets
+              'podman-prune
+              requirement)
+       ;; Standalone pasta netns: no shared ts sidecar, no secrets consumed,
+       ;; so don't depend on sops-secrets — otherwise every respawn churns
+       ;; the sops secret chain and cascades.
+       (cons 'podman-prune requirement))
+   #:entrypoint entrypoint
+   #:env environment
+   #:volumes volumes
+   #:ports (if share-ts-netns? '() ports)
+   #:network (and share-ts-netns?
+                  (string-append "container:ts-" ts-name))
+   #:extra-args extra-arguments
+   #:command command))
 
 ;;;
 ;;; Habitica image pin
@@ -1205,98 +1321,67 @@ hanging forever (mcron watchdog will retry)."
    ;; Gluetun creates a VPN network namespace; Pi-hole and Tailscale sidecar
    ;; connect to it differently: pihole shares gluetun's netns, ts-pihole
    ;; is separate (proxies to the published port).
-   (oci-container-configuration
-    (user "rafael")
-    (image "qmcgaw/gluetun:latest")
-    (provision "gluetun-pihole")
-    (requirement '(networking))
-    (respawn? #t)
-    (volumes
-     (list "/data/gluetun-pihole:/gluetun"
-           "/run/secrets/mullvad/pihole_wg_private_key:/run/secrets/wg-key:ro"
-           "/run/secrets/mullvad/pihole_wg_address:/run/secrets/wg-address:ro"))
-    (environment
-     (list "VPN_SERVICE_PROVIDER=mullvad"
-           "VPN_TYPE=wireguard"))
-    ;; Gluetun does not support WIREGUARD_PRIVATE_KEY_FILE or WIREGUARD_ADDRESSES_FILE;
-    ;; read both from sops-managed secret files so they can be updated without redeploying.
-    (entrypoint "/bin/sh")
-    (command (list "-c"
-                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); export WIREGUARD_ADDRESSES=$(cat /run/secrets/wg-address); exec /gluetun-entrypoint"))
-    ;; Publish pihole's web UI (port 80) as host port 8053.
-    ;; Port 8000 in this netns is gluetun's HTTP control API — not pihole.
-    (ports (list "53:53/tcp" "53:53/udp" "0.0.0.0:8053:80"))
-    (extra-arguments (list "--cap-add=NET_ADMIN" "--device=/dev/net/tun")))
+   (make-podman-shepherd-service
+    "gluetun-pihole" "qmcgaw/gluetun:latest"
+    #:requirement '(networking)
+    #:volumes
+    (list "/data/gluetun-pihole:/gluetun"
+          "/run/secrets/mullvad/pihole_wg_private_key:/run/secrets/wg-key:ro"
+          "/run/secrets/mullvad/pihole_wg_address:/run/secrets/wg-address:ro")
+    #:env
+    (list "VPN_SERVICE_PROVIDER=mullvad"
+          "VPN_TYPE=wireguard")
+    #:entrypoint "/bin/sh"
+    #:command (list "-c"
+                    "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); export WIREGUARD_ADDRESSES=$(cat /run/secrets/wg-address); exec /gluetun-entrypoint")
+    #:ports (list "53:53/tcp" "53:53/udp" "0.0.0.0:8053:80")
+    #:extra-args (list "--cap-add=NET_ADMIN" "--device=/dev/net/tun"))
 
-   (oci-container-configuration
-    (user "rafael")
-    (image "pihole/pihole:latest")
-    (provision "pihole")
-    (requirement '(gluetun-pihole))
-    (respawn? #t)
-    (volumes
-     (list "/data/pihole/etc:/etc/pihole"
-           "/data/pihole/dnsmasq:/etc/dnsmasq.d"
-           "/run/secrets/pihole/webpassword:/run/secrets/webpassword:ro"))
-    (environment
-     (list
-      ;; WEBPASSWORD_FILE is a filename relative to /run/secrets/.
-      ;; bash_functions.sh reads /run/secrets/$WEBPASSWORD_FILE and
-      ;; exports it as FTLCONF_webserver_api_password so FTL applies
-      ;; the password hash on every container start.
-      "WEBPASSWORD_FILE=webpassword"
-      "TZ=Europe/Oslo"
-      "DNSMASQ_LISTENING=all"
-      "FTLCONF_webserver_serve_all=true"))
-    (network "container:gluetun-pihole"))
+   (make-podman-shepherd-service
+    "pihole" "pihole/pihole:latest"
+    #:requirement '(gluetun-pihole)
+    #:volumes
+    (list "/data/pihole/etc:/etc/pihole"
+          "/data/pihole/dnsmasq:/etc/dnsmasq.d"
+          "/run/secrets/pihole/webpassword:/run/secrets/webpassword:ro")
+    #:env
+    (list "WEBPASSWORD_FILE=webpassword"
+          "TZ=Europe/Oslo"
+          "DNSMASQ_LISTENING=all"
+          "FTLCONF_webserver_serve_all=true")
+    #:network "container:gluetun-pihole")
 
    (make-ts-sidecar "pihole" #:serve-port 8053
-                    ;; pihole shares gluetun-pihole's netns, not ts-pihole's.
-                    ;; Use host.containers.internal (pasta gateway 169.254.1.2)
-                    ;; so pasta routes to the real host, where gluetun-pihole
-                    ;; publishes port 8053→80 (pihole's web UI).
                     #:backend-host "host.containers.internal"
                     #:ts-state-dir "/data/tailscale/pihole")
 
    ;; ── qBittorrent ───────────────────────────────────────────────────────
-   (oci-container-configuration
-    (user "rafael")
-    (image "qmcgaw/gluetun:latest")
-    (provision "gluetun-qbt")
-    (requirement '(networking))
-    (respawn? #t)
-    (volumes
-     (list "/data/gluetun-qbt:/gluetun"
-           "/run/secrets/mullvad/qbt_wg_private_key:/run/secrets/wg-key:ro"
-           "/run/secrets/mullvad/qbt_wg_address:/run/secrets/wg-address:ro"))
-    (environment
-     (list "VPN_SERVICE_PROVIDER=mullvad"
-           "VPN_TYPE=wireguard"))
-    ;; Read both private key and address from sops secrets — updateable without redeploy.
-    (entrypoint "/bin/sh")
-    (command (list "-c"
-                   "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); export WIREGUARD_ADDRESSES=$(cat /run/secrets/wg-address); exec /gluetun-entrypoint"))
-    ;; 0.0.0.0 so pasta (ts-qbt) can reach it via host.containers.internal.
-    ;; 127.0.0.1 only would be unreachable from ts-qbt's pasta namespace.
-    (ports (list "0.0.0.0:8080:8080"))
-    (extra-arguments (list "--cap-add=NET_ADMIN" "--device=/dev/net/tun")))
+   (make-podman-shepherd-service
+    "gluetun-qbt" "qmcgaw/gluetun:latest"
+    #:requirement '(networking)
+    #:volumes
+    (list "/data/gluetun-qbt:/gluetun"
+          "/run/secrets/mullvad/qbt_wg_private_key:/run/secrets/wg-key:ro"
+          "/run/secrets/mullvad/qbt_wg_address:/run/secrets/wg-address:ro")
+    #:env
+    (list "VPN_SERVICE_PROVIDER=mullvad"
+          "VPN_TYPE=wireguard")
+    #:entrypoint "/bin/sh"
+    #:command (list "-c"
+                    "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); export WIREGUARD_ADDRESSES=$(cat /run/secrets/wg-address); exec /gluetun-entrypoint")
+    #:ports (list "0.0.0.0:8080:8080")
+    #:extra-args (list "--cap-add=NET_ADMIN" "--device=/dev/net/tun"))
 
-   (oci-container-configuration
-    (user "rafael")
-    (image "lscr.io/linuxserver/qbittorrent:latest")
-    (provision "qbittorrent")
-    (requirement '(gluetun-qbt))
-    (respawn? #t)
-    (volumes
-     (list "/data/qbittorrent/config:/config"
-           "/data/qbittorrent/downloads:/downloads"))
-    (environment
-     (list "PUID=1000" "PGID=1000" "TZ=Europe/Oslo" "WEBUI_PORT=8080"))
-    (network "container:gluetun-qbt"))
+   (make-podman-shepherd-service
+    "qbittorrent" "lscr.io/linuxserver/qbittorrent:latest"
+    #:requirement '(gluetun-qbt)
+    #:volumes
+    (list "/data/qbittorrent/config:/config"
+          "/data/qbittorrent/downloads:/downloads")
+    #:env (list "PUID=1000" "PGID=1000" "TZ=Europe/Oslo" "WEBUI_PORT=8080")
+    #:network "container:gluetun-qbt")
 
    (make-ts-sidecar "qbt" #:serve-port 8080
-                    ;; Same reason as pihole: qbittorrent shares gluetun-qbt's
-                    ;; netns; use host.containers.internal to reach the host.
                     #:backend-host "host.containers.internal"
                     #:ts-state-dir "/data/tailscale/qbt")))
 
@@ -1349,59 +1434,51 @@ datasources:
   (list
    ;; ── smartctl-exporter ─────────────────────────────────────────────────
    ;; No TS sidecar — scraped internally by Prometheus on the host network.
-   ;; Runs as rootful podman (user "root") so the container has real uid 0
-   ;; and can access block devices for SMART health data.
-   (oci-container-configuration
-    (user "root")
-    (container-user "root")
-    (image "prometheuscommunity/smartctl-exporter:latest")
-    (provision "smartctl-exporter")
-    (requirement '(networking))
-    (respawn? #t)
-    (network "host")
-    (extra-arguments (list "--privileged")))
+   ;; NOTE: this previously ran as rootful podman (user "root"
+   ;; container-user "root").  The new make-podman-shepherd-service runs all
+   ;; containers as user rafael (rootless), which is incompatible with
+   ;; --privileged + block-device access.  Until that's reconciled, expect
+   ;; smartctl-exporter to fail to read SMART data; downgrade gracefully or
+   ;; revisit by giving rafael CAP_SYS_RAWIO via a separate mechanism.
+   (make-podman-shepherd-service
+    "smartctl-exporter" "prometheuscommunity/smartctl-exporter:latest"
+    #:requirement '(networking)
+    #:network "host"
+    #:extra-args (list "--privileged"))
 
    ;; ── Prometheus ────────────────────────────────────────────────────────
    ;; Prometheus runs with host networking so it can scrape native services
    ;; (node-exporter :9100, smartctl-exporter :9633) on the host directly.
    ;; ts-prometheus is NOT used for prometheus itself — instead prometheus
-   ;; listens on the host at :9090, and grafana reaches it at 192.168.88.46:9090.
-   ;; ts-prometheus exposes Prometheus on Tailscale at prometheus.drake-karat.ts.net.
-   ;; Prometheus is on host network (:9090), reachable at 192.168.88.46:9090.
+   ;; listens on the host at :9090, and grafana reaches it at host:9090.
    (make-ts-sidecar "prometheus" #:serve-port 9090
-                    ;; prometheus runs on --network=host (separate from ts-prometheus).
-                    ;; Use host.containers.internal so pasta routes to the real host.
                     #:backend-host "host.containers.internal")
-   (oci-container-configuration
-    (user "rafael")
-    (image "prom/prometheus:latest")
-    (provision "prometheus")
-    (requirement '(sops-secrets networking cgroups2-fs-owner cgroups2-limits
-                   rootless-podman-shared-root-fs user-processes))
-    (respawn? #t)
-    (network "host")
-    (volumes
-     (list "/data/prometheus:/prometheus"
-           (cons %prometheus-config "/etc/prometheus/prometheus.yml:ro")))
+   (make-podman-shepherd-service
+    "prometheus" "prom/prometheus:latest"
+    #:requirement '(sops-secrets networking cgroups2-fs-owner cgroups2-limits
+                    rootless-podman-shared-root-fs user-processes)
+    #:network "host"
+    #:volumes
+    (list "/data/prometheus:/prometheus"
+          (file-append %prometheus-config
+                       ":/etc/prometheus/prometheus.yml:ro"))
     ;; Run as container root (= host rafael uid 1000) so it can write to
     ;; /data/prometheus, which is owned by rafael.
-    (extra-arguments '("--user=0"))
-    (command
-     (list "--config.file=/etc/prometheus/prometheus.yml"
-           "--storage.tsdb.path=/prometheus"
-           "--web.listen-address=:9090")))
+    #:extra-args '("--user=0")
+    #:command
+    (list "--config.file=/etc/prometheus/prometheus.yml"
+          "--storage.tsdb.path=/prometheus"
+          "--web.listen-address=:9090"))
 
    ;; ── Grafana ───────────────────────────────────────────────────────────
-   ;; Provisioned datasource points prometheus at 192.168.88.46:9090
-   ;; (the port published by ts-prometheus above).
    (make-ts-sidecar "grafana" #:serve-port 3000)
    (make-app-container
     "grafana" "grafana/grafana:latest"
     #:volumes
     (list "/data/grafana:/var/lib/grafana"
           "/run/secrets/grafana/admin_password:/run/secrets/grafana-admin-pw:ro"
-          (cons %grafana-prometheus-datasource
-                "/etc/grafana/provisioning/datasources/prometheus.yaml:ro"))
+          (file-append %grafana-prometheus-datasource
+                       ":/etc/grafana/provisioning/datasources/prometheus.yaml:ro"))
     #:environment
     (list "GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana-admin-pw"
           "GF_PATHS_DATA=/var/lib/grafana"
@@ -1415,31 +1492,30 @@ datasources:
 ;;; Single oci-service-type with all containers
 ;;;
 
-;;; lovelace-container-services: one oci-service-type (runtime=podman) for all containers.
-;;; Note: rootless-podman-service-type MUST be in the system services list separately.
-;;; It provides: cgroup group creation, subids for rafael, and the shepherd services
-;;; (cgroups2-fs-owner, cgroups2-limits, rootless-podman-shared-root-fs) that oci
-;;; container services require. The oci-configuration uses the default global user
-;;; ("oci-container") to avoid duplicating the "rafael" system account — each container
-;;; specifies (user "rafael") directly.
+;;; lovelace-container-services: register all rootless-podman containers as
+;;; native shepherd-services.  We bypass `oci-service-type` because its
+;;; `podman run --rm --replace` produces races under rapid respawn (see the
+;;; commentary on `make-podman-shepherd-service`).  All container-producing
+;;; helpers (`make-ts-sidecar`, `make-app-container`, plus the inline
+;;; `make-podman-shepherd-service` calls in %vpn-containers / %monitoring-
+;;; containers) now return raw `shepherd-service` records.
+;;; Note: rootless-podman-service-type MUST still be in the system services
+;;; list separately.  It provides cgroup group creation, subids for rafael,
+;;; and the cgroups2-* / rootless-podman-shared-root-fs shepherd services
+;;; that our containers depend on.
 (define lovelace-container-services
   (append
    ;; Gate services: one-shot readiness checks that ensure each ts-* sidecar
    ;; container is registered in podman before the app container tries
    ;; --network=container:ts-<name>.  Without these, app containers race
    ;; against their sidecar's `podman run` and fail with "no container found".
-   (list (make-ts-ready-service "freshrss")
-         (make-ts-ready-service "nextcloud")
-         (make-ts-ready-service "wallabag")
-         (make-ts-ready-service "rss-bridge")
-         (make-ts-ready-service "searxng")
-         (make-ts-ready-service "searxng-kids")
-         (make-ts-ready-service "grafana")
-         (make-ts-ready-service "habitica"))
+   (map make-ts-ready-service
+        '("freshrss" "nextcloud" "wallabag" "rss-bridge" "searxng"
+          "searxng-kids" "grafana" "habitica"))
+   ;; All shepherd-services (containers + sidecars) registered in one batch.
    (list
-    (service oci-service-type
-             (oci-configuration
-              (runtime 'podman)
-              (containers (append %app-containers
-                                  %vpn-containers
-                                  %monitoring-containers)))))))
+    (simple-service 'lovelace-podman-containers
+                    shepherd-root-service-type
+                    (append %app-containers
+                            %vpn-containers
+                            %monitoring-containers)))))
