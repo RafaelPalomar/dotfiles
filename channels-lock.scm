@@ -67,4 +67,4 @@
         (url "https://github.com/RafaelPalomar/sops-guix.git")
         (branch "fix-local-sops-for-older-guix")
         (commit
-          "b17655781fe1de0bcdede165b384d96ea2d311d8")))
+          "ec791a06a70f6161dd4d9eb04db1bb6252e9080a")))
