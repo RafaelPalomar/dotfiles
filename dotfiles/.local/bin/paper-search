@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""paper-search — search academic literature by topic, author, or DOI.
+
+Primary source: Scopus (requires NTNU VPN + API key at pass:apis/scopus).
+Fallback / complement: OpenAlex (always available, no auth).
+
+Output is one JSON object per result on stdout (JSON lines) by default,
+or a human-readable block with --pretty.
+
+Examples:
+  paper-search "vessel proximity segmentation"
+  paper-search --author "Palomar R" --limit 10
+  paper-search --doi 10.1038/s41586-020-2649-2
+  paper-search --source openalex "radiomics liver" --pretty
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+import urllib.parse as urlparse
+
+try:
+    import requests
+except ImportError:
+    print("error: install python-requests in your home profile", file=sys.stderr)
+    sys.exit(1)
+
+SCOPUS_URL = "https://api.elsevier.com/content/search/scopus"
+OPENALEX_URL = "https://api.openalex.org/works"
+EMAIL = "rafael.palomar@ntnu.no"
+
+
+def get_scopus_key() -> str | None:
+    try:
+        out = subprocess.check_output(
+            ["pass", "show", "apis/scopus"],
+            stderr=subprocess.DEVNULL, text=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    for line in out.splitlines():
+        if line.strip():
+            return line.strip()
+    return None
+
+
+def ntnu_vpn_up() -> bool:
+    try:
+        return subprocess.run(
+            ["ntnu-vpn-status"], capture_output=True, check=False
+        ).returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def build_query(source: str, args: argparse.Namespace) -> str:
+    if args.doi:
+        return f'DOI({args.doi})' if source == "scopus" else args.doi
+    if args.author:
+        return f'AUTH("{args.author}")' if source == "scopus" else args.author
+    return args.query
+
+
+def scopus_search(query: str, limit: int, key: str) -> list[dict]:
+    headers = {"X-ELS-APIKey": key, "Accept": "application/json"}
+    r = requests.get(
+        SCOPUS_URL, headers=headers,
+        params={"query": query, "count": min(limit, 25), "view": "COMPLETE"},
+        timeout=30,
+    )
+    r.raise_for_status()
+    entries = r.json().get("search-results", {}).get("entry", [])
+    out: list[dict] = []
+    for e in entries:
+        if not isinstance(e, dict) or e.get("error"):
+            continue
+        authors = [a.get("authname") for a in (e.get("author") or [])
+                   if isinstance(a, dict)]
+        try:
+            cited = int(e.get("citedby-count") or 0)
+        except (TypeError, ValueError):
+            cited = 0
+        out.append({
+            "source": "scopus",
+            "title": e.get("dc:title"),
+            "authors": authors,
+            "year": (e.get("prism:coverDate") or "")[:4] or None,
+            "venue": e.get("prism:publicationName"),
+            "doi": e.get("prism:doi"),
+            "cited_by": cited,
+            "scopus_id": e.get("dc:identifier"),
+        })
+    return out
+
+
+def openalex_search(query: str, limit: int) -> list[dict]:
+    r = requests.get(
+        OPENALEX_URL,
+        params={"search": query, "per-page": min(limit, 200), "mailto": EMAIL},
+        timeout=30,
+    )
+    r.raise_for_status()
+    works = r.json().get("results", [])
+    out: list[dict] = []
+    for w in works:
+        authors = [
+            ((a or {}).get("author") or {}).get("display_name")
+            for a in (w.get("authorships") or [])
+        ]
+        host = w.get("host_venue") or {}
+        if not host.get("display_name"):
+            host = (w.get("primary_location") or {}).get("source") or {}
+        doi = (w.get("doi") or "").replace("https://doi.org/", "")
+        out.append({
+            "source": "openalex",
+            "title": w.get("title"),
+            "authors": [a for a in authors if a],
+            "year": w.get("publication_year"),
+            "venue": host.get("display_name"),
+            "doi": doi or None,
+            "cited_by": w.get("cited_by_count", 0),
+            "openalex_id": w.get("id"),
+        })
+    return out
+
+
+def dedupe(records: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    out: list[dict] = []
+    for r in records:
+        doi = (r.get("doi") or "").lower()
+        if doi:
+            if doi in seen:
+                continue
+            seen.add(doi)
+        out.append(r)
+    return out
+
+
+def pretty_print(records: list[dict]) -> None:
+    for r in records:
+        authors = ", ".join(r.get("authors") or [])
+        print(f"[{r['source']}] {r.get('year') or '—'}  {r.get('title')}")
+        if authors:
+            print(f"   {authors}")
+        print(f"   {r.get('venue') or ''}   "
+              f"cited: {r.get('cited_by')}   "
+              f"doi: {r.get('doi') or '—'}")
+        print()
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Search academic literature (Scopus + OpenAlex).",
+    )
+    ap.add_argument("query", nargs="?", help="free-text query")
+    ap.add_argument("--author", help='author name, e.g. "Palomar R"')
+    ap.add_argument("--doi", help="direct DOI lookup")
+    ap.add_argument("--limit", type=int, default=20)
+    ap.add_argument("--source", choices=("scopus", "openalex", "both"),
+                    default="both")
+    ap.add_argument("--pretty", action="store_true",
+                    help="human-readable output instead of JSON lines")
+    args = ap.parse_args()
+
+    if not (args.query or args.author or args.doi):
+        ap.error("need a query, --author, or --doi")
+
+    records: list[dict] = []
+
+    if args.source in ("scopus", "both"):
+        key = get_scopus_key()
+        if key and ntnu_vpn_up():
+            try:
+                records.extend(scopus_search(
+                    build_query("scopus", args), args.limit, key))
+            except requests.HTTPError as e:
+                print(f"scopus: {e}", file=sys.stderr)
+        elif args.source == "scopus":
+            reason = "no pass:apis/scopus entry" if not key else "NTNU VPN not up"
+            print(f"error: scopus requires NTNU VPN + key ({reason})",
+                  file=sys.stderr)
+            return 1
+        else:
+            reason = "no pass:apis/scopus entry" if not key else "VPN down"
+            print(f"note: skipping scopus ({reason}); using openalex",
+                  file=sys.stderr)
+
+    if args.source in ("openalex", "both"):
+        try:
+            records.extend(openalex_search(
+                build_query("openalex", args), args.limit))
+        except requests.HTTPError as e:
+            print(f"openalex: {e}", file=sys.stderr)
+
+    records = dedupe(records)[: args.limit]
+
+    if args.pretty:
+        pretty_print(records)
+    else:
+        for r in records:
+            print(json.dumps(r, ensure_ascii=False))
+
+    return 0 if records else 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

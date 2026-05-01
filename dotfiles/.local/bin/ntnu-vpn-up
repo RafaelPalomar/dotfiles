@@ -1,0 +1,50 @@
+#!/run/current-system/profile/bin/bash
+# ntnu-vpn-up — bring up the NTNU VPN via openconnect SAML/Feide.
+#
+# NTNU moved VPN authentication to SAML SSO via Feide — the login form
+# has no password field at all, it just auto-POSTs to the ASA's SAML SP
+# endpoint.  openconnect handles this with --external-browser: it prints
+# a URL, spawns a browser, and waits for the Feide cookie to come back.
+#
+# The NetworkManager connection profile (declared in entelequia
+# common-services.scm) is still installed but not used by this script —
+# the NM openconnect plugin's auth-dialog doesn't reliably trigger the
+# embedded webkit SAML path on this system.  We go direct to openconnect.
+#
+# The browser launch is delegated to dotfiles/.local/bin/ntnu-vpn-browser,
+# which drops root privileges and opens librewolf as the invoking user.
+#
+# Env overrides:
+#   NTNU_VPN_USER   — NTNU short username (default: rafaelp)
+#   NTNU_VPN_HOST   — gateway (default: vpn.ntnu.no)
+#   NTNU_VPN_GROUP  — tunnel group (default: DefaultWEBVPNGroup)
+
+set -euo pipefail
+
+USER_NAME="${NTNU_VPN_USER:-rafaelp}"
+GATEWAY="${NTNU_VPN_HOST:-vpn.ntnu.no}"
+AUTHGROUP="${NTNU_VPN_GROUP:-DefaultWEBVPNGroup}"
+HELPER="${HOME}/.local/bin/ntnu-vpn-browser"
+
+if pgrep -f "openconnect.*${GATEWAY}" >/dev/null 2>&1; then
+    echo "NTNU VPN appears to be up already (openconnect running)."
+    exit 0
+fi
+
+if [[ ! -x "${HELPER}" ]]; then
+    echo "error: ${HELPER} not found or not executable." >&2
+    exit 1
+fi
+
+echo "Starting openconnect — librewolf will open for Feide login."
+echo "(sudo may prompt for your local password first to gain CAP_NET_ADMIN.)"
+echo
+
+exec sudo openconnect \
+    --protocol=anyconnect \
+    --useragent='AnyConnect Linux' \
+    --user="${USER_NAME}" \
+    --authgroup="${AUTHGROUP}" \
+    --external-browser="${HELPER}" \
+    --background \
+    "${GATEWAY}"

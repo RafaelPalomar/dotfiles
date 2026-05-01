@@ -191,6 +191,7 @@
                           (list network-manager-openvpn
                                 network-manager-openconnect))))
                gnutls-tls-config-service  ;; Configure GnuTLS for NTNU VPN compatibility
+               ntnu-vpn-connection-service  ;; Declarative NetworkManager VPN profile for NTNU
                (service wpa-supplicant-service-type) ;; Needed by NetworkManager
                (service modem-manager-service-type)  ;; For cellular modems
                (service bluetooth-service-type

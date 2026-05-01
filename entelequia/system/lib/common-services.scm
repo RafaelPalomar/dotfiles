@@ -24,7 +24,8 @@
             blueman-dbus-service
             zram-service
             networkmanager-polkit-service
-            gnutls-tls-config-service))
+            gnutls-tls-config-service
+            ntnu-vpn-connection-service))
 
 ;;; Common service definitions shared between desktop systems
 ;;;
@@ -214,6 +215,58 @@ disabled-version = tls1.3
   (simple-service 'networkmanager-polkit
                   polkit-service-type
                   (list networkmanager-polkit-rules)))
+
+;;; NTNU VPN — declarative NetworkManager connection profile
+;;;
+;;; NM's keyfile plugin reads system-wide VPN connections from
+;;; /etc/NetworkManager/system-connections/ and refuses to load files
+;;; that are not mode 0600.  etc-service-type produces world-readable
+;;; entries, so we install via an activation gexp and chmod explicitly.
+;;;
+;;; UUID is pinned so NM keyring secrets survive reconfigure.  The
+;;; connection is not autoconnect — bring it up via `ntnu-vpn-up`
+;;; (which calls `nmcli --ask con up NTNU` and prompts for the NTNU
+;;; password and the Feide OTP).  Send authority for credentials stays
+;;; on a human keystroke — no automated login.
+
+(define ntnu-vpn-connection
+  (plain-file "NTNU.nmconnection"
+              "[connection]
+id=NTNU
+uuid=0dea1bee-f1ee-41ca-bade-c0ffee0001aa
+type=vpn
+autoconnect=false
+
+[vpn]
+gateway=vpn.ntnu.no
+protocol=anyconnect
+authtype=password
+enable_csd_trojan=no
+pem_passphrase_fsid=no
+service-type=org.freedesktop.NetworkManager.openconnect
+useragent=AnyConnect Linux
+authgroup=DefaultWEBVPNGroup
+reported_os=linux-64
+username=rafaelp
+
+[ipv4]
+method=auto
+never-default=false
+
+[ipv6]
+method=auto
+"))
+
+(define ntnu-vpn-connection-service
+  (simple-service 'ntnu-vpn-connection
+                  activation-service-type
+                  #~(let ((dir "/etc/NetworkManager/system-connections")
+                          (dst "/etc/NetworkManager/system-connections/NTNU.nmconnection")
+                          (src #$ntnu-vpn-connection))
+                      (mkdir-p dir)
+                      (false-if-exception (delete-file dst))
+                      (copy-file src dst)
+                      (chmod dst #o600))))
 
 ;;; zram compressed swap service
 

@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+"""paper-fetch — download a paper PDF by DOI.
+
+Flow:
+  1. Try Unpaywall (https://unpaywall.org) for a legal open-access PDF.
+  2. If paywalled, fall back to the publisher via doi.org resolver.
+     This step requires NTNU VPN up — NTNU's IP-authenticated publisher
+     subscriptions are what unlock most paywalled material.
+  3. Save to ~/pks/library/<doi-slug>.pdf (or --out path).
+
+Usage:
+  paper-fetch 10.1038/s41586-020-2649-2
+  paper-fetch --out /tmp/paper.pdf 'https://doi.org/10.1038/...'
+  paper-fetch --force 10.xxxx/yyyy   # redownload if already present
+"""
+from __future__ import annotations
+
+import argparse
+import re
+import subprocess
+import sys
+import urllib.parse as urlparse
+from pathlib import Path
+
+try:
+    import requests
+except ImportError:
+    print("error: install python-requests in your home profile", file=sys.stderr)
+    sys.exit(1)
+
+UNPAYWALL = "https://api.unpaywall.org/v2/"
+EMAIL = "rafael.palomar@ntnu.no"
+DEFAULT_LIB = Path.home() / "pks" / "library"
+UA = ("Mozilla/5.0 (X11; Linux x86_64; rv:123.0) "
+      "Gecko/20100101 Firefox/123.0")
+
+
+def normalize_doi(s: str) -> str:
+    s = s.strip()
+    for prefix in ("https://doi.org/", "http://doi.org/",
+                   "https://dx.doi.org/", "http://dx.doi.org/", "doi:"):
+        if s.lower().startswith(prefix):
+            return s[len(prefix):]
+    return s
+
+
+def slugify(doi: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", doi).strip("_")
+
+
+def ntnu_vpn_up() -> bool:
+    try:
+        return subprocess.run(
+            ["ntnu-vpn-status"], capture_output=True, check=False
+        ).returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def unpaywall_pdf_url(doi: str) -> str | None:
+    r = requests.get(f"{UNPAYWALL}{urlparse.quote(doi)}",
+                     params={"email": EMAIL}, timeout=20)
+    if r.status_code == 404:
+        return None
+    r.raise_for_status()
+    data = r.json()
+    locations = [data.get("best_oa_location")] + (data.get("oa_locations") or [])
+    for loc in locations:
+        if not loc:
+            continue
+        url = loc.get("url_for_pdf") or loc.get("url")
+        if url and (loc.get("url_for_pdf") or url.lower().endswith(".pdf")):
+            return url
+    return None
+
+
+def download_pdf(url: str, dest: Path, referer: str | None = None) -> bool:
+    """Download URL to dest iff content-type is PDF. Returns True on success."""
+    headers = {"User-Agent": UA, "Accept": "application/pdf,*/*;q=0.1"}
+    if referer:
+        headers["Referer"] = referer
+    with requests.get(url, headers=headers, stream=True, timeout=60,
+                      allow_redirects=True) as r:
+        r.raise_for_status()
+        ct = (r.headers.get("content-type") or "").lower()
+        if "pdf" not in ct:
+            return False
+        tmp = dest.with_suffix(dest.suffix + ".part")
+        with open(tmp, "wb") as f:
+            for chunk in r.iter_content(64 * 1024):
+                f.write(chunk)
+        tmp.rename(dest)
+    return True
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Download a paper PDF by DOI "
+                    "(Unpaywall → NTNU VPN publisher fallback).",
+    )
+    ap.add_argument("doi", help="DOI or DOI URL")
+    ap.add_argument("--out", type=Path,
+                    help=f"output path (default: {DEFAULT_LIB}/<slug>.pdf)")
+    ap.add_argument("--force", action="store_true",
+                    help="redownload even if file exists")
+    args = ap.parse_args()
+
+    doi = normalize_doi(args.doi)
+    if not re.match(r"^10\.\d{4,}/", doi):
+        print(f"error: {doi!r} does not look like a DOI", file=sys.stderr)
+        return 1
+
+    dest = args.out or (DEFAULT_LIB / f"{slugify(doi)}.pdf")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    if dest.exists() and not args.force:
+        print(f"already have: {dest}")
+        return 0
+
+    # Step 1: Unpaywall
+    try:
+        oa = unpaywall_pdf_url(doi)
+    except requests.RequestException as e:
+        print(f"unpaywall: {e}", file=sys.stderr)
+        oa = None
+
+    if oa:
+        print(f"trying OA url: {oa}", file=sys.stderr)
+        try:
+            if download_pdf(oa, dest):
+                print(dest)
+                return 0
+            print("OA url returned non-PDF content-type", file=sys.stderr)
+        except requests.RequestException as e:
+            print(f"OA download failed: {e}", file=sys.stderr)
+
+    # Step 2: Publisher via doi.org — needs NTNU VPN for most paywalled content
+    if not ntnu_vpn_up():
+        print("paywalled and NTNU VPN is down — run ntnu-vpn-up first",
+              file=sys.stderr)
+        return 1
+
+    resolver = f"https://doi.org/{urlparse.quote(doi)}"
+    print(f"trying publisher via doi.org resolver (VPN): {resolver}",
+          file=sys.stderr)
+    try:
+        if download_pdf(resolver, dest):
+            print(dest)
+            return 0
+    except requests.RequestException as e:
+        print(f"publisher: {e}", file=sys.stderr)
+
+    print(
+        "could not locate a PDF. Publisher may not expose direct PDF access, "
+        "or your NTNU institutional subscription may not cover this journal. "
+        "Open the DOI in a browser while on the NTNU VPN to verify access.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,38 @@
+#!/run/current-system/profile/bin/bash
+# ntnu-vpn-status — report whether the NTNU VPN is up, from either path.
+# Exits 0 if up, 1 if down.  Prints a one-line summary to stdout.
+#
+# Two paths can bring the tunnel up:
+#   - `ntnu-vpn-up` via direct openconnect (shows up as a process)
+#   - nm-applet / `nmcli con up NTNU` via libopenconnect embedded in
+#     NetworkManager-openconnect (no standalone process — only NM state)
+#
+# Scripts that need the VPN (e.g. paper-fetch) should call this first:
+#   if ! ntnu-vpn-status >/dev/null; then
+#       echo "NTNU VPN not up — run ntnu-vpn-up first." >&2
+#       exit 1
+#   fi
+
+set -euo pipefail
+
+CONN="NTNU"
+GATEWAY="${NTNU_VPN_HOST:-vpn.ntnu.no}"
+
+# Look for a VPN tunnel interface (vpn0 / tun0 / ...) — present whether
+# brought up via NM or via direct openconnect.
+iface=$(ip -o link show up \
+            | awk -F: '/: (tun|vpn)[0-9]+/ {gsub(/ /,"",$2); print $2; exit}')
+
+if nmcli -t -f NAME con show --active 2>/dev/null | grep -Fxq "$CONN"; then
+    echo "$CONN up via NM${iface:+ (iface=$iface)}"
+    exit 0
+fi
+
+pid=$(pgrep -f "openconnect.*ntnu\\.no" | head -n1 || true)
+if [[ -n "${pid}" ]]; then
+    echo "$CONN up via openconnect (pid ${pid}${iface:+, iface=${iface}})"
+    exit 0
+fi
+
+echo "$CONN down"
+exit 1

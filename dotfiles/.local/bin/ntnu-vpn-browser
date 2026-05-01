@@ -1,0 +1,30 @@
+#!/run/current-system/profile/bin/bash
+# ntnu-vpn-browser — helper invoked by openconnect's --external-browser
+# to open the NTNU SAML / Feide login URL.
+#
+# openconnect runs as root (via sudo in ntnu-vpn-up), so this helper
+# also runs as root.  Browsers refuse to run as root, so we drop
+# back to the original user via runuser before exec'ing librewolf.
+#
+# When openconnect finishes the SAML handshake it redirects the browser
+# to http://127.0.0.1:<port>/… — that HTTP request is what openconnect
+# uses to recapture the session cookie.  Just complete the Feide login
+# in the window; openconnect handles the rest.
+
+set -euo pipefail
+
+URL="${1:?usage: ntnu-vpn-browser <url>}"
+TARGET_USER="${SUDO_USER:-${USER}}"
+
+if [[ -z "${TARGET_USER}" ]] || [[ "${TARGET_USER}" == "root" ]]; then
+    echo "ntnu-vpn-browser: refusing to run browser as root" >&2
+    exit 1
+fi
+
+TARGET_HOME=$(getent passwd "${TARGET_USER}" | cut -d: -f6)
+
+exec runuser -u "${TARGET_USER}" -- \
+    env HOME="${TARGET_HOME}" \
+        DISPLAY="${DISPLAY:-:0}" \
+        XAUTHORITY="${XAUTHORITY:-${TARGET_HOME}/.Xauthority}" \
+        librewolf "${URL}"

@@ -1,0 +1,36 @@
+#!/run/current-system/profile/bin/bash
+# ntnu-vpn-down — tear down the NTNU VPN, from either path.
+#
+# Detects NM-initiated vs openconnect-CLI-initiated and uses the
+# appropriate shutdown mechanism.
+
+set -euo pipefail
+
+CONN="NTNU"
+GATEWAY="${NTNU_VPN_HOST:-vpn.ntnu.no}"
+
+down_any=0
+
+# NM path
+if nmcli -t -f NAME con show --active 2>/dev/null | grep -Fxq "$CONN"; then
+    echo "Stopping $CONN (NetworkManager)..."
+    nmcli con down "$CONN"
+    down_any=1
+fi
+
+# CLI path (any openconnect talking to an ntnu.no gateway)
+pid=$(pgrep -f "openconnect.*ntnu\\.no" | head -n1 || true)
+if [[ -n "${pid}" ]]; then
+    echo "Stopping openconnect (pid ${pid})..."
+    sudo kill "${pid}"
+    for _ in 1 2 3 4 5; do
+        kill -0 "${pid}" 2>/dev/null || break
+        sleep 1
+    done
+    kill -0 "${pid}" 2>/dev/null && sudo kill -9 "${pid}" || true
+    down_any=1
+fi
+
+if [[ "${down_any}" -eq 0 ]]; then
+    echo "$CONN VPN is not up."
+fi
