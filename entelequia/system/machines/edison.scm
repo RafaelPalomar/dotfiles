@@ -71,15 +71,14 @@
 (define edison-services
   (append
    ;; rootless Podman: creates cgroup group, configures subids for rafael,
-   ;; and provides shepherd services that oci containers depend on.
-   ;; (podman #f): suppress podman from this service's profile extension —
-   ;; oci-service-type already adds it. The NVIDIA replace-mesa transformation
-   ;; modifies packages in the configuration record but NOT in oci-service-type's
-   ;; extension lambda (which uses the module-level podman directly), causing two
-   ;; different podman derivations if both add it to the profile.
-   (list (service rootless-podman-service-type
-                  (rootless-podman-configuration
-                   (podman #f))))
+   ;; and provides shepherd services that oci containers depend on.  Default
+   ;; configuration includes podman in the system profile, which is required
+   ;; by host-side scripts (arm-trigger.sh fired by udev on disc insertion;
+   ;; ts-netns-watchdog) that invoke `podman` from a bare PATH.  The previous
+   ;; (podman #f) override avoided a duplicate derivation when oci-service-type
+   ;; was also adding its own podman; that double-add disappeared with the
+   ;; shepherd-root-service-type refactor.
+   (list (service rootless-podman-service-type))
    ;; sops: decrypt Tailscale auth keys to /run/secrets/ at boot.
    ;; Requires /var/lib/sops GPG key and sops/edison.yaml to exist.
    edison-sops-service
