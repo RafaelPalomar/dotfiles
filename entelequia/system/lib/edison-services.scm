@@ -521,16 +521,19 @@ TMDB_API_KEY: \"\"\n" p)))
     #~(begin
         (use-modules (ice-9 textual-ports) (srfi srfi-13))
         ;; arm.yaml is guaranteed present (activation seeded it if absent).
-        ;; sops-secrets is a shepherd requirement so secrets are decrypted by now.
-        ;; Short retry guards against the rare case where the kernel hasn't
-        ;; flushed the secret file to disk yet when this process starts.
-        (let loop ((n 10))
+        ;; The shepherd requirement on sops-secret-tmdb/api_key ensures sops
+        ;; has decrypted the secret before this service starts.  Wait loop is
+        ;; a safety net that also requires the file to be non-empty: sops
+        ;; can briefly create a zero-byte placeholder before populating it.
+        (let loop ((n 30))
           (cond
             ((zero? n)
              (format (current-error-port)
-                     "arm-config-patch: /run/secrets/tmdb/api_key not found~%")
+                     "arm-config-patch: /run/secrets/tmdb/api_key not present or empty~%")
              (primitive-exit 1))
-            ((file-exists? "/run/secrets/tmdb/api_key") #t)
+            ((and (file-exists? "/run/secrets/tmdb/api_key")
+                  (> (stat:size (stat "/run/secrets/tmdb/api_key")) 0))
+             #t)
             (else (sleep 1) (loop (- n 1)))))
         (define (patch-yaml-key content key new-val)
           (let ((prefix (string-append key ": ")))
@@ -575,7 +578,7 @@ TMDB_API_KEY: \"\"\n" p)))
                    (list
                     (shepherd-service
                      (provision '(arm-config-patch))
-                     (requirement '(sops-secrets))
+                     (requirement '(sops-secrets sops-secret-tmdb/api_key))
                      (one-shot? #t)
                      (start #~(make-forkexec-constructor
                                (list #$%arm-config-patch-script)
@@ -754,23 +757,19 @@ TMDB_API_KEY: \"\"\n" p)))
      "}\n")))
 
 (define %caddy-navidrome-container
-  (oci-container-configuration
-   (user "rafael")
-   (image "docker.io/library/caddy:latest")
-   (provision "caddy-navidrome")
-   ;; Depend on the ts-ready gate instead of navidrome itself: when navidrome
-   ;; flaps, caddy should stay up (it reverse-proxies via
-   ;; host.containers.internal, which routes to the ts-navidrome sidecar's
-   ;; pasta netns — so caddy is only coupled to the sidecar, not to
-   ;; navidrome).  Previously a navidrome flap pulled caddy into the respawn
-   ;; budget and the whole stack hit shepherd's disable threshold together.
-   (requirement '(ts-navidrome-ready podman-prune cgroups2-fs-owner cgroups2-limits
-                  rootless-podman-shared-root-fs user-processes))
-   (respawn? #t)
-   (volumes
-    (list (cons %caddy-navidrome-caddyfile "/etc/caddy/Caddyfile:ro")
-          "/data/caddy:/data"))
-   (ports '("4534:4534"))))
+  ;; Depend on the ts-ready gate instead of navidrome itself: when navidrome
+  ;; flaps, caddy should stay up (it reverse-proxies via
+  ;; host.containers.internal, which routes to the ts-navidrome sidecar's
+  ;; pasta netns — so caddy is only coupled to the sidecar, not to
+  ;; navidrome).  Previously a navidrome flap pulled caddy into the respawn
+  ;; budget and the whole stack hit shepherd's disable threshold together.
+  (make-podman-shepherd-service
+   "caddy-navidrome" "docker.io/library/caddy:latest"
+   #:requirement '(ts-navidrome-ready podman-prune)
+   #:volumes
+   (list (file-append %caddy-navidrome-caddyfile ":/etc/caddy/Caddyfile:ro")
+         "/data/caddy:/data")
+   #:ports '("4534:4534")))
 
 ;;;
 ;;; ARM — Automatic Ripping Machine
@@ -942,11 +941,14 @@ TMDB_API_KEY: \"\"\n" p)))
          (make-ts-ready-service "navidrome")
          (make-ts-ready-service "arm"))
    (list edison-container-watchdog-service)
+   ;; All shepherd-services (sidecars + apps + caddy) registered in one batch.
+   ;; Mirrors lovelace's pattern: bypass oci-service-type to avoid the
+   ;; `podman run --rm --replace` race under rapid respawn — see commentary
+   ;; on make-podman-shepherd-service in server-services.scm.
    (list
-    (service oci-service-type
-             (oci-configuration
-              (runtime 'podman)
-              (containers (append %jellyfin-containers
-                                  %navidrome-containers
-                                  (list %caddy-navidrome-container)
-                                  %arm-containers)))))))
+    (simple-service 'edison-podman-containers
+                    shepherd-root-service-type
+                    (append %jellyfin-containers
+                            %navidrome-containers
+                            (list %caddy-navidrome-container)
+                            %arm-containers)))))
