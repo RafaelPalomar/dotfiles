@@ -7,16 +7,54 @@ fallback for the planned monthly auto-memory GC trigger.
 
 Default threshold: 90 days.  Override with --days N.
 Default output: one path per line.  --verbose adds size and age.
+
+Memory types are filtered by default to avoid GC'ing durable entries:
+
+  - feedback / user  : NEVER candidates by default (durable preferences
+                       and profile data).  Use --include-durable to
+                       override.
+  - project / reference / unknown : candidates if older than --days.
+
+The frontmatter `type:` field drives this decision.  Files without
+parseable frontmatter are treated as candidates (so unknown shapes
+don't accidentally hide).
 """
 import argparse
 import datetime
 import os
+import re
 import sys
 
 ROOT = os.path.expanduser("~/.claude/projects")
+DURABLE_TYPES = {"feedback", "user"}
+TYPE_RE = re.compile(r'^type:\s*(\w+)\s*$')
 
 
-def find_stale(days, verbose=False):
+def memory_type(path):
+    """Read the YAML frontmatter `type:` field. Returns the type
+    string if found, or None if the file has no parseable frontmatter."""
+    try:
+        with open(path) as f:
+            in_frontmatter = False
+            for i, line in enumerate(f):
+                if i == 0 and line.strip() != "---":
+                    return None
+                if i == 0:
+                    in_frontmatter = True
+                    continue
+                if in_frontmatter and line.strip() == "---":
+                    return None  # end of frontmatter, no type field
+                m = TYPE_RE.match(line)
+                if m:
+                    return m.group(1)
+                if i > 30:  # don't scan whole file
+                    return None
+    except OSError:
+        pass
+    return None
+
+
+def find_stale(days, include_durable):
     if not os.path.isdir(ROOT):
         return []
     threshold = datetime.datetime.now().timestamp() - days * 86400
@@ -33,10 +71,14 @@ def find_stale(days, verbose=False):
                 st = os.stat(path)
             except OSError:
                 continue
-            if st.st_mtime < threshold:
-                age_days = int((datetime.datetime.now().timestamp()
-                                - st.st_mtime) / 86400)
-                out.append((path, st.st_size, age_days))
+            if st.st_mtime >= threshold:
+                continue
+            mtype = memory_type(path)
+            if not include_durable and mtype in DURABLE_TYPES:
+                continue
+            age_days = int((datetime.datetime.now().timestamp()
+                            - st.st_mtime) / 86400)
+            out.append((path, st.st_size, age_days, mtype or "?"))
     return out
 
 
@@ -45,21 +87,30 @@ def main():
     p.add_argument("--days", type=int, default=90,
                    help="age threshold in days (default 90)")
     p.add_argument("--verbose", "-v", action="store_true",
-                   help="include size and age columns")
+                   help="include size, age, and type columns")
+    p.add_argument("--include-durable", action="store_true",
+                   help="include type:feedback and type:user files "
+                        "(off by default — those are durable)")
     args = p.parse_args()
 
-    stale = find_stale(args.days, args.verbose)
+    stale = find_stale(args.days, args.include_durable)
     if not stale:
-        print(f"# no memory files older than {args.days}d", file=sys.stderr)
+        if args.include_durable:
+            print(f"# no memory files older than {args.days}d",
+                  file=sys.stderr)
+        else:
+            print(f"# no GC candidates older than {args.days}d "
+                  f"(feedback/user types skipped)", file=sys.stderr)
         return 0
 
     if args.verbose:
-        print(f"# {len(stale)} memory files older than {args.days}d "
-              f"(read-only — review and delete manually)")
-        for path, size, age in stale:
-            print(f"{age:>4}d  {size:>6}b  {path}")
+        skipped = "" if args.include_durable else " (feedback/user skipped)"
+        print(f"# {len(stale)} memory files older than {args.days}d"
+              f"{skipped} — review and delete manually")
+        for path, size, age, mtype in stale:
+            print(f"{age:>4}d  {size:>6}b  [{mtype:>9}]  {path}")
     else:
-        for path, _size, _age in stale:
+        for path, _size, _age, _t in stale:
             print(path)
     return 0
 
