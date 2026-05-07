@@ -92,8 +92,12 @@
 (use-package doom-themes
   :ensure nil
   :config
-  ;; Load doom-dracula theme
-  (load-theme 'doom-dracula t)
+  ;; Add our custom theme directory to the load path
+  (add-to-list 'custom-theme-load-path
+               (expand-file-name "themes" user-emacs-directory))
+
+  ;; Load entelequia-graphite (built on doom-themes infrastructure)
+  (load-theme 'entelequia-graphite t)
 
   ;; Enable doom-themes features
   (setq doom-themes-enable-bold t
