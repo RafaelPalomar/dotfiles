@@ -81,7 +81,7 @@ sync time — that's fine for retrospective triage.
    - project-log  → `pks-project-log` invocation suggesting Mode B
                     (Action Item or Waiting For) on the relevant
                     project.
-   - no-action    → `notmuch-agent tag --add agent-seen id:<msg-id>`
+   - no-action    → `notmuch-agent tag +agent-seen id:<msg-id>`
                     (the no-op acknowledgement).
 
 6. Write a single fleeting note:
@@ -116,7 +116,7 @@ sync time — that's fine for retrospective triage.
    `agent-seen` so the next run skips them:
 
    ```bash
-   notmuch-agent tag --add agent-seen <msg-id1> <msg-id2> ...
+   notmuch-agent tag +agent-seen <msg-id1> <msg-id2> ...
    ```
 
    This tag lives only in the agent's Xapian DB — does not pollute
