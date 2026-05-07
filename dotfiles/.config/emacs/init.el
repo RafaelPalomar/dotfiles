@@ -1727,6 +1727,30 @@ See `my-denote-add-to-agenda'.")
   :config
   (consult-denote-mode 1))
 
+;; Rescope read-side denote/consult-denote commands to ~/pks/ when
+;; the buffer or denote-directory is already under PKS, so M-x and
+;; embark calls reach every silo without the my-pks-* wrappers.
+;; Mirrors the dblock/link-follow advice on denote-org above.
+(defun my-denote-rescope-pks-read (orig-fun &rest args)
+  (let* ((file (buffer-file-name))
+         (pks-link (expand-file-name "~/pks/"))
+         (pks-real (file-truename pks-link))
+         (under-pks (lambda (path)
+                      (and path
+                           (let ((true (file-truename path)))
+                             (or (string-prefix-p pks-link true)
+                                 (string-prefix-p pks-real true))))))
+         (rescope (or (funcall under-pks file)
+                      (funcall under-pks denote-directory)))
+         (denote-directory (if rescope pks-link denote-directory)))
+    (apply orig-fun args)))
+
+(with-eval-after-load 'denote
+  (advice-add 'denote-find-file :around #'my-denote-rescope-pks-read))
+(with-eval-after-load 'consult-denote
+  (advice-add 'consult-denote-find :around #'my-denote-rescope-pks-read)
+  (advice-add 'consult-denote-grep :around #'my-denote-rescope-pks-read))
+
 (defun my-pks-consult-find ()
   "`consult-denote-find' scoped to the whole PKS tree."
   (interactive)
@@ -1825,6 +1849,8 @@ See `my-denote-add-to-agenda'.")
     (define-key m "h" #'my-pks-capture-hub)
     (define-key m "p" #'my-pks-find-project)
     (define-key m "P" #'my-pks-capture-project)
+    (define-key m "f" #'my-pks-consult-find)
+    (define-key m "g" #'my-pks-consult-grep)
     (define-key m "L" #'my-pks-capture-literature)
     (define-key m "a" #'my-denote-add-to-agenda)
     (define-key m "A" #'my-denote-remove-from-agenda)
