@@ -1,6 +1,11 @@
+/* entelequia-theme · Graphite & Vellum
+ * Tactile editorial launcher — paper-card with copper hairline frame,
+ * vellum text on graphite ink.  Cascadia Mono Medium body matches the
+ * polybar masthead and kitty terminal. */
+
 configuration {
     modi: "drun,run,window";
-    font: "Iosevka 12";
+    font: "Cascadia Mono Medium 12";
     show-icons: true;
     icon-theme: "Papirus-Dark";
     display-drun: "Applications";
@@ -11,94 +16,108 @@ configuration {
     sidebar-mode: false;
 }
 
-/* Import pywal colors */
-@import "~/.cache/wal/colors-rofi.rasi"
+/* Graphite & Vellum palette */
+* {
+    ink:        #1c1a18;
+    slate:      #28241f;
+    vellum:     #ede4d0;
+    muted:      #7a7268;
+    copper:     #a85a2c;
+    background-color: @ink;
+    text-color:       @vellum;
+}
 
 window {
-    transparency: "real";
-    background-color: @background;
-    border: 2;
-    border-color: @selected-background;
-    border-radius: 10;
-    width: 600;
-    location: center;
-    x-offset: 0;
-    y-offset: 0;
+    transparency:     "real";
+    background-color: @slate;
+    border:           2;
+    border-color:     @copper;     /* copper hairline frame */
+    border-radius:    0;            /* flat slab — editorial, not aero */
+    width:            600;
+    location:         center;
+    x-offset:         0;
+    y-offset:         0;
 }
 
 mainbox {
-    background-color: @background;
-    border: 0;
-    border-radius: 0;
-    children: [inputbar, listview];
+    background-color: @slate;
+    border:           0;
+    border-radius:    0;
+    children:         [inputbar, listview];
+    padding:          12px;
 }
 
 inputbar {
-    children: [prompt, entry];
-    background-color: @background;
-    border-radius: 5;
-    padding: 10px;
-    margin: 10px;
+    children:         [prompt, entry];
+    background-color: @slate;
+    border-radius:    0;
+    padding:          0 0 12px 0;
+    spacing:          12px;
 }
 
 prompt {
-    background-color: @selected-background;
-    padding: 6px;
-    text-color: @foreground;
-    border-radius: 5;
-    margin: 0px 10px 0px 0px;
+    background-color: inherit;
+    text-color:       @copper;     /* copper prompt mark */
+    padding:          0;
+    font:             "Cascadia Code Bold 12";
 }
 
 entry {
-    text-color: @foreground;
-    background-color: @background;
-    padding: 6px;
+    text-color:       @vellum;
+    background-color: inherit;
+    padding:          0;
+    placeholder:      "search ·";
+    placeholder-color: @muted;
 }
 
 listview {
-    border: 0;
-    padding: 0px 10px 10px 10px;
-    columns: 1;
-    lines: 8;
-    background-color: @background;
+    border:           0;
+    padding:          8px 0 0 0;
+    spacing:          2px;
+    columns:          1;
+    lines:            8;
+    background-color: @slate;
 }
 
 element {
-    padding: 8px;
-    background-color: @background;
-    text-color: @foreground;
-    border-radius: 5;
+    padding:          8px 12px;
+    background-color: @slate;
+    text-color:       @vellum;
+    border-radius:    0;
 }
 
-/* Make ALL unselected rows identical */
+/* All unselected rows — uniform muted palette */
 element normal.normal,
 element alternate.normal,
 element normal.active,
 element alternate.active,
 element normal.urgent,
 element alternate.urgent {
-    background-color: @background;
-    text-color: @foreground;
+    background-color: @slate;
+    text-color:       @vellum;
 }
 
-/* Make ALL selected rows identical with good contrast */
+/* Selected — copper-anchored left border, ink bg, no rounded corners */
 element selected.normal,
 element selected.active,
 element selected.urgent,
 element alternate selected.normal,
 element alternate selected.active,
 element alternate selected.urgent {
-    background-color: @selected-background;
-    text-color: @foreground;
+    background-color: @ink;
+    text-color:       @vellum;
+    border:           0px 0px 0px 3px;   /* left bar only */
+    border-color:     @copper;
 }
 
 element-icon {
-    size: 32;
-    margin: 0px 10px 0px 0px;
+    size:             24;
+    margin:           0 12px 0 0;
+    background-color: inherit;
 }
 
 element-text {
     background-color: inherit;
-    text-color: inherit;
-    vertical-align: 0.5;
+    text-color:       inherit;
+    vertical-align:   0.5;
 }
