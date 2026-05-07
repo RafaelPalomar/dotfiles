@@ -2201,6 +2201,23 @@ See `my-denote-add-to-agenda'.")
   (let ((denote-directory (expand-file-name "~/pks/")))
     (call-interactively #'consult-denote-grep)))
 
+(defun my-pks-show-daily-review ()
+  "Run the pks-daily-review fallback script and visit the resulting note.
+Non-LLM digest of stale fleeting, active _agenda projects, and stale
+MOCs.  Idempotent per day; same-date re-runs overwrite."
+  (interactive)
+  (let* ((cmd (executable-find "pks-daily-review"))
+         (output (and cmd (string-trim
+                           (shell-command-to-string
+                            (shell-quote-argument cmd))))))
+    (cond
+     ((not cmd)
+      (user-error "pks-daily-review not found on PATH"))
+     ((and output (file-exists-p output))
+      (find-file output))
+     (t
+      (user-error "pks-daily-review produced no file: %s" output)))))
+
 ;; C-c n prefix keymap (Protesilaos-style).  Define BEFORE any
 ;; `with-eval-after-load' form that references it: those bodies fire
 ;; immediately if denote is already loaded.
@@ -2289,6 +2306,7 @@ See `my-denote-add-to-agenda'.")
     (define-key m "P" #'my-pks-capture-project)
     (define-key m "f" #'my-pks-consult-find)
     (define-key m "g" #'my-pks-consult-grep)
+    (define-key m "D" #'my-pks-show-daily-review)
     (define-key m "L" #'my-pks-capture-literature)
     (define-key m "a" #'my-denote-add-to-agenda)
     (define-key m "A" #'my-denote-remove-from-agenda)
