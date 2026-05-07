@@ -1,0 +1,15 @@
+# pks-gh repo → project denote-id mapping
+# Format: owner/repo  <denote-id>
+# Comments + blank lines ignored.  Edit and re-run gh-issue-to-log.
+
+RafaelPalomar/dotfiles               20260421T194720   # entelequia
+Slicer/SlicerSOFA                    20260507T130419   # project-slicer-sofa
+SystoleOS/guix-systole               20260422T210014   # project-guix-systole
+OUH-MESHLab/SlicerHyperProbe         20260507T130440   # project-hyperprobe
+OUH-MESHLab/TCIADataAugmentation     20260507T130419   # project-slicer-sofa (TCIA aug is a SlicerSOFA workstream)
+OUH-MESHLab/IVSVista                 20260427T130819   # project-ivs-infrastructure
+OUH-MESHLab/MONK-system              20260430T092504   # project-monk-system
+
+# Repos without a registered PKS project yet — pass --project explicitly
+# or register the project first via C-c c P / pks-dispatch P.
+# OUH-MESHLab/MeshLab-site           <id>              # see fleeting note 20260507T130624

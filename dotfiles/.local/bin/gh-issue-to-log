@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""gh-issue-to-log: append a GitHub issue / PR reference to a PKS
+project's `* Log` section.
+
+Reads the issue or PR via the `gh` CLI (read-only — never closes,
+edits, or merges anything), infers the matching PKS project from
+~/.config/pks-gh/repo-project-map (or `--project <denote-id>`),
+and appends a dated bullet under the project's `* Log` heading.
+
+The shape mirrors the mu4e capture path (`m a` Action Item → project
+Log).  Use this for issues/PRs that represent ongoing work tracked in
+that project; capture-as-fleeting (via `mail-to-fleeting`) is the
+wrong shape — issues are already URL-addressable and come with their
+own conversational thread on GitHub.
+
+Usage:
+  gh-issue-to-log <owner/repo> <issue-or-pr-number> [--project <denote-id>]
+                  [--label-as ISSUE|PR|WAITING] [--note "free text"]
+
+Examples:
+  gh-issue-to-log Slicer/SlicerSOFA 142
+  gh-issue-to-log OUH-MESHLab/MONK-system 7 --label-as PR
+  gh-issue-to-log RafaelPalomar/dotfiles 23 --note "WAITING upstream review"
+"""
+import argparse
+import datetime
+import json
+import os
+import re
+import subprocess
+import sys
+
+MAP_FILE = os.path.expanduser("~/.config/pks-gh/repo-project-map")
+PROJECTS_DIR = os.path.expanduser("~/pks/projects/")
+TODAY = datetime.date.today().isoformat()
+
+
+def load_map():
+    """Parse the repo→denote-id map.  Inline `# comment` is stripped."""
+    if not os.path.exists(MAP_FILE):
+        return {}
+    m = {}
+    with open(MAP_FILE) as f:
+        for line in f:
+            line = line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) >= 2:
+                m[parts[0]] = parts[1]
+    return m
+
+
+def fetch_issue(repo, num):
+    """Read issue or PR via `gh`.  Falls back from issue → pr."""
+    base = ["gh", "issue", "view", str(num), "--repo", repo,
+            "--json", "number,title,state,url,labels"]
+    try:
+        out = subprocess.check_output(base, text=True, stderr=subprocess.PIPE)
+        data = json.loads(out)
+        data["__kind"] = "ISSUE"
+        return data
+    except subprocess.CalledProcessError:
+        pass
+    # Try PR
+    pr = ["gh", "pr", "view", str(num), "--repo", repo,
+          "--json", "number,title,state,url,labels"]
+    try:
+        out = subprocess.check_output(pr, text=True, stderr=subprocess.PIPE)
+        data = json.loads(out)
+        data["__kind"] = "PR"
+        return data
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"gh: {repo}#{num} not found as issue or PR.\n"
+                 f"  stderr: {e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr}")
+
+
+def find_project_file(denote_id):
+    if not os.path.isdir(PROJECTS_DIR):
+        return None
+    # Search recursively (projects/ may have subdirs like work/)
+    for root, _dirs, files in os.walk(PROJECTS_DIR):
+        for f in files:
+            if f.startswith(denote_id) and f.endswith(".org"):
+                return os.path.join(root, f)
+    return None
+
+
+def append_to_log(path, bullet):
+    """Insert BULLET on its own line under the `* Log` heading,
+    just before the next top-level heading (or EOF)."""
+    with open(path) as f:
+        content = f.read()
+    log_match = re.search(r"^\* Log\b.*$", content, re.MULTILINE)
+    if not log_match:
+        sys.exit(f"no '* Log' heading in {path}")
+    # End of Log section = start of next ^* heading after Log, or EOF.
+    after = content[log_match.end():]
+    next_heading = re.search(r"^\* ", after, re.MULTILINE)
+    insert_at = log_match.end() + next_heading.start() if next_heading else len(content)
+    # Trim trailing blank lines so insertion doesn't add a third newline.
+    while insert_at > 0 and content[insert_at - 1] == "\n":
+        insert_at -= 1
+    new = content[:insert_at] + "\n" + bullet + "\n" + content[insert_at:]
+    with open(path, "w") as f:
+        f.write(new)
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("repo", help="owner/repo")
+    p.add_argument("number", type=int, help="issue or PR number")
+    p.add_argument("--project", metavar="DENOTE_ID",
+                   help="target project denote ID (overrides map)")
+    p.add_argument("--label-as", default=None,
+                   help="bullet prefix (auto-detected: ISSUE or PR)")
+    p.add_argument("--note", default=None,
+                   help="free-text annotation appended after the title")
+    args = p.parse_args()
+
+    if "/" not in args.repo:
+        sys.exit("repo must be in owner/repo format")
+
+    # Resolve project denote ID
+    denote_id = args.project
+    if not denote_id:
+        denote_id = load_map().get(args.repo)
+        if not denote_id:
+            sys.exit(f"no project mapped for {args.repo}.\n"
+                     f"  Add to {MAP_FILE}:\n"
+                     f"    {args.repo:<35}  <denote-id>\n"
+                     f"  Or pass --project <denote-id> on this run.")
+
+    project_file = find_project_file(denote_id)
+    if not project_file:
+        sys.exit(f"no project file matching id {denote_id} under {PROJECTS_DIR}")
+
+    # Fetch from GitHub
+    data = fetch_issue(args.repo, args.number)
+    kind = args.label_as or data["__kind"]
+    title = data["title"]
+    state = data["state"]
+    url = data["url"]
+    labels = ", ".join(l["name"] for l in (data.get("labels") or []))
+
+    # Compose the bullet — match the project Log convention.
+    bullet = f"- {TODAY} :: {kind} #{data['number']} {title} [{state}]"
+    if labels:
+        bullet += f" [{labels}]"
+    if args.note:
+        bullet += f" — {args.note}"
+    bullet += f" — [[{url}][gh thread]]"
+
+    append_to_log(project_file, bullet)
+    print(f"appended to {project_file}:")
+    print(f"  {bullet}")
+
+
+if __name__ == "__main__":
+    main()
