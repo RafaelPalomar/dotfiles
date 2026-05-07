@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""Non-LLM fallback for the mail-to-fleeting agent skill.
+
+Given a notmuch message-id, query notmuch-agent for thread metadata
+and create a denote-named fleeting note with the message-id captured
+as a property.  No body summary — the user writes notes below the
+property block manually.  Use the agent skill (LLM path) when you
+want a written summary instead.
+
+Usage:
+  mail-to-fleeting <message-id>            # auto-detect ous/ntnu tag
+  mail-to-fleeting <message-id> ous        # force tag
+  mail-to-fleeting <message-id> ntnu
+
+Exit codes:
+  0  note created (path printed to stdout)
+  1  notmuch-agent failed or message not found
+  2  bad arguments
+"""
+import json
+import os
+import subprocess
+import sys
+
+PKS_FLEETING = os.path.expanduser("~/pks/fleeting")
+VALID_TAGS = {"ous", "ntnu"}
+
+
+def fail(msg, code=1):
+    print(msg, file=sys.stderr)
+    sys.exit(code)
+
+
+def detect_account_tag(headers):
+    pool = " ".join([
+        headers.get("To", ""),
+        headers.get("From", ""),
+        headers.get("Cc", ""),
+    ]).lower()
+    if "ous-research.no" in pool or "@ous" in pool:
+        return "ous"
+    if "ntnu.no" in pool:
+        return "ntnu"
+    return None
+
+
+def find_first_message(notmuch_json):
+    # notmuch --format=json show returns: [ [thread_msg_or_subthread, ...], ...]
+    # subthreads recurse arbitrarily; we walk the structure for the first dict.
+    def walk(node):
+        if isinstance(node, dict):
+            return node
+        if isinstance(node, list):
+            for child in node:
+                got = walk(child)
+                if got is not None:
+                    return got
+        return None
+    return walk(notmuch_json)
+
+
+def main(argv):
+    if len(argv) < 2:
+        fail("usage: mail-to-fleeting <message-id> [ous|ntnu]", code=2)
+
+    msg_id = argv[1].strip().lstrip("<").rstrip(">")
+    override = argv[2] if len(argv) > 2 else None
+    if override and override not in VALID_TAGS:
+        fail(f"account override must be one of {sorted(VALID_TAGS)}", code=2)
+
+    try:
+        out = subprocess.check_output(
+            ["notmuch-agent", "show", f"id:{msg_id}", "--format=json"],
+            text=True, timeout=10)
+    except FileNotFoundError:
+        fail("notmuch-agent not on PATH (run guix home reconfigure?)")
+    except subprocess.CalledProcessError as e:
+        fail(f"notmuch-agent show failed: {e}")
+
+    try:
+        data = json.loads(out) if out.strip() else None
+    except json.JSONDecodeError as e:
+        fail(f"notmuch-agent returned invalid JSON: {e}")
+
+    msg = find_first_message(data) if data else None
+    if not msg:
+        fail(f"no message found for id: {msg_id}")
+
+    headers = msg.get("headers", {}) or {}
+    subject = headers.get("Subject") or "(no subject)"
+    sender = headers.get("From", "")
+    date = headers.get("Date", "")
+
+    ctx_tag = override or detect_account_tag(headers)
+    tags = ["agenda"] + ([ctx_tag] if ctx_tag else [])
+
+    body_lines = [
+        ":PROPERTIES:",
+        f":FROM:    {sender}",
+        f":DATE:    {date}",
+        f":MSG-ID:  {msg_id}",
+        f":SUBJECT: {subject}",
+        ":END:",
+        "",
+        "From mail thread — capture written by mail-to-fleeting (no LLM).",
+        "Add notes below.",
+        "",
+    ]
+    body = "\n".join(body_lines)
+
+    try:
+        out = subprocess.check_output([
+            "denotecli", "create",
+            "--title", subject,
+            "--tags", ",".join(tags),
+            "--dir", PKS_FLEETING,
+            "--content", body,
+        ], text=True, timeout=10)
+    except subprocess.CalledProcessError as e:
+        fail(f"denotecli create failed: {e}")
+
+    try:
+        meta = json.loads(out)
+        print(meta.get("path", out.strip()))
+    except json.JSONDecodeError:
+        print(out.strip())
+
+
+if __name__ == "__main__":
+    main(sys.argv)
