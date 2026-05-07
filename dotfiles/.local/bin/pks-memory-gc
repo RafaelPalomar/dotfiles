@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""List auto-memory files older than N days across all project dirs.
+
+Read-only — does not delete.  The user reviews the candidate list and
+deletes manually (or via an agent skill).  This is the structural
+fallback for the planned monthly auto-memory GC trigger.
+
+Default threshold: 90 days.  Override with --days N.
+Default output: one path per line.  --verbose adds size and age.
+"""
+import argparse
+import datetime
+import os
+import sys
+
+ROOT = os.path.expanduser("~/.claude/projects")
+
+
+def find_stale(days, verbose=False):
+    if not os.path.isdir(ROOT):
+        return []
+    threshold = datetime.datetime.now().timestamp() - days * 86400
+    out = []
+    for project in sorted(os.listdir(ROOT)):
+        memdir = os.path.join(ROOT, project, "memory")
+        if not os.path.isdir(memdir):
+            continue
+        for fn in sorted(os.listdir(memdir)):
+            if fn == "MEMORY.md" or not fn.endswith(".md"):
+                continue
+            path = os.path.join(memdir, fn)
+            try:
+                st = os.stat(path)
+            except OSError:
+                continue
+            if st.st_mtime < threshold:
+                age_days = int((datetime.datetime.now().timestamp()
+                                - st.st_mtime) / 86400)
+                out.append((path, st.st_size, age_days))
+    return out
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--days", type=int, default=90,
+                   help="age threshold in days (default 90)")
+    p.add_argument("--verbose", "-v", action="store_true",
+                   help="include size and age columns")
+    args = p.parse_args()
+
+    stale = find_stale(args.days, args.verbose)
+    if not stale:
+        print(f"# no memory files older than {args.days}d", file=sys.stderr)
+        return 0
+
+    if args.verbose:
+        print(f"# {len(stale)} memory files older than {args.days}d "
+              f"(read-only — review and delete manually)")
+        for path, size, age in stale:
+            print(f"{age:>4}d  {size:>6}b  {path}")
+    else:
+        for path, _size, _age in stale:
+            print(path)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
