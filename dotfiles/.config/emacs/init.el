@@ -322,39 +322,79 @@
 (setq org-babel-latex-pdf-svg-process "pdftocairo -svg %f %o")
 
 (setq org-capture-templates
-      '(("t" "TODO workflow")
-        ("tt" "Work Todo (refile to project)" entry (file+olp "~/org/inbox.org" "Inbox")
-         "* TODO %?\nEntered on %U\n  %i\n\n")
-        ("tp" "Personal Todo" entry (file+olp "~/org/inbox-personal.org" "Inbox")
-         "* TODO %? :personal:\nEntered on %U\n  %i\n\n")
-        ("q" "Quick Capture" entry (file+olp "~/org/inbox.org" "Inbox")
-         "* TODO %?\nEntered on %U\n" :immediate-finish t)
+      '(;; Denote captures.  Target is (file denote-last-path); the body
+        ;; provider is a lambda that let-binds denote-* and calls
+        ;; `denote-org-capture' (which returns front-matter + template +
+        ;; specifiers as a string AND sets `denote-last-path' as a
+        ;; side-effect).  This is the official denote pattern from the
+        ;; manual; calling helper functions directly does NOT create
+        ;; the file because denote-org-capture only RETURNS the content
+        ;; string — the file write happens via org-capture's :no-save
+        ;; finalize chain.
+        ("t" "TODO → fleeting (denote)" plain
+         (file denote-last-path)
+         (lambda ()
+           (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
+                 (denote-use-keywords
+                  (delq nil (list "agenda" (my-mu4e--context-tag))))
+                 (denote-use-template 'fleeting-todo)
+                 (denote-org-capture-specifiers "%?"))
+             (denote-org-capture)))
+         :no-save t :jump-to-captured t :kill-buffer t)
+        ("f" "Fleeting (denote)" plain
+         (file denote-last-path)
+         (lambda ()
+           (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
+                 (denote-use-keywords '("fleeting"))
+                 (denote-use-template 'fleeting)
+                 (denote-org-capture-specifiers "%?"))
+             (denote-org-capture)))
+         :no-save t :jump-to-captured t :kill-buffer t)
+        ("l" "Literature (denote)" plain
+         (file denote-last-path)
+         (lambda ()
+           (let ((denote-directory (expand-file-name "~/pks/literature/"))
+                 (denote-use-keywords '("lit"))
+                 (denote-use-template 'literature)
+                 (denote-org-capture-specifiers "%?"))
+             (denote-org-capture)))
+         :no-save t :jump-to-captured t :kill-buffer t)
+        ("P" "New Project (denote)" plain
+         (file denote-last-path)
+         (lambda ()
+           (let ((denote-directory (expand-file-name "~/pks/projects/"))
+                 (denote-use-keywords '("project" "agenda"))
+                 (denote-use-template 'project)
+                 (denote-org-capture-specifiers "%?"))
+             (denote-org-capture)))
+         :no-save t :jump-to-captured t :kill-buffer t)
+        ("H" "Hub / MOC (denote)" plain
+         (file denote-last-path)
+         (lambda ()
+           (let ((denote-directory (expand-file-name "~/pks/reference/"))
+                 (denote-use-keywords '("moc" "hub"))
+                 (denote-use-template 'moc)
+                 (denote-org-capture-specifiers "%?"))
+             (denote-org-capture)))
+         :no-save t :jump-to-captured t :kill-buffer t)
 
-        ;; Denote captures — route into the function-based PKS silos.
-        ("f" "Fleeting (denote)"   plain (function my-pks-capture-fleeting)
-         "" :jump-to-captured t)
-        ("l" "Literature (denote)" plain (function my-pks-capture-literature)
-         "" :jump-to-captured t)
-        ("P" "New Project (denote)" plain (function my-pks-capture-project)
-         "" :jump-to-captured t)
-        ("H" "Hub / MOC (denote)"  plain (function my-pks-capture-hub)
-         "" :jump-to-captured t)
-
-        ("a" "AI-Friendly Task" entry (file+olp "~/org/inbox.org" "Inbox")
-         "* TODO %?\n:PROPERTIES:\n:AI_FRIENDLY: t\n:CONTEXT: \n:EXPECTED_OUTPUT: \n:FILES: \n:END:\n\n#+BEGIN_AI_CONTEXT\n\n#+END_AI_CONTEXT\n\n** Acceptance Criteria\n- [ ] \n")
-        ("g" "GitHub Issue" entry (file+olp "~/org/inbox.org" "GitHub")
-         "* TODO %?\n:PROPERTIES:\n:REPO: \n:ISSUE: \n:STATE: \n:GITHUB_URL: \n:LABELS: \n:END:\n\n")
-        ("n" "Meeting Note (inbox; refile to denote project)" entry
-         (file+olp "~/org/inbox.org" "Meetings")
-         "* Meeting: %?\n:PROPERTIES:\n:CREATED: %U\n:ATTENDEES: \n:END:\n\n** Agenda\n\n** Notes\n\n** Action Items\n")
+        ;; Mail workflow.  me/mf use the same denote pattern; the
+        ;; mu4e-link body (with %:subject %:fromname etc. specifiers)
+        ;; is supplied via denote-org-capture-specifiers.  ma/mw append
+        ;; a list item under the chosen project's * Log heading and
+        ;; therefore use a buffer-positioning target function.
         ("m" "Email Workflow")
-        ;; me / mf land in ~/pks/fleeting/ as denote notes (durable,
-        ;; cross-silo searchable, message-id property captured for
-        ;; later thread reference).  Keywords default to
-        ;; (\"agenda\" <context>); user confirms title via the denote
-        ;; prompt so the subject can be edited before write.
-        ("me" "Email Task → fleeting" plain (function my-mu4e-capture-mail-task)
-         "* TODO %:subject
+        ("me" "Email Task → fleeting" plain
+         (file denote-last-path)
+         (lambda ()
+           (let* ((kw (delq nil (list "agenda" (my-mu4e--context-tag))))
+                  (subj (or (plist-get org-store-link-plist :description)
+                            (plist-get org-store-link-plist :subject)
+                            "(no subject)"))
+                  (denote-directory (expand-file-name "~/pks/fleeting/"))
+                  (denote-use-keywords kw)
+                  (denote-use-title subj)
+                  (denote-org-capture-specifiers "* TODO %:subject
 :PROPERTIES:
 :FROM:    %:fromname <%:fromaddress>
 :DATE:    %:date
@@ -364,9 +404,20 @@
 [[%:link][View Email]]
 
 %?
-" :jump-to-captured t)
-        ("mf" "Follow Up → fleeting" plain (function my-mu4e-capture-mail-task)
-         "* TODO Follow up with %:fromname on [[%:link][%:subject]]
+"))
+             (denote-org-capture)))
+         :no-save t :jump-to-captured t :kill-buffer t)
+        ("mf" "Follow Up → fleeting" plain
+         (file denote-last-path)
+         (lambda ()
+           (let* ((kw (delq nil (list "agenda" (my-mu4e--context-tag))))
+                  (subj (or (plist-get org-store-link-plist :description)
+                            (plist-get org-store-link-plist :subject)
+                            "(no subject)"))
+                  (denote-directory (expand-file-name "~/pks/fleeting/"))
+                  (denote-use-keywords kw)
+                  (denote-use-title (concat "Follow up: " subj))
+                  (denote-org-capture-specifiers "* TODO Follow up with %:fromname on [[%:link][%:subject]]
 SCHEDULED: %t
 DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 :PROPERTIES:
@@ -376,17 +427,9 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 :END:
 
 %?
-" :jump-to-captured t)
-        ("mr" "Reply" entry (file+olp "~/org/inbox.org" "E-Mail")
-         "* TODO [#A] Reply to %:fromname on [[%:link][%:subject]]
-SCHEDULED: %t
-DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
-
-%i" :immediate-finish nil)
-        ;; ma / mw append a list item to a chosen project's * Log
-        ;; section.  WAITING is the literal-text marker (no org tag,
-        ;; since the entry is a list item not a heading) — searchable
-        ;; via denotecli search-content "WAITING".
+"))
+             (denote-org-capture)))
+         :no-save t :jump-to-captured t :kill-buffer t)
         ("ma" "Action Item → project Log" item
          (function my-mu4e-capture-target-project-log)
          "- %<%Y-%m-%d> :: %? — from %:fromname re %:subject [[%:link][thread]]"
@@ -394,23 +437,10 @@ DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
         ("mw" "Waiting For → project Log" item
          (function my-mu4e-capture-target-project-log)
          "- %<%Y-%m-%d> :: WAITING %? — from %:fromname re %:subject [[%:link][thread]]"
-         :immediate-finish nil)
-        ;; md and mr stay in inbox.org — pure ephemera, no denote ID.
-        ("md" "Defer Email (ephemera)" entry (file+olp "~/org/inbox.org" "E-Mail")
-         "* TODO Read: %:subject
-SCHEDULED: %(org-insert-time-stamp (org-read-date nil t \"+1d\"))
-
-[[%:link][Open Email]]
-
-From: %:fromname
-
-%i")))
+         :immediate-finish nil)))
 
 ;; Agenda files.  With the function-based PKS, projects/ notes tagged
-;; _agenda become the source of truth for active project TODOs.  The
-;; legacy ~/org/projects.org and ~/org/github-issues.org are retired
-;; from org-agenda (kept read-only for history); inbox.org stays as the
-;; single org-capture sink.
+;; _agenda are the source of truth for active project TODOs.
 (defun my-pks-projects-files ()
   "All org files under ~/pks/projects/, as a refile-targets function."
   (when (file-directory-p (expand-file-name "~/pks/projects/"))
@@ -420,10 +450,7 @@ From: %:fromname
 (setq org-agenda-files
       (delete-dups
        (append
-        '("~/org/inbox.org"
-          "~/org/inbox-personal.org"
-          "~/org/archive.org"
-          "~/org/archive-personal.org")
+        '("~/org/archive.org")
         ;; Denote notes tagged _agenda across all PKS silos.
         (when (file-directory-p (expand-file-name "~/pks/"))
           (directory-files-recursively
@@ -601,30 +628,6 @@ Deletes other windows and makes the frame floating."
   (interactive)
   (org-columns-quit))
 
-(defun my/create-project ()
-  "Create new project from template."
-  (interactive)
-  (find-file "~/org/projects.org")
-  (goto-char (point-max))
-  (insert "\n* PROJECT " (read-string "Project name: ") "\n")
-  (org-set-property "CREATED" (format-time-string "[%Y-%m-%d %a]"))
-  (org-set-property "STATUS" "active")
-  (org-set-property "PROJECT_ID" (org-id-new))
-  (insert "\n** Goals\n\n** Milestones\n\n*** TODO Backlog\n\n*** TODO In Progress\n\n*** TODO Review\n\n*** TODO Done\n\n** Notes\n\n"))
-
-(defun my/weekly-review ()
-  "Open weekly review layout."
-  (interactive)
-  (delete-other-windows)
-  (org-agenda nil "a")
-  (org-agenda-week-view)
-  (split-window-right)
-  (other-window 1)
-  (org-clock-report)
-  (split-window-below)
-  (other-window 1)
-  (find-file "~/org/weekly-review.org"))
-
 (setq org-agenda-custom-commands
       '(("d" "Dashboard"
          ((agenda "" ((org-agenda-span 'day)))
@@ -785,12 +788,12 @@ Deletes other windows and makes the frame floating."
   "pD"  '(projectile-kill-buffers :which-key "Kill project buffers")
   "pc"  '(projectile-compile-project :which-key "Compile project")
   "pC"  '(projectile-configure-project :which-key "Configure project")
-  "pk"  '(my/project-kanban :which-key "Project Kanban")
-  "pn"  '(my/create-project :which-key "New project"))
+  "pk"  '(my/project-kanban :which-key "Project Kanban"))
 
-;; Notes and weekly review
+;; PKS digests
 (my/leader-keys
-  "nw"  '(my/weekly-review :which-key "Weekly review"))
+  "nd"  '(my-pks-show-daily-review  :which-key "Daily review")
+  "nw"  '(my-pks-show-weekly-review :which-key "Weekly review"))
 
 ;; Window and buffer navigation
 (my/leader-keys
@@ -1209,10 +1212,11 @@ If no active region, use the whole buffer."
 
   :config
   ;; --- Keybindings -------------------------------------------------
+  ;; C-c c is bound globally to `pks-dispatch'; the dispatch surfaces
+  ;; the mail-capture group conditionally on mu4e context.  No local
+  ;; mu4e override needed.
   (define-key mu4e-headers-mode-map (kbd "C--") nil)
   (define-key mu4e-view-mode-map    (kbd "C--") nil)
-  (define-key mu4e-headers-mode-map (kbd "C-c c") 'mu4e-org-store-and-capture)
-  (define-key mu4e-view-mode-map    (kbd "C-c c") 'mu4e-org-store-and-capture)
   (define-key mu4e-headers-mode-map (kbd "C-c u") 'mu4e-update-mail-and-index)
   (define-key mu4e-view-mode-map    (kbd "C-c u") 'mu4e-update-mail-and-index)
 
@@ -1230,15 +1234,15 @@ If no active region, use the whole buffer."
           (:maildir "/rafael.palomar@ous-research.no/Archive" :key ?a)))
 
   ;; --- Capture helpers --------------------------------------------
+  ;; Direct fast-paths kept as adjuncts to `pks-dispatch' for high-
+  ;; frequency mail captures.  C-c c (global) → pks-dispatch covers
+  ;; the discoverable surface; these are the muscle-memory shortcuts.
   (defun my/mu4e-capture-email-task ()
     "Capture email as a quick task."
     (interactive) (org-store-link nil) (org-capture nil "me"))
   (defun my/mu4e-capture-action-item ()
     "Capture email as an action item."
     (interactive) (org-store-link nil) (org-capture nil "ma"))
-  (defun my/mu4e-capture-defer ()
-    "Defer email to read later."
-    (interactive) (org-store-link nil) (org-capture nil "md"))
   (defun my/mu4e-capture-waiting ()
     "Mark email as waiting for response."
     (interactive) (org-store-link nil) (org-capture nil "mw"))
@@ -1246,7 +1250,6 @@ If no active region, use the whole buffer."
   (dolist (map (list mu4e-headers-mode-map mu4e-view-mode-map))
     (define-key map (kbd "C-c t") 'my/mu4e-capture-email-task)
     (define-key map (kbd "C-c a") 'my/mu4e-capture-action-item)
-    (define-key map (kbd "C-c d") 'my/mu4e-capture-defer)
     (define-key map (kbd "C-c w") 'my/mu4e-capture-waiting))
 
   ;; --- Contexts (per-context From + signature + folders) ----------
@@ -1853,6 +1856,24 @@ MOCs.  Idempotent per day; same-date re-runs overwrite."
      (t
       (user-error "pks-daily-review produced no file: %s" output)))))
 
+(defun my-pks-show-weekly-review ()
+  "Run the pks-weekly-review fallback script and visit the resulting note.
+Project-level Sunday digest: stale projects (mtime >14d), stale _agenda
+notes anywhere in PKS (>14d), and stale review-queue items (>30d).
+Idempotent per day; same-date re-runs overwrite."
+  (interactive)
+  (let* ((cmd (executable-find "pks-weekly-review"))
+         (output (and cmd (string-trim
+                           (shell-command-to-string
+                            (shell-quote-argument cmd))))))
+    (cond
+     ((not cmd)
+      (user-error "pks-weekly-review not found on PATH"))
+     ((and output (file-exists-p output))
+      (find-file output))
+     (t
+      (user-error "pks-weekly-review produced no file: %s" output)))))
+
 ;; C-c n prefix keymap (Protesilaos-style).  Define BEFORE any
 ;; `with-eval-after-load' form that references it: those bodies fire
 ;; immediately if denote is already loaded.
@@ -1874,23 +1895,15 @@ MOCs.  Idempotent per day; same-date re-runs overwrite."
           (moc
            . "* Purpose\n\n* Pinned notes\n\n#+BEGIN: denote-backlinks\n#+END:\n"))))
 
-;; Silo-routing capture helpers.  `denote-org-capture' is routed to a
-;; specific silo by binding `denote-directory' around the call.
-(defun my-pks-capture-to-silo (silo keywords &optional template)
-  "Capture a denote note into SILO under ~/pks/ with KEYWORDS and TEMPLATE."
-  (let ((denote-directory (expand-file-name (concat "~/pks/" silo "/")))
-        (denote-use-keywords keywords)
-        (denote-use-template template))
-    (denote-org-capture)))
-
-(defun my-pks-capture-fleeting ()
-  (interactive) (my-pks-capture-to-silo "fleeting"   '("fleeting")           'fleeting))
-(defun my-pks-capture-literature ()
-  (interactive) (my-pks-capture-to-silo "literature" '("lit")                'literature))
-(defun my-pks-capture-project ()
-  (interactive) (my-pks-capture-to-silo "projects"   '("project" "agenda")   'project))
-(defun my-pks-capture-hub ()
-  (interactive) (my-pks-capture-to-silo "reference"  '("moc" "hub")          'moc))
+;; Silo-routing capture helpers.  Each drives an `org-capture' template
+;; whose body provider is a lambda that let-binds the silo and calls
+;; `denote-org-capture'.  Calling `denote-org-capture' directly does
+;; NOT create the file — only `org-capture' does, via :no-save +
+;; finalize.  So these are thin wrappers around the right template.
+(defun my-pks-capture-fleeting ()   (interactive) (org-capture nil "f"))
+(defun my-pks-capture-literature () (interactive) (org-capture nil "l"))
+(defun my-pks-capture-project ()    (interactive) (org-capture nil "P"))
+(defun my-pks-capture-hub ()        (interactive) (org-capture nil "H"))
 
 ;; Mail-capture targets: route mu4e thread captures into PKS instead
 ;; of inbox.org.  Email-Task / Follow-Up land in fleeting/ as denote
@@ -1904,20 +1917,6 @@ MOCs.  Idempotent per day; same-date re-runs overwrite."
                    (mu4e-context-name mu4e--context-current))))
     (cond ((equal name "OUS-Research") "ous")
           ((equal name "NTNU") "ntnu"))))
-
-(defun my-mu4e-capture-mail-task ()
-  "Org-capture target: thread → ~/pks/fleeting/ as a denote TODO note.
-Keywords default to (\"agenda\" CONTEXT-TAG); title prefills from the
-mu4e plist subject so the denote prompts confirm rather than start
-blank."
-  (let* ((kw (delq nil (list "agenda" (my-mu4e--context-tag))))
-         (subj (or (plist-get org-store-link-plist :description)
-                   (plist-get org-store-link-plist :subject)
-                   "(no subject)")))
-    (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
-          (denote-use-keywords kw)
-          (denote-use-title subj))
-      (denote-org-capture))))
 
 (defun my-mu4e-capture-target-project-log ()
   "Org-capture target: pick a project, position point under its * Log.
@@ -1989,6 +1988,7 @@ Used by the mail-derived Action Item and Waiting For workflows."
     (define-key m "f" #'my-pks-consult-find)
     (define-key m "g" #'my-pks-consult-grep)
     (define-key m "D" #'my-pks-show-daily-review)
+    (define-key m "W" #'my-pks-show-weekly-review)
     (define-key m "L" #'my-pks-capture-literature)
     (define-key m "a" #'my-denote-add-to-agenda)
     (define-key m "A" #'my-denote-remove-from-agenda)
@@ -1996,6 +1996,115 @@ Used by the mail-derived Action Item and Waiting For workflows."
     (define-key m (kbd "l l") #'denote-org-dblock-insert-links)
     (define-key m (kbd "l b") #'denote-org-dblock-insert-backlinks)
     (define-key m (kbd "l m") #'denote-org-dblock-insert-missing-links)))
+
+;; ─── Unified PKS dispatch (transient) ─────────────────────────────
+;; Single canonical menu surface for capture, digest, and search.
+;; Bound globally to C-c c.  Triggered from the OS via
+;; sxhkd super+shift+c → emacsclient with a floating "denote" frame.
+(require 'transient)
+
+(with-eval-after-load 'denote
+  (add-to-list 'denote-templates
+               '(fleeting-todo . "* TODO \n\n")
+               t))
+
+(defun my-pks-capture-todo ()
+  "Drive the `t' org-capture template (TODO → fleeting denote)."
+  (interactive)
+  (org-capture nil "t"))
+
+(defun my-pks-capture-mail-followup ()
+  "Run the `mf' org-capture template after storing the mu4e link."
+  (interactive)
+  (org-store-link nil)
+  (org-capture nil "mf"))
+
+(defun my-pks--mu4e-context-p ()
+  "Non-nil when in a mu4e headers or view buffer."
+  (or (derived-mode-p 'mu4e-headers-mode)
+      (derived-mode-p 'mu4e-view-mode)))
+
+(defun my-pks--maybe-close-denote-frame ()
+  "Delete the current frame if it was opened by sxhkd
+(`super+shift+c' or `super+shift+n').  Identified by frame name
+\"denote\" or \"org-capture\" set via `emacsclient -F'."
+  (when (member (frame-parameter nil 'name) '("denote" "org-capture"))
+    (delete-frame)))
+
+(add-hook 'org-capture-after-finalize-hook
+          #'my-pks--maybe-close-denote-frame)
+
+(defun pks-dispatch-quit ()
+  "Quit the pks-dispatch transient and close the floating frame."
+  (interactive)
+  (transient-quit-one)
+  (my-pks--maybe-close-denote-frame))
+
+(transient-define-prefix pks-dispatch ()
+  "Unified PKS capture, digest, and search menu."
+  ["PKS dispatch"
+   ["Captures"
+    ("f" "Fleeting note"      my-pks-capture-fleeting)
+    ("l" "Literature note"    my-pks-capture-literature)
+    ("P" "New project"        my-pks-capture-project)
+    ("h" "Hub / MOC"          my-pks-capture-hub)
+    ("t" "TODO → fleeting"    my-pks-capture-todo)]
+   ["Mail" :if my-pks--mu4e-context-p
+    ("e" "Email → fleeting"        my/mu4e-capture-email-task)
+    ("F" "Follow-up → fleeting"    my-pks-capture-mail-followup)
+    ("a" "Action → project Log"    my/mu4e-capture-action-item)
+    ("w" "Waiting → project Log"   my/mu4e-capture-waiting)]
+   ["Digests / search"
+    ("D" "Daily review"   my-pks-show-daily-review)
+    ("W" "Weekly review"  my-pks-show-weekly-review)
+    ("g" "Grep PKS"       my-pks-consult-grep)
+    ("/" "Find file"      my-pks-consult-find)]]
+  [("q" "Quit" pks-dispatch-quit)])
+
+(global-set-key (kbd "C-c c") #'pks-dispatch)
+
+;; OS-side polished entry point.  Creates a small, centered, undecorated
+;; floating frame and pops the dispatch inside.  The frame is named
+;; "denote" so the existing org-capture-after-finalize-hook closes it
+;; on capture finalize.  Auto-close on focus-out and ESC for non-capture
+;; actions (digests, search) where the capture hook doesn't fire.
+(defun pks-dispatch-floating ()
+  "Open a centered floating frame and run `pks-dispatch'.
+Used as the desktop entry point (sxhkd super+shift+c).  Called via
+`emacsclient -e' from a non-graphical context, so we must explicitly
+ask the X server (via $DISPLAY) to host the new frame — otherwise
+`make-frame' falls back to the daemon's controlling terminal and
+errors with \"Unknown terminal type\"."
+  (interactive)
+  (let* ((display (or (getenv "DISPLAY") ":0"))
+         ;; Generous size: small enough to feel like a popup, large
+         ;; enough that the action's flow (denote prompt, org-capture
+         ;; buffer split, etc.) has room to work.
+         (cols 100) (rows 35)
+         (frame (make-frame-on-display
+                 display
+                 `((name . "denote")
+                   (title . "PKS dispatch")
+                   (width . ,cols)
+                   (height . ,rows)
+                   (undecorated . t)
+                   (menu-bar-lines . 0)
+                   (tool-bar-lines . 0)
+                   (vertical-scroll-bars . nil)
+                   (horizontal-scroll-bars . nil)
+                   (left-fringe . 4)
+                   (right-fringe . 4)
+                   (internal-border-width . 12))))
+         (mon-w (nth 3 (assq 'geometry (frame-monitor-attributes frame))))
+         (mon-h (nth 4 (assq 'geometry (frame-monitor-attributes frame))))
+         (px-w  (frame-pixel-width frame))
+         (px-h  (frame-pixel-height frame))
+         (left  (max 0 (/ (- (or mon-w 1920) px-w) 2)))
+         (top   (max 0 (/ (- (or mon-h 1080) px-h) 3))))
+    (set-frame-position frame left top)
+    (select-frame-set-input-focus frame)
+    (with-selected-frame frame
+      (pks-dispatch))))
 
 (use-package citar
   :ensure nil

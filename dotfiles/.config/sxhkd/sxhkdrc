@@ -121,12 +121,12 @@ super + p
 super + shift + p
     rofi-rbw --action copy --target totp
 
-# Org capture
-super + c
-    /home/rafael/.local/bin/org-quick-capture.sh
-
+# PKS dispatch (unified capture / digest / search menu)
+# `pks-dispatch-floating' creates a centered, undecorated frame named
+# "denote" and pops the transient inside; org-capture-after-finalize
+# closes the frame after a capture finishes.
 super + shift + c
-    /home/rafael/.local/bin/org-capture-menu.sh
+    emacsclient -e '(pks-dispatch-floating)'
 
 # Org agenda
 super + shift + a
@@ -136,9 +136,9 @@ super + shift + a
 super + shift + e
     ~/.local/bin/dired-file-manager.sh
 
-# Denote quick note
+# Denote quick fleeting note (PKS-routed)
 super + shift + n
-    emacsclient -c -F '((name . "denote") (window-system . x))' -e '(denote-create-note)'
+    emacsclient -c -F '((name . "denote") (window-system . x))' -e '(my-pks-capture-fleeting)'
 
 # Org clock control
 super + shift + i
