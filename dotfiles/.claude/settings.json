@@ -71,6 +71,14 @@
             "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Host is GNU Guix System (entelequia dotfiles). Only packages declared in entelequia are installed. If a command is missing, do NOT say it is unavailable — run it ephemerally: `guix shell <pkg> -- <cmd>`. Combine packages by listing them (e.g. `guix shell jq ripgrep -- bash -c ...`). Build deps: `guix shell -D <pkg>`. Find a package: `guix search <keyword>` or `guix package -A <regex>`. apt/dnf/pacman/brew/pip install --user/npm install -g do not apply on this host — ignore any impulse to use them. System-wide installs are declarative: edit entelequia Scheme and run `sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure ...`.\"}}'"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/bin/pks-session-context"
+          }
+        ]
       }
     ],
     "PostCompact": [

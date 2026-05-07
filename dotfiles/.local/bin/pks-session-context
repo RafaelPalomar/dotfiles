@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""SessionStart hook: brief PKS state summary as additionalContext.
+
+Reads section counts from today's pks-daily-review note (regenerating
+it if absent), plus a separate scan of ~/pks/review-queue/ for items
+>30 days old (the daily-review skill doesn't yet scan that silo).
+Output is a single Claude Code SessionStart hook JSON object.
+
+Must fail closed — if anything goes wrong, emit empty additionalContext
+rather than blocking session start.
+"""
+import datetime
+import json
+import os
+import re
+import subprocess
+import sys
+
+PKS = os.path.expanduser("~/pks")
+TODAY = datetime.date.today()
+DAILY_FILE = os.path.join(
+    PKS, "fleeting",
+    TODAY.strftime("%Y%m%dT080000") + "--daily-review__review.org")
+
+
+def emit(ctx):
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": ctx,
+        }
+    }))
+
+
+def regenerate_daily():
+    try:
+        subprocess.check_call(
+            ["pks-daily-review"],
+            timeout=5,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL)
+        return True
+    except Exception:
+        return False
+
+
+def parse_section_counts(path):
+    counts = {}
+    try:
+        with open(path) as f:
+            for line in f:
+                m = re.match(r'^\* (.+?)\s+\((\d+)\)', line)
+                if m:
+                    counts[m.group(1).strip()] = int(m.group(2))
+    except OSError:
+        pass
+    return counts
+
+
+def review_queue_stale(days=30):
+    rq = os.path.join(PKS, "review-queue")
+    if not os.path.isdir(rq):
+        return 0
+    threshold = datetime.datetime.now().timestamp() - days * 86400
+    n = 0
+    for root, _dirs, files in os.walk(rq):
+        for fn in files:
+            if fn.endswith(".org"):
+                try:
+                    if os.path.getmtime(os.path.join(root, fn)) < threshold:
+                        n += 1
+                except OSError:
+                    continue
+    return n
+
+
+try:
+    if not os.path.exists(DAILY_FILE):
+        regenerate_daily()
+
+    counts = parse_section_counts(DAILY_FILE)
+    proj = counts.get("Active projects (_agenda)", "?")
+    fleet = counts.get("Stale fleeting (>14d)", "?")
+    mocs = counts.get("Stale MOCs (>30d mtime)", "?")
+    rq = review_queue_stale(30)
+
+    ctx = (f"PKS state: {proj} active _agenda projects · "
+           f"{fleet} stale fleeting (>14d) · "
+           f"{mocs} stale MOCs (>30d) · "
+           f"{rq} review-queue items >30d. "
+           f"`C-c n D` in Emacs for full digest.")
+    emit(ctx)
+except Exception:
+    emit("")
+    sys.exit(0)
