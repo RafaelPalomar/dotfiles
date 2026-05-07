@@ -2171,6 +2171,12 @@ See `my-denote-add-to-agenda'.")
   :config
   (consult-denote-mode 1))
 
+;; Forward-declare consult-project-function as dynamic so our let-binds
+;; below don't get treated as lexical in this lexical-binding-on file
+;; before consult.el's defcustom has fired.  Without this, byte-compile
+;; / first eval warns "defining as dynamic and already lexical var".
+(defvar consult-project-function)
+
 ;; Rescope read-side denote/consult-denote commands to ~/pks/ when
 ;; the buffer or denote-directory is already under PKS, so M-x and
 ;; embark calls reach every silo without the my-pks-* wrappers.
@@ -2201,26 +2207,25 @@ See `my-denote-add-to-agenda'.")
   (advice-add 'consult-denote-find :around #'my-denote-rescope-pks-read)
   (advice-add 'consult-denote-grep :around #'my-denote-rescope-pks-read))
 
-;; consult-grep / consult-find consult `consult-project-function' first,
-;; and projectile sees ~/ as a project root — so without nil-ing the
-;; project function and rebinding default-directory, the consult-denote
-;; commands silently search ~/ instead of ~/pks/ (zero hits because
-;; ~/pks/ is the only place .org notes live).
+;; Skip consult-denote-grep / consult-denote-find and call consult-grep
+;; / consult-find directly — they accept a DIR string as their first
+;; argument and use it verbatim when consult-project-function is nil.
+;; Routing through consult-denote-* added a layer where projectile
+;; reasserted ~/ as the project root before our default-directory
+;; binding could win.
 (defun my-pks-consult-find ()
-  "`consult-denote-find' scoped to the whole PKS tree."
+  "consult-find scoped to the whole PKS tree."
   (interactive)
-  (let ((denote-directory (expand-file-name "~/pks/"))
-        (default-directory (expand-file-name "~/pks/"))
+  (let ((default-directory (expand-file-name "~/pks/"))
         (consult-project-function nil))
-    (call-interactively #'consult-denote-find)))
+    (consult-find (expand-file-name "~/pks/"))))
 
 (defun my-pks-consult-grep ()
-  "`consult-denote-grep' scoped to the whole PKS tree."
+  "consult-grep scoped to the whole PKS tree."
   (interactive)
-  (let ((denote-directory (expand-file-name "~/pks/"))
-        (default-directory (expand-file-name "~/pks/"))
+  (let ((default-directory (expand-file-name "~/pks/"))
         (consult-project-function nil))
-    (call-interactively #'consult-denote-grep)))
+    (consult-grep (expand-file-name "~/pks/"))))
 
 (defun my-pks-show-daily-review ()
   "Run the pks-daily-review fallback script and visit the resulting note.
