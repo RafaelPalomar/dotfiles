@@ -9,12 +9,6 @@ Three-section project-level digest for Sunday evening. Complements
 `pks-daily-review` (which is note-level). Read-only — proposes, never
 acts.
 
-Items are grouped by **scope** — work, personal, or general — based
-on whether the note's path contains a `/work/` or `/personal/`
-segment. Notes at the top level of a silo are "general" (the legacy
-uncategorised pool). The shell fallback accepts
-`--scope work|personal|general|all` (default `all`).
-
 ## When to use
 
 - Cron-driven invocation Sunday 19:00 (set up via CronCreate).

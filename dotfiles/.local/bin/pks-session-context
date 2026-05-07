@@ -2,9 +2,7 @@
 """SessionStart hook: brief PKS state summary as additionalContext.
 
 Reads section counts from today's pks-daily-review note (regenerating
-it if absent).  Surfaces per-scope counts (work / personal / general)
-in compact form so a work-context user can see at a glance which
-backlog noise belongs to them and which doesn't.
+it if absent).
 
 Must fail closed — if anything goes wrong, emit empty additionalContext
 rather than blocking session start.
@@ -22,10 +20,7 @@ DAILY_FILE = os.path.join(
     PKS, "fleeting",
     TODAY.strftime("%Y%m%dT080000") + "--daily-review__review.org")
 
-SECTION_RE = re.compile(
-    r'^\* (.+?)\s+—\s*'
-    r'(?:work:\s*(\d+)\s*/\s*personal:\s*(\d+)\s*/\s*general:\s*(\d+)\s*/\s*)?'
-    r'total:\s*(\d+)')
+SECTION_RE = re.compile(r'^\* (.+?)\s+—\s*total:\s*(\d+)')
 
 
 def emit(ctx):
@@ -51,8 +46,7 @@ def regenerate_daily():
 
 def parse_sections(path):
     """Parse the daily-review file's section headers.
-    Returns a dict: section_name -> dict(work, personal, general, total).
-    Missing scope counts (older note format) are None.
+    Returns a dict: section_name -> total count.
     """
     sections = {}
     try:
@@ -60,28 +54,10 @@ def parse_sections(path):
             for line in f:
                 m = SECTION_RE.match(line)
                 if m:
-                    name = m.group(1).strip()
-                    sections[name] = {
-                        "work": int(m.group(2)) if m.group(2) else None,
-                        "personal": int(m.group(3)) if m.group(3) else None,
-                        "general": int(m.group(4)) if m.group(4) else None,
-                        "total": int(m.group(5)),
-                    }
+                    sections[m.group(1).strip()] = int(m.group(2))
     except OSError:
         pass
     return sections
-
-
-def fmt_section(s):
-    """Compact rendering: '2 (2w/0p/0g)' or '0' when zero or scopes absent."""
-    if s is None:
-        return "?"
-    total = s["total"]
-    if total == 0:
-        return "0"
-    if s["work"] is None:
-        return str(total)
-    return f"{total} ({s['work']}w/{s['personal']}p/{s['general']}g)"
 
 
 try:
@@ -89,17 +65,16 @@ try:
         regenerate_daily()
 
     s = parse_sections(DAILY_FILE)
-    proj = fmt_section(s.get("Active projects (_agenda)"))
-    fleet = fmt_section(s.get("Stale fleeting (>14d)"))
-    mocs = fmt_section(s.get("Stale MOCs (>30d mtime)"))
-    rq = fmt_section(s.get("Stale review-queue (>30d mtime)"))
+    proj = s.get("Active projects (_agenda)", 0)
+    fleet = s.get("Stale fleeting (>14d)", 0)
+    mocs = s.get("Stale MOCs (>30d mtime)", 0)
+    rq = s.get("Stale review-queue (>30d mtime)", 0)
 
     ctx = (f"PKS state: {proj} active _agenda projects · "
            f"{fleet} stale fleeting (>14d) · "
            f"{mocs} stale MOCs (>30d) · "
            f"{rq} review-queue items >30d. "
-           f"`C-c n D` in Emacs for full digest. "
-           f"Scope tags: w=work, p=personal, g=general (uncategorized).")
+           f"`C-c n D` in Emacs for full digest.")
     emit(ctx)
 except Exception:
     emit("")
