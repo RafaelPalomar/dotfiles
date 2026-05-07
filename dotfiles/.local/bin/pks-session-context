@@ -82,7 +82,12 @@ try:
     proj = counts.get("Active projects (_agenda)", "?")
     fleet = counts.get("Stale fleeting (>14d)", "?")
     mocs = counts.get("Stale MOCs (>30d mtime)", "?")
-    rq = review_queue_stale(30)
+    rq = counts.get("Stale review-queue (>30d mtime)")
+    if rq is None:
+        # Daily-review note didn't include the section (older format
+        # or not yet regenerated post-fix-7). Fall back to standalone
+        # scan so the SessionStart line still has all four counts.
+        rq = review_queue_stale(30)
 
     ctx = (f"PKS state: {proj} active _agenda projects · "
            f"{fleet} stale fleeting (>14d) · "

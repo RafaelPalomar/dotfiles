@@ -2,11 +2,13 @@
 """Non-LLM fallback for the pks-daily-review skill.
 
 Produces a structural digest of the PKS state and writes it as a
-denote-named org file under ~/pks/fleeting/.  Three sections:
+denote-named org file under ~/pks/fleeting/.  Four sections:
 
   1. Stale fleeting notes (denote date >14 days old)
   2. Active project notes (tagged _agenda)
   3. Stale MOCs (mtime >30 days)
+  4. Stale review-queue items (mtime >30 days, recurses into
+     personal/ and work/ subdirectories)
 
 Idempotent per day: re-running overwrites the same-day note.
 """
@@ -63,9 +65,20 @@ for n in mocs:
         stale_mocs.append((n, age))
 stale_mocs.sort(key=lambda x: x[1], reverse=True)
 
+# Section 4: stale review-queue items (mtime >30d, recurses into
+# personal/ and work/ subdirs since the silo is not flat).
+review_queue = denotecli("search", "", "--dirs",
+                         os.path.join(PKS, "review-queue"))
+stale_review = []
+for n in review_queue:
+    age = days_since_mtime(n["path"])
+    if age is not None and age > 30:
+        stale_review.append((n, age))
+stale_review.sort(key=lambda x: x[1], reverse=True)
+
 
 def fmt_link(n):
-    tags = " ".join(f"_{t}" for t in n.get("tags", []))
+    tags = " ".join(f"_{t}" for t in (n.get("tags") or []))
     return f"[[denote:{n['id']}][{n['title']}]]  {tags}".rstrip()
 
 
@@ -97,6 +110,12 @@ lines += ["", f"* Stale MOCs (>30d mtime)  ({len(stale_mocs)})"]
 if not stale_mocs:
     lines.append("- None")
 for n, age in stale_mocs:
+    lines.append(f"- {age:>3}d  {fmt_link(n)}")
+
+lines += ["", f"* Stale review-queue (>30d mtime)  ({len(stale_review)})"]
+if not stale_review:
+    lines.append("- None")
+for n, age in stale_review:
     lines.append(f"- {age:>3}d  {fmt_link(n)}")
 
 lines.append("")
