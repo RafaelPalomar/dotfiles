@@ -322,63 +322,7 @@
 (setq org-babel-latex-pdf-svg-process "pdftocairo -svg %f %o")
 
 (setq org-capture-templates
-      '(;; Denote captures.  Target is (file denote-last-path); the body
-        ;; provider is a lambda that let-binds denote-* and calls
-        ;; `denote-org-capture' (which returns front-matter + template +
-        ;; specifiers as a string AND sets `denote-last-path' as a
-        ;; side-effect).  This is the official denote pattern from the
-        ;; manual; calling helper functions directly does NOT create
-        ;; the file because denote-org-capture only RETURNS the content
-        ;; string — the file write happens via org-capture's :no-save
-        ;; finalize chain.
-        ("t" "TODO → fleeting (denote)" plain
-         (file denote-last-path)
-         (lambda ()
-           (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
-                 (denote-use-keywords
-                  (delq nil (list "agenda" (my-mu4e--context-tag))))
-                 (denote-use-template 'fleeting-todo)
-                 (denote-org-capture-specifiers "%?"))
-             (denote-org-capture)))
-         :no-save t :jump-to-captured t :kill-buffer t)
-        ("f" "Fleeting (denote)" plain
-         (file denote-last-path)
-         (lambda ()
-           (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
-                 (denote-use-keywords '("fleeting"))
-                 (denote-use-template 'fleeting)
-                 (denote-org-capture-specifiers "%?"))
-             (denote-org-capture)))
-         :no-save t :jump-to-captured t :kill-buffer t)
-        ("l" "Literature (denote)" plain
-         (file denote-last-path)
-         (lambda ()
-           (let ((denote-directory (expand-file-name "~/pks/literature/"))
-                 (denote-use-keywords '("lit"))
-                 (denote-use-template 'literature)
-                 (denote-org-capture-specifiers "%?"))
-             (denote-org-capture)))
-         :no-save t :jump-to-captured t :kill-buffer t)
-        ("P" "New Project (denote)" plain
-         (file denote-last-path)
-         (lambda ()
-           (let ((denote-directory (expand-file-name "~/pks/projects/"))
-                 (denote-use-keywords '("project" "agenda"))
-                 (denote-use-template 'project)
-                 (denote-org-capture-specifiers "%?"))
-             (denote-org-capture)))
-         :no-save t :jump-to-captured t :kill-buffer t)
-        ("H" "Hub / MOC (denote)" plain
-         (file denote-last-path)
-         (lambda ()
-           (let ((denote-directory (expand-file-name "~/pks/reference/"))
-                 (denote-use-keywords '("moc" "hub"))
-                 (denote-use-template 'moc)
-                 (denote-org-capture-specifiers "%?"))
-             (denote-org-capture)))
-         :no-save t :jump-to-captured t :kill-buffer t)
-
-        ;; Mail workflow.  me/mf use the same denote pattern; the
+      '(;; Mail workflow.  me/mf use the denote pattern; the
         ;; mu4e-link body (with %:subject %:fromname etc. specifiers)
         ;; is supplied via denote-org-capture-specifiers.  ma/mw append
         ;; a list item under the chosen project's * Log heading and
@@ -1658,7 +1602,36 @@ See `my-denote-add-to-agenda'.")
         (dolist (f (directory-files-recursively
                     (expand-file-name silo) "_agenda.*\\.org\\'"))
           (add-to-list 'org-agenda-files f)))))
-  (add-hook 'after-init-hook #'my-denote-refresh-agenda))
+  (add-hook 'after-init-hook #'my-denote-refresh-agenda)
+
+  ;; Rescope advice for cross-silo link-following.
+  ;; `denote-link-ol-follow' resolves [[denote:ID]] via `denote-get-path-by-id',
+  ;; which scans `denote-directory' recursively.  With denote-directory pinned
+  ;; to ~/pks/fleeting/, cross-silo links (permanent/, literature/, projects/,
+  ;; reference/) fail with "Cannot open ID of unknown link type".  Widen
+  ;; denote-directory to ~/pks/ when following from a PKS buffer.
+  ;;
+  ;; Defined here in denote's :config (not denote-org's, which is lazy via
+  ;; :commands) so the advice installs eagerly at startup — otherwise the
+  ;; first link-follow attempt happens before denote-org loads, and the
+  ;; advice is never wired.
+  ;;
+  ;; ~/pks/ is a symlink into ~/Nextcloud/PKS/; resolve both sides to their
+  ;; true names before comparing, otherwise file-truename on the buffer path
+  ;; yields the Nextcloud path and the prefix match fails.
+  (defun my-denote-rescope-link-follow (orig-fun &rest args)
+    "Around-advice on `denote-link-ol-follow' to widen `denote-directory'
+to the PKS root when called from a buffer inside ~/pks/."
+    (let* ((file (buffer-file-name))
+           (pks-link (expand-file-name "~/pks/"))
+           (pks-real (file-truename pks-link))
+           (inside-pks (and file
+                            (let ((true (file-truename file)))
+                              (or (string-prefix-p pks-link true)
+                                  (string-prefix-p pks-real true)))))
+           (denote-directory (if inside-pks pks-link denote-directory)))
+      (apply orig-fun args)))
+  (advice-add 'denote-link-ol-follow :around #'my-denote-rescope-link-follow))
 
 (use-package denote-silo
   :ensure nil
@@ -1689,13 +1662,15 @@ See `my-denote-add-to-agenda'.")
   ;; Denote-org's dblocks scan `denote-directory', which in this setup is
   ;; ~/pks/fleeting/ (the default capture silo).  Hub / MOC notes live in
   ;; reference/ and want to see links across ALL silos, so rescope the
-  ;; dblock update to the PKS root.  Advice applies only when the buffer
-  ;; is under ~/pks/ so it stays neutral for other denote trees.
+  ;; dblock update to the PKS root.  ~/pks/ is a symlink into
+  ;; ~/Nextcloud/PKS/; resolve both sides to their true names before
+  ;; comparing, otherwise file-truename on the buffer path yields the
+  ;; Nextcloud path and the prefix match fails.
+  ;;
+  ;; (The sibling `my-denote-rescope-link-follow' lives in denote's :config
+  ;; so it installs eagerly — link-following must work before any dblock
+  ;; command first triggers denote-org's load.)
   (defun my-denote-rescope-dblock-update (orig-fun &rest args)
-    ;; ~/pks/ is a symlink into ~/Nextcloud/PKS/; resolve both sides to
-    ;; their true names before comparing, otherwise file-truename on
-    ;; the buffer path yields the Nextcloud path and the prefix match
-    ;; fails.
     (let* ((file (buffer-file-name))
            (pks-link (expand-file-name "~/pks/"))
            (pks-real (file-truename pks-link))
@@ -1706,24 +1681,7 @@ See `my-denote-add-to-agenda'.")
            (denote-directory (if inside-pks pks-link denote-directory)))
       (apply orig-fun args)))
   (advice-add 'org-update-dblock     :around #'my-denote-rescope-dblock-update)
-  (advice-add 'org-update-all-dblocks :around #'my-denote-rescope-dblock-update)
-
-  ;; Same rescoping applies to link following: `denote-link-ol-follow'
-  ;; resolves [[denote:ID]] via `denote-get-path-by-id', which scans
-  ;; `denote-directory' recursively.  With denote-directory pinned to
-  ;; ~/pks/fleeting/, cross-silo links (permanent/, literature/, etc.)
-  ;; fail silently.  Widen to ~/pks/ when following from a PKS buffer.
-  (defun my-denote-rescope-link-follow (orig-fun &rest args)
-    (let* ((file (buffer-file-name))
-           (pks-link (expand-file-name "~/pks/"))
-           (pks-real (file-truename pks-link))
-           (inside-pks (and file
-                            (let ((true (file-truename file)))
-                              (or (string-prefix-p pks-link true)
-                                  (string-prefix-p pks-real true)))))
-           (denote-directory (if inside-pks pks-link denote-directory)))
-      (apply orig-fun args)))
-  (advice-add 'denote-link-ol-follow :around #'my-denote-rescope-link-follow))
+  (advice-add 'org-update-all-dblocks :around #'my-denote-rescope-dblock-update))
 
 ;; consult-denote: Vertico/Marginalia-style fuzzy search + grep across
 ;; the PKS corpus with live preview.  Scoped globally to ~/pks/ so one
@@ -1895,15 +1853,44 @@ Idempotent per day; same-date re-runs overwrite."
           (moc
            . "* Purpose\n\n* Pinned notes\n\n#+BEGIN: denote-backlinks\n#+END:\n"))))
 
-;; Silo-routing capture helpers.  Each drives an `org-capture' template
-;; whose body provider is a lambda that let-binds the silo and calls
-;; `denote-org-capture'.  Calling `denote-org-capture' directly does
-;; NOT create the file — only `org-capture' does, via :no-save +
-;; finalize.  So these are thin wrappers around the right template.
-(defun my-pks-capture-fleeting ()   (interactive) (org-capture nil "f"))
-(defun my-pks-capture-literature () (interactive) (org-capture nil "l"))
-(defun my-pks-capture-project ()    (interactive) (org-capture nil "P"))
-(defun my-pks-capture-hub ()        (interactive) (org-capture nil "H"))
+;; Silo-routing capture helpers.  Each let-binds `denote-directory'
+;; to the target silo plus the matching denote-use-keywords/template,
+;; then invokes the standard `denote' command.  This is the
+;; "convenience commands for note creation" pattern from the denote
+;; manual (section 5.1).  `denote' opens a buffer for the new note;
+;; the user fills in the body and `C-x C-s' to save (or relies on
+;; `denote-save-buffers' = t — currently nil).
+(defun my-pks-capture-fleeting ()
+  "Create a denote fleeting note in ~/pks/fleeting/."
+  (interactive)
+  (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
+        (denote-use-keywords '("fleeting"))
+        (denote-use-template 'fleeting))
+    (denote)))
+
+(defun my-pks-capture-literature ()
+  "Create a denote literature note in ~/pks/literature/."
+  (interactive)
+  (let ((denote-directory (expand-file-name "~/pks/literature/"))
+        (denote-use-keywords '("lit"))
+        (denote-use-template 'literature))
+    (denote)))
+
+(defun my-pks-capture-project ()
+  "Create a denote project note in ~/pks/projects/."
+  (interactive)
+  (let ((denote-directory (expand-file-name "~/pks/projects/"))
+        (denote-use-keywords '("project" "agenda"))
+        (denote-use-template 'project))
+    (denote)))
+
+(defun my-pks-capture-hub ()
+  "Create a denote hub/MOC note in ~/pks/reference/."
+  (interactive)
+  (let ((denote-directory (expand-file-name "~/pks/reference/"))
+        (denote-use-keywords '("moc" "hub"))
+        (denote-use-template 'moc))
+    (denote)))
 
 ;; Mail-capture targets: route mu4e thread captures into PKS instead
 ;; of inbox.org.  Email-Task / Follow-Up land in fleeting/ as denote
@@ -2006,12 +1993,31 @@ Used by the mail-derived Action Item and Waiting For workflows."
 (with-eval-after-load 'denote
   (add-to-list 'denote-templates
                '(fleeting-todo . "* TODO \n\n")
+               t)
+  (add-to-list 'denote-templates
+               '(meeting . "* Attendees\n\n* Agenda\n\n* Notes\n\n* Action items\n  - [ ] \n")
                t))
 
 (defun my-pks-capture-todo ()
-  "Drive the `t' org-capture template (TODO → fleeting denote)."
+  "Create a denote TODO note in ~/pks/fleeting/.
+Keywords are (\"agenda\" CONTEXT-TAG?); template is `fleeting-todo'
+which inserts a top-level TODO heading after the front matter."
   (interactive)
-  (org-capture nil "t"))
+  (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
+        (denote-use-keywords (delq nil (list "agenda" (my-mu4e--context-tag))))
+        (denote-use-template 'fleeting-todo))
+    (denote)))
+
+(defun my-pks-capture-meeting ()
+  "Create a denote meeting note in ~/pks/fleeting/.
+Keywords are (\"meeting\" CONTEXT-TAG?); template seeds Attendees /
+Agenda / Notes / Action items sections.  Promote to permanent or
+extract action items to a project Log later."
+  (interactive)
+  (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
+        (denote-use-keywords (delq nil (list "meeting" (my-mu4e--context-tag))))
+        (denote-use-template 'meeting))
+    (denote)))
 
 (defun my-pks-capture-mail-followup ()
   "Run the `mf' org-capture template after storing the mu4e link."
@@ -2048,7 +2054,8 @@ Used by the mail-derived Action Item and Waiting For workflows."
     ("l" "Literature note"    my-pks-capture-literature)
     ("P" "New project"        my-pks-capture-project)
     ("h" "Hub / MOC"          my-pks-capture-hub)
-    ("t" "TODO → fleeting"    my-pks-capture-todo)]
+    ("t" "TODO → fleeting"    my-pks-capture-todo)
+    ("M" "Meeting note"       my-pks-capture-meeting)]
    ["Mail" :if my-pks--mu4e-context-p
     ("e" "Email → fleeting"        my/mu4e-capture-email-task)
     ("F" "Follow-up → fleeting"    my-pks-capture-mail-followup)
@@ -2103,7 +2110,20 @@ errors with \"Unknown terminal type\"."
          (top   (max 0 (/ (- (or mon-h 1080) px-h) 3))))
     (set-frame-position frame left top)
     (select-frame-set-input-focus frame)
+    ;; Show a dedicated empty buffer so the floating frame doesn't
+    ;; reveal whatever note happened to be current in the daemon.
     (with-selected-frame frame
+      (switch-to-buffer (get-buffer-create "*pks-dispatch*"))
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert "\n  PKS dispatch\n"
+                "  ───────────────────────────\n\n"
+                "  Captures · Mail · Digests / search\n\n"
+                "  q to quit"))
+      (setq mode-line-format nil
+            cursor-type nil
+            buffer-read-only t)
+      (goto-char (point-min))
       (pks-dispatch))))
 
 (use-package citar

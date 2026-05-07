@@ -2425,6 +2425,9 @@ Used by the mail-derived Action Item and Waiting For workflows."
 (with-eval-after-load 'denote
   (add-to-list 'denote-templates
                '(fleeting-todo . "* TODO \n\n")
+               t)
+  (add-to-list 'denote-templates
+               '(meeting . "* Attendees\n\n* Agenda\n\n* Notes\n\n* Action items\n  - [ ] \n")
                t))
 
 (defun my-pks-capture-todo ()
@@ -2435,6 +2438,17 @@ which inserts a top-level TODO heading after the front matter."
   (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
         (denote-use-keywords (delq nil (list "agenda" (my-mu4e--context-tag))))
         (denote-use-template 'fleeting-todo))
+    (denote)))
+
+(defun my-pks-capture-meeting ()
+  "Create a denote meeting note in ~/pks/fleeting/.
+Keywords are (\"meeting\" CONTEXT-TAG?); template seeds Attendees /
+Agenda / Notes / Action items sections.  Promote to permanent or
+extract action items to a project Log later."
+  (interactive)
+  (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
+        (denote-use-keywords (delq nil (list "meeting" (my-mu4e--context-tag))))
+        (denote-use-template 'meeting))
     (denote)))
 
 (defun my-pks-capture-mail-followup ()
@@ -2472,7 +2486,8 @@ which inserts a top-level TODO heading after the front matter."
     ("l" "Literature note"    my-pks-capture-literature)
     ("P" "New project"        my-pks-capture-project)
     ("h" "Hub / MOC"          my-pks-capture-hub)
-    ("t" "TODO → fleeting"    my-pks-capture-todo)]
+    ("t" "TODO → fleeting"    my-pks-capture-todo)
+    ("M" "Meeting note"       my-pks-capture-meeting)]
    ["Mail" :if my-pks--mu4e-context-p
     ("e" "Email → fleeting"        my/mu4e-capture-email-task)
     ("F" "Follow-up → fleeting"    my-pks-capture-mail-followup)
