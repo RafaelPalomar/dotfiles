@@ -348,55 +348,61 @@
          (file+olp "~/org/inbox.org" "Meetings")
          "* Meeting: %?\n:PROPERTIES:\n:CREATED: %U\n:ATTENDEES: \n:END:\n\n** Agenda\n\n** Notes\n\n** Action Items\n")
         ("m" "Email Workflow")
-        ("me" "Email Task" entry (file+olp "~/org/inbox.org" "E-Mail")
+        ;; me / mf land in ~/pks/fleeting/ as denote notes (durable,
+        ;; cross-silo searchable, message-id property captured for
+        ;; later thread reference).  Keywords default to
+        ;; (\"agenda\" <context>); user confirms title via the denote
+        ;; prompt so the subject can be edited before write.
+        ("me" "Email Task → fleeting" plain (function my-mu4e-capture-mail-task)
          "* TODO %:subject
 :PROPERTIES:
-:FROM: %:fromname <%:fromaddress>
-:DATE: %:date
+:FROM:    %:fromname <%:fromaddress>
+:DATE:    %:date
+:MSG-ID:  %:message-id
 :END:
 
 [[%:link][View Email]]
 
-%i")
-        ("mf" "Follow Up" entry (file+olp "~/org/inbox.org" "E-Mail")
+%?
+" :jump-to-captured t)
+        ("mf" "Follow Up → fleeting" plain (function my-mu4e-capture-mail-task)
          "* TODO Follow up with %:fromname on [[%:link][%:subject]]
 SCHEDULED: %t
 DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
+:PROPERTIES:
+:FROM:    %:fromname <%:fromaddress>
+:DATE:    %:date
+:MSG-ID:  %:message-id
+:END:
 
-%i" :immediate-finish nil)
+%?
+" :jump-to-captured t)
         ("mr" "Reply" entry (file+olp "~/org/inbox.org" "E-Mail")
          "* TODO [#A] Reply to %:fromname on [[%:link][%:subject]]
 SCHEDULED: %t
 DEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))
 
 %i" :immediate-finish nil)
-        ("ma" "Action Item" entry (file+olp "~/org/inbox.org" "E-Mail")
-         "* TODO [#B] %?
-:PROPERTIES:
-:EMAIL: [[%:link][%:subject]]
-:FROM: %:fromname
-:DATE: %:date
-:END:
-
-Context:
-%i")
-        ("md" "Defer Email" entry (file+olp "~/org/inbox.org" "E-Mail")
+        ;; ma / mw append a list item to a chosen project's * Log
+        ;; section.  WAITING is the literal-text marker (no org tag,
+        ;; since the entry is a list item not a heading) — searchable
+        ;; via denotecli search-content "WAITING".
+        ("ma" "Action Item → project Log" item
+         (function my-mu4e-capture-target-project-log)
+         "- %<%Y-%m-%d> :: %? — from %:fromname re %:subject [[%:link][thread]]"
+         :immediate-finish nil)
+        ("mw" "Waiting For → project Log" item
+         (function my-mu4e-capture-target-project-log)
+         "- %<%Y-%m-%d> :: WAITING %? — from %:fromname re %:subject [[%:link][thread]]"
+         :immediate-finish nil)
+        ;; md and mr stay in inbox.org — pure ephemera, no denote ID.
+        ("md" "Defer Email (ephemera)" entry (file+olp "~/org/inbox.org" "E-Mail")
          "* TODO Read: %:subject
 SCHEDULED: %(org-insert-time-stamp (org-read-date nil t \"+1d\"))
 
 [[%:link][Open Email]]
 
 From: %:fromname
-
-%i")
-        ("mw" "Waiting For" entry (file+olp "~/org/inbox.org" "E-Mail")
-         "* WAITING %:subject
-:PROPERTIES:
-:FROM: %:fromname
-:EMAIL: [[%:link][View Email]]
-:END:
-
-Waiting for response from %:fromname
 
 %i")))
 
@@ -1818,6 +1824,53 @@ MOCs.  Idempotent per day; same-date re-runs overwrite."
   (interactive) (my-pks-capture-to-silo "projects"   '("project" "agenda")   'project))
 (defun my-pks-capture-hub ()
   (interactive) (my-pks-capture-to-silo "reference"  '("moc" "hub")          'moc))
+
+;; Mail-capture targets: route mu4e thread captures into PKS instead
+;; of inbox.org.  Email-Task / Follow-Up land in fleeting/ as denote
+;; notes carrying the message-id property (so the thread can be
+;; cross-referenced later); the closed-vocabulary tag is derived from
+;; the active mu4e context (ous / ntnu).
+(defun my-mu4e--context-tag ()
+  "Closed-vocabulary keyword for the current mu4e context, or nil."
+  (let ((name (and (boundp 'mu4e--context-current)
+                   mu4e--context-current
+                   (mu4e-context-name mu4e--context-current))))
+    (cond ((equal name "OUS-Research") "ous")
+          ((equal name "NTNU") "ntnu"))))
+
+(defun my-mu4e-capture-mail-task ()
+  "Org-capture target: thread → ~/pks/fleeting/ as a denote TODO note.
+Keywords default to (\"agenda\" CONTEXT-TAG); title prefills from the
+mu4e plist subject so the denote prompts confirm rather than start
+blank."
+  (let* ((kw (delq nil (list "agenda" (my-mu4e--context-tag))))
+         (subj (or (plist-get org-store-link-plist :description)
+                   (plist-get org-store-link-plist :subject)
+                   "(no subject)")))
+    (let ((denote-directory (expand-file-name "~/pks/fleeting/"))
+          (denote-use-keywords kw)
+          (denote-use-title subj))
+      (denote-org-capture))))
+
+(defun my-mu4e-capture-target-project-log ()
+  "Org-capture target: pick a project, position point under its * Log.
+Prompts via `completing-read' against ~/pks/projects/*.org filenames
+and jumps point to the line following the first `* Log' heading.
+Used by the mail-derived Action Item and Waiting For workflows."
+  (let* ((projects-dir (expand-file-name "~/pks/projects/"))
+         (project-files
+          (directory-files-recursively projects-dir "\\.org\\'"))
+         (file-alist
+          (mapcar (lambda (f) (cons (file-name-base f) f)) project-files))
+         (choice (completing-read "Project: " file-alist nil t))
+         (path (cdr (assoc choice file-alist))))
+    (find-file path)
+    (goto-char (point-min))
+    (unless (re-search-forward "^\\* Log\\b" nil t)
+      (user-error "No `* Log' heading in %s" path))
+    (forward-line 1)
+    (while (looking-at-p "^[[:space:]]*$")
+      (forward-line 1))))
 
 (defun my-pks-find-project (query)
   "Jump to a projects/ note whose filename contains QUERY."
