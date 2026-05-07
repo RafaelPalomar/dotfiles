@@ -2,9 +2,9 @@
 """SessionStart hook: brief PKS state summary as additionalContext.
 
 Reads section counts from today's pks-daily-review note (regenerating
-it if absent), plus a separate scan of ~/pks/review-queue/ for items
->30 days old (the daily-review skill doesn't yet scan that silo).
-Output is a single Claude Code SessionStart hook JSON object.
+it if absent).  Surfaces per-scope counts (work / personal / general)
+in compact form so a work-context user can see at a glance which
+backlog noise belongs to them and which doesn't.
 
 Must fail closed — if anything goes wrong, emit empty additionalContext
 rather than blocking session start.
@@ -21,6 +21,11 @@ TODAY = datetime.date.today()
 DAILY_FILE = os.path.join(
     PKS, "fleeting",
     TODAY.strftime("%Y%m%dT080000") + "--daily-review__review.org")
+
+SECTION_RE = re.compile(
+    r'^\* (.+?)\s+—\s*'
+    r'(?:work:\s*(\d+)\s*/\s*personal:\s*(\d+)\s*/\s*general:\s*(\d+)\s*/\s*)?'
+    r'total:\s*(\d+)')
 
 
 def emit(ctx):
@@ -44,56 +49,57 @@ def regenerate_daily():
         return False
 
 
-def parse_section_counts(path):
-    counts = {}
+def parse_sections(path):
+    """Parse the daily-review file's section headers.
+    Returns a dict: section_name -> dict(work, personal, general, total).
+    Missing scope counts (older note format) are None.
+    """
+    sections = {}
     try:
         with open(path) as f:
             for line in f:
-                m = re.match(r'^\* (.+?)\s+\((\d+)\)', line)
+                m = SECTION_RE.match(line)
                 if m:
-                    counts[m.group(1).strip()] = int(m.group(2))
+                    name = m.group(1).strip()
+                    sections[name] = {
+                        "work": int(m.group(2)) if m.group(2) else None,
+                        "personal": int(m.group(3)) if m.group(3) else None,
+                        "general": int(m.group(4)) if m.group(4) else None,
+                        "total": int(m.group(5)),
+                    }
     except OSError:
         pass
-    return counts
+    return sections
 
 
-def review_queue_stale(days=30):
-    rq = os.path.join(PKS, "review-queue")
-    if not os.path.isdir(rq):
-        return 0
-    threshold = datetime.datetime.now().timestamp() - days * 86400
-    n = 0
-    for root, _dirs, files in os.walk(rq):
-        for fn in files:
-            if fn.endswith(".org"):
-                try:
-                    if os.path.getmtime(os.path.join(root, fn)) < threshold:
-                        n += 1
-                except OSError:
-                    continue
-    return n
+def fmt_section(s):
+    """Compact rendering: '2 (2w/0p/0g)' or '0' when zero or scopes absent."""
+    if s is None:
+        return "?"
+    total = s["total"]
+    if total == 0:
+        return "0"
+    if s["work"] is None:
+        return str(total)
+    return f"{total} ({s['work']}w/{s['personal']}p/{s['general']}g)"
 
 
 try:
     if not os.path.exists(DAILY_FILE):
         regenerate_daily()
 
-    counts = parse_section_counts(DAILY_FILE)
-    proj = counts.get("Active projects (_agenda)", "?")
-    fleet = counts.get("Stale fleeting (>14d)", "?")
-    mocs = counts.get("Stale MOCs (>30d mtime)", "?")
-    rq = counts.get("Stale review-queue (>30d mtime)")
-    if rq is None:
-        # Daily-review note didn't include the section (older format
-        # or not yet regenerated post-fix-7). Fall back to standalone
-        # scan so the SessionStart line still has all four counts.
-        rq = review_queue_stale(30)
+    s = parse_sections(DAILY_FILE)
+    proj = fmt_section(s.get("Active projects (_agenda)"))
+    fleet = fmt_section(s.get("Stale fleeting (>14d)"))
+    mocs = fmt_section(s.get("Stale MOCs (>30d mtime)"))
+    rq = fmt_section(s.get("Stale review-queue (>30d mtime)"))
 
     ctx = (f"PKS state: {proj} active _agenda projects · "
            f"{fleet} stale fleeting (>14d) · "
            f"{mocs} stale MOCs (>30d) · "
            f"{rq} review-queue items >30d. "
-           f"`C-c n D` in Emacs for full digest.")
+           f"`C-c n D` in Emacs for full digest. "
+           f"Scope tags: w=work, p=personal, g=general (uncategorized).")
     emit(ctx)
 except Exception:
     emit("")

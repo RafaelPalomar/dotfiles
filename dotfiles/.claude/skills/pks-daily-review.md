@@ -5,7 +5,22 @@ description: Read-only daily or weekly PKS review. Lists stale fleeting notes (>
 
 # pks-daily-review
 
-Four-section passive report.
+Four-section passive report. Items are grouped by **scope** —
+work, personal, or general — based on whether the note's path
+contains a `/work/` or `/personal/` segment. Notes at the top
+level of a silo are "general" (the legacy uncategorised pool).
+
+## Scope filtering
+
+The shell-script fallback accepts `--scope work|personal|general|all`
+(default `all`). When the user asks for a scoped review (*"work
+review only"*, *"what's my personal backlog?"*) pass the matching
+flag. When invoking the agent path, scope by path-filtering the
+denotecli search results before presenting.
+
+The session-context line in the SessionStart hook surfaces compact
+per-scope counts like `8 (2w/0p/6g) active _agenda projects` so the
+user can tell at a glance whether the noise is theirs to act on.
 
 ## Commands
 
