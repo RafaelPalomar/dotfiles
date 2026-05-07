@@ -1748,7 +1748,13 @@ See `my-denote-add-to-agenda'.")
                                  (string-prefix-p pks-real true))))))
          (rescope (or (funcall under-pks file)
                       (funcall under-pks denote-directory)))
-         (denote-directory (if rescope pks-link denote-directory)))
+         (denote-directory (if rescope pks-link denote-directory))
+         ;; consult-grep / consult-find prefer
+         ;; `consult-project-function' over the directory argument,
+         ;; and projectile sees ~/ as a project — so without these
+         ;; rebinds the consult commands jump to ~/ instead of ~/pks/.
+         (default-directory (if rescope pks-link default-directory))
+         (consult-project-function (if rescope nil consult-project-function)))
     (apply orig-fun args)))
 
 (with-eval-after-load 'denote
@@ -1757,16 +1763,25 @@ See `my-denote-add-to-agenda'.")
   (advice-add 'consult-denote-find :around #'my-denote-rescope-pks-read)
   (advice-add 'consult-denote-grep :around #'my-denote-rescope-pks-read))
 
+;; consult-grep / consult-find consult `consult-project-function' first,
+;; and projectile sees ~/ as a project root — so without nil-ing the
+;; project function and rebinding default-directory, the consult-denote
+;; commands silently search ~/ instead of ~/pks/ (zero hits because
+;; ~/pks/ is the only place .org notes live).
 (defun my-pks-consult-find ()
   "`consult-denote-find' scoped to the whole PKS tree."
   (interactive)
-  (let ((denote-directory (expand-file-name "~/pks/")))
+  (let ((denote-directory (expand-file-name "~/pks/"))
+        (default-directory (expand-file-name "~/pks/"))
+        (consult-project-function nil))
     (call-interactively #'consult-denote-find)))
 
 (defun my-pks-consult-grep ()
   "`consult-denote-grep' scoped to the whole PKS tree."
   (interactive)
-  (let ((denote-directory (expand-file-name "~/pks/")))
+  (let ((denote-directory (expand-file-name "~/pks/"))
+        (default-directory (expand-file-name "~/pks/"))
+        (consult-project-function nil))
     (call-interactively #'consult-denote-grep)))
 
 (defun my-pks-show-daily-review ()
