@@ -47,7 +47,10 @@ def denotecli(*args):
     try:
         out = subprocess.check_output(
             ["denotecli", *args, "--max", "300"], text=True)
-        return json.loads(out) if out.strip() else []
+        if not out.strip():
+            return []
+        result = json.loads(out)
+        return result if isinstance(result, list) else []
     except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
         print(f"warn: denotecli {' '.join(args)} failed: {e}",
               file=sys.stderr)
