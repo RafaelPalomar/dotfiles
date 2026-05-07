@@ -10,3 +10,12 @@ bspc config -m "$mon" top_padding 48
 for m in $(polybar -m | cut -d: -f1); do
   MONITOR="$m" polybar -r -c "$HOME/.config/polybar.local/config.ini" mymain &
 done
+
+# Restart tray clients so they re-register with the (new) tray host.
+# Order matters: nm-applet et al. must start AFTER polybar's tray module
+# has claimed the _NET_SYSTEM_TRAY_S0 selection — otherwise the icons
+# fail to appear.  Wait briefly for polybar then reset the clients.
+( sleep 1
+  pkill -x nm-applet 2>/dev/null
+  nm-applet --indicator >/dev/null 2>&1 &
+) &
