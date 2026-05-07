@@ -1769,25 +1769,72 @@ See `my-denote-add-to-agenda'.")
   (advice-add 'consult-denote-find :around #'my-denote-rescope-pks-read)
   (advice-add 'consult-denote-grep :around #'my-denote-rescope-pks-read))
 
-;; Skip consult-denote-grep / consult-denote-find and call consult-grep
-;; / consult-find directly — they accept a DIR string as their first
-;; argument and use it verbatim when consult-project-function is nil.
-;; Routing through consult-denote-* added a layer where projectile
-;; reasserted ~/ as the project root before our default-directory
-;; binding could win.
+;; The completion stack is ivy/counsel (completing-read-function =
+;; ivy-completing-read), not vertico — so consult-grep's async streaming
+;; doesn't render through ivy's minibuffer.  Use counsel-rg for content
+;; search and counsel-file-jump for filename search; both natively
+;; integrate with the user's ivy UX.  Function names retain the
+;; "consult" stem so the existing keybindings keep their aliases.
 (defun my-pks-consult-find ()
-  "consult-find scoped to the whole PKS tree."
+  "Find a file across the whole PKS tree by name (counsel-file-jump)."
   (interactive)
-  (let ((default-directory (expand-file-name "~/pks/"))
-        (consult-project-function nil))
-    (consult-find (expand-file-name "~/pks/"))))
+  (let ((default-directory (expand-file-name "~/pks/")))
+    (counsel-file-jump "" (expand-file-name "~/pks/"))))
 
 (defun my-pks-consult-grep ()
-  "consult-grep scoped to the whole PKS tree."
+  "Grep across the whole PKS tree for content (counsel-rg)."
   (interactive)
-  (let ((default-directory (expand-file-name "~/pks/"))
-        (consult-project-function nil))
-    (consult-grep (expand-file-name "~/pks/"))))
+  (let ((default-directory (expand-file-name "~/pks/")))
+    (counsel-rg "" (expand-file-name "~/pks/") nil "PKS rg: ")))
+
+(defun my-pks-grep-debug (query)
+  "Synchronously grep ~/pks/ for QUERY and message the result count.
+Use to verify the wrapper context can actually find matches without
+going through consult's async layer."
+  (interactive "sQuery: ")
+  (let* ((default-directory (expand-file-name "~/pks/"))
+         (consult-project-function nil)
+         (paths (with-temp-buffer
+                  (call-process "grep" nil t nil "-rl" query
+                                (expand-file-name "~/pks/"))
+                  (split-string (buffer-string) "\n" t))))
+    (message "my-pks-grep-debug: default-directory=%s consult-project-fn=%S | %d files match %S | first: %s"
+             default-directory
+             consult-project-function
+             (length paths)
+             query
+             (or (car paths) "none"))))
+
+(defun my-pks-consult-grep-trace (toggle)
+  "Toggle :around advice that logs every make-process called by consult.
+Call once to enable, again to disable.  After enabling, run
+\\[my-pks-consult-grep], type a query, then check *Messages* for
+DEBUG-make-process lines reporting cwd and command."
+  (interactive (list (if (advice-member-p
+                          #'my-pks-consult-grep--make-process-spy
+                          'make-process)
+                         'off
+                       'on)))
+  (cond
+   ((eq toggle 'on)
+    (advice-add 'make-process :around
+                #'my-pks-consult-grep--make-process-spy)
+    (message "make-process trace: ON (run C-c n g, then check *Messages*)"))
+   ((eq toggle 'off)
+    (advice-remove 'make-process #'my-pks-consult-grep--make-process-spy)
+    (message "make-process trace: OFF"))))
+
+(defun my-pks-consult-grep--make-process-spy (orig-fun &rest args)
+  (let ((plist (car args)))
+    (when (and (listp plist) (plist-get plist :command))
+      (let ((cmd (plist-get plist :command))
+            (name (plist-get plist :name)))
+        (when (or (string-match-p "grep" (or name ""))
+                  (string-match-p "consult" (or name ""))
+                  (and (consp cmd) (string-match-p "grep" (or (car cmd) ""))))
+          (message "DEBUG-make-process: name=%s cwd=%s cmd=%S"
+                   name default-directory cmd)))))
+  (apply orig-fun args))
 
 (defun my-pks-show-daily-review ()
   "Run the pks-daily-review fallback script and visit the resulting note.
