@@ -161,10 +161,23 @@
                                   #:firewall-extra-udp-ports '(4549 4171 4175 4179)
                                   #:firewall-trusted-subnets '("192.168.88.0/24")))
 
-   ;; Curie-specific kernel arguments (amd_pstate, network interface naming)
+   ;; Curie-specific kernel arguments
+   ;;   amd_pstate / amdgpu.* — set in (gpu-kernel-arguments 'amd)
+   ;;   net.ifnames / biosdevname — keep classic eth0/wlan0 naming
+   ;;   acpi.ec_no_wakeup=1     — Strix/Krackan Point s2idle wake fix.  The EC
+   ;;                             fires spurious wake events that stall resume
+   ;;                             on AMD ThinkPads, leading to "suspends but
+   ;;                             won't wake".
+   ;;
+   ;; Note: resume= is intentionally absent.  Guix's initrd does not resolve
+   ;; resume=UUID=<fs-uuid>, and the swap partition (3.7 GiB) is too small to
+   ;; hold a hibernation image of 30 GiB RAM anyway.  When we set up a proper
+   ;; swapfile, add resume=UUID=<root-uuid> resume_offset=<file-offset> here.
    (kernel-arguments (gpu-kernel-arguments 'amd
-                                           #:extra-args '("net.ifnames=0"
-                                                          "biosdevname=0")))
+                                           #:extra-args
+                                           '("net.ifnames=0"
+                                             "biosdevname=0"
+                                             "acpi.ec_no_wakeup=1")))
 
    ;; User configuration (add cgroup to supplementary groups for containers)
    ;; Note: cgroup group now defined in base.scm

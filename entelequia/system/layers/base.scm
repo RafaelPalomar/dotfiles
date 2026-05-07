@@ -272,11 +272,21 @@
               ;; Power management services (laptop-only)
               ;; Note: thermald removed - Intel-specific, not needed on AMD
               ;; AMD Zen 5 uses kernel Powercap thermal management
+              ;;
+              ;; energy-perf-policy on AC: TLP default is "balance_performance"
+              ;; which leaves the CPU idling at ~1.8 GHz against a 5+ GHz max
+              ;; on amd_pstate=active, so the ramp-up to draw a new window
+              ;; (kitty open, picom xrender shadow) feels sluggish.  Force
+              ;; "performance" on AC for desktop snappiness; keep "power" on
+              ;; battery to preserve runtime.  Same EPP interface works for
+              ;; intel_pstate.
               (if (eq? (machine-config-machine-type config) 'laptop)
                   (list (service tlp-service-type
                                  (tlp-configuration
                                   (cpu-boost-on-ac? #t)
-                                  (wifi-pwr-on-bat? #t))))
+                                  (wifi-pwr-on-bat? #t)
+                                  (energy-perf-policy-on-ac "performance")
+                                  (energy-perf-policy-on-bat "power"))))
                   '())))
 
    ;; Allow resolution of '.local' host names with mDNS
