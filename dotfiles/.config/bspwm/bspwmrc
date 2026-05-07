@@ -1,30 +1,22 @@
 #!/bin/sh
 
-# Restore pywal colors, or initialize from default wallpaper on first run
-if ! wal -R 2>/dev/null; then
-    DEFAULT_WALLPAPER="${HOME}/Pictures/Wallpapers/wp5411657-minimal-landscape-wallpapers.jpg"
-    if [ -f "$DEFAULT_WALLPAPER" ]; then
-        wal -n -i "$DEFAULT_WALLPAPER"
-        feh --bg-scale "$DEFAULT_WALLPAPER"
-    fi
-fi
-
-# Source pywal colors (only if cache exists)
-[ -f "${HOME}/.cache/wal/colors.sh" ] && . "${HOME}/.cache/wal/colors.sh"
-
-# Apply bspwm colors
-[ -f ~/.cache/wal/colors-bspwm.sh ] && . ~/.cache/wal/colors-bspwm.sh
-
-# Override with entelequia-graphite wallpaper (Graphite & Vellum theme).
-# Authoritative — wins over any pywal-restored wallpaper.  Paper-grain
-# texture + golden-ratio copper hairline + corner monograms.
+# entelequia-theme · Graphite & Vellum
+# ────────────────────────────────────
+# Wallpaper FIRST, before any pywal restore — avoids the boot-time flicker
+# of seeing the old pywal wallpaper briefly before being overridden.
 ENTELEQUIA_WP="${HOME}/Pictures/Wallpapers/entelequia-graphite.png"
 if [ -f "$ENTELEQUIA_WP" ]; then
     feh --bg-fill "$ENTELEQUIA_WP"
 fi
 
-# Override semantic bspwm colors with entelequia-graphite palette
-# (so the focused border etc. doesn't drift with each pywal regen).
+# Source pywal color cache for any consumers that read it.  Skip
+# `wal -R` (which would also reset the wallpaper).  Pywal is no longer
+# authoritative for entelequia-theme — terminal apps, polybar, bspwm
+# all use fixed graphite/vellum palettes.
+[ -f "${HOME}/.cache/wal/colors.sh" ] && . "${HOME}/.cache/wal/colors.sh"
+
+# Override semantic bspwm colors with the entelequia palette
+# (so the focused border etc. doesn't drift with any cache regen).
 bspc config focused_border_color   "#a85a2c"   # copper
 bspc config normal_border_color    "#28241f"   # slate
 bspc config active_border_color    "#28241f"   # slate
