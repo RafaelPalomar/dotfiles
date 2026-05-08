@@ -22,7 +22,7 @@
        (name 'guix-xlibre)
        (url "https://codeberg.org/rafaelpalomar/guix-xlibre.git")
        (branch "master")
-       (commit "87b281333e079e3da034b7e01132f392bed30e51"))
+       (commit "876828a590c28881c649450588eb2e3eb2bc1f99"))
       (channel
        (name 'tailscale)
        (url "https://codeberg.org/rafaelpalomar/guix-tailscale.git")
