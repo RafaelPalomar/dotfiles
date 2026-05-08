@@ -1,0 +1,24 @@
+# pam-gnupg: keygrips whose passphrase to preset into gpg-agent at the
+# start of every login session.  Deployed via home-dotfiles-service-type.
+#
+# Pre-condition: the GPG passphrase for each listed keygrip MUST equal
+# the user's login password for the preset to actually unlock the key.
+# Mismatched keygrips are silently skipped — pinentry would still fire
+# if/when those keys are used.
+#
+# To regenerate the list:
+#   gpg --list-secret-keys --with-keygrip
+#
+# Primary key 6513C7248D7BECE2EC1BD34B70350DAD507FA72F is offline (sec#)
+# and intentionally not preset.
+
+# [S] sign subkey
+2736BEE5BDF5EE673B4E9D17980B111BBF62CD1D
+# [E] encrypt subkey — used by `pass` for OAuth tokens, mail creds, etc.
+BD945B94486B2F9AF056463067A79E02DBD6B7DA
+# [SA] sign+auth subkey
+438B15F7C4B3A7FEC1561FD9EFF9C7E85A6FE362
+# [A] auth subkeys (SSH)
+0FAACBA7A6363ACADF80DB1C88CE02702DFCB8BE
+A95146C1DB21F12A646FA046E5C86C5FA7BA6802
+79ABE6B512A1FAC7C80718ACA96741C542057036

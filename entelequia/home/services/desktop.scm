@@ -11,9 +11,9 @@
   #:use-module (gnu packages fonts)
   #:export (home-desktop-service-type))
 
-(use-package-modules admin chromium compton compression curl disk dns fonts freedesktop gimp glib gnome
+(use-package-modules admin bash chromium compton compression curl disk dns fonts freedesktop gimp glib gnome
                      gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf
-                     linux lsof music password-utils pdf pulseaudio ssh syncthing terminals
+                     linux lsof music password-utils pdf pulseaudio ssh sync syncthing terminals
                      tmux video wget wm xdisorg suckless rust-apps)
 
 ;;; Desktop home service
@@ -217,16 +217,52 @@
    ;; session bus, backed by the user's pass store.  Qt Keychain (Nextcloud
    ;; client) and libsecret consumers persist credentials transparently into
    ;; ~/.password-store, decrypted on demand by gpg-agent.
+   ;;
+   ;; --path is passed explicitly because shepherd inherits PAM/login env, not
+   ;; shell rc — PASSWORD_STORE_DIR set in .bashrc would not reach this process.
    (shepherd-service
     (documentation "pass-backed Secret Service D-Bus daemon")
     (provision '(pass-secret-service))
     (start #~(make-forkexec-constructor
               (list #$(file-append pass-secret-service
-                                   "/bin/pass_secret_service"))
+                                   "/bin/pass_secret_service")
+                    "--path"
+                    (string-append (getenv "HOME") "/.password-store"))
               #:log-file (string-append
                          (or (getenv "XDG_STATE_HOME")
                              (string-append (getenv "HOME") "/.local/state"))
                          "/pass-secret-service.log")))
+    (stop #~(make-kill-destructor))
+    (respawn? #t))
+
+   ;; Nextcloud desktop client.  Started after pass-secret-service so the
+   ;; OAuth refresh token can be persisted via Qt Keychain → libsecret →
+   ;; org.freedesktop.secrets → pass.  The bash wrapper polls for the bus
+   ;; name because shepherd's `requirement' only ensures the dependency's
+   ;; start procedure has been invoked, not that its D-Bus name has been
+   ;; acquired.
+   (shepherd-service
+    (documentation "Nextcloud desktop client (waits for secret service)")
+    (provision '(nextcloud-client))
+    (requirement '(pass-secret-service))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append bash "/bin/bash") "-c"
+                    (string-append
+                     "for i in $(seq 1 20); do "
+                     #$(file-append dbus "/bin/dbus-send")
+                     " --session --dest=org.freedesktop.DBus"
+                     " --print-reply --type=method_call /org/freedesktop/DBus"
+                     " org.freedesktop.DBus.NameHasOwner"
+                     " string:org.freedesktop.secrets 2>/dev/null"
+                     " | grep -q 'boolean true' && break; "
+                     "sleep 0.5; "
+                     "done; "
+                     "exec " #$(file-append nextcloud-client "/bin/nextcloud")
+                     " --background"))
+              #:log-file (string-append
+                         (or (getenv "XDG_STATE_HOME")
+                             (string-append (getenv "HOME") "/.local/state"))
+                         "/nextcloud-client.log")))
     (stop #~(make-kill-destructor))
     (respawn? #t))))
 

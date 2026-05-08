@@ -6,6 +6,7 @@
   #:use-module (entelequia system lib common-packages)
   #:use-module (entelequia packages latex)
   #:use-module (entelequia system lib common-services)
+  #:use-module (entelequia system lib pam-gnupg)
   #:use-module (entelequia systems desktop)  ; For desktop-home-services
   #:use-module (entelequia home services tailscale-work)
   #:use-module (btv tailscale)
@@ -112,7 +113,12 @@
              (slim-configuration
               (auto-login? #f)
               (default-user "rafael")
-              (xorg-configuration amd-xlibre-config))))
+              (xorg-configuration amd-xlibre-config)))
+
+    ;; pam-gnupg: SLiM login password → gpg-agent passphrase cache.
+    ;; Eliminates pinentry prompts for keygrips listed in ~/.pam-gnupg.
+    ;; Requires the GPG passphrase to equal the login password.
+    (service pam-gnupg-service-type))
 
    ;; zram compressed swap (8GB, zstd compression)
    (zram-service #:size-mb 8192)

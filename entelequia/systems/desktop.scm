@@ -52,7 +52,12 @@
                            ,(file-append guix-systole-dev-skill
                                          "/share/claude-skills/guix-systole-dev/SKILL.md"))))
 
-   ;; GnuPG configuration
+   ;; GnuPG configuration.
+   ;;
+   ;; allow-preset-passphrase enables PRESET_PASSPHRASE on the agent
+   ;; socket — required so pam_gnupg (wired into SLiM's PAM stack) can
+   ;; forward the login password into gpg-agent at session start,
+   ;; eliminating pinentry prompts for keygrips listed in ~/.pam-gnupg.
    (service home-gpg-agent-service-type
             (home-gpg-agent-configuration
              (pinentry-program
@@ -61,7 +66,8 @@
              (default-cache-ttl 28800)
              (max-cache-ttl 28800)
              (default-cache-ttl-ssh 28800)
-             (max-cache-ttl-ssh 28800)))
+             (max-cache-ttl-ssh 28800)
+             (extra-content "allow-preset-passphrase\n")))
 
    ;; Emacs configuration
    (service home-emacs-config-service-type)
