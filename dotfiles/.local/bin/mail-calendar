@@ -1,0 +1,371 @@
+#!/usr/bin/env python3
+"""mail-calendar: expose Office 365 meeting invites as structured JSON.
+
+Reads text/calendar MIME parts from the agent's filtered notmuch DB
+(via notmuch-agent — never raw notmuch), parses the iCalendar payload,
+and emits one JSON object per event.  UID-deduplicates: across multiple
+REQUEST messages for the same series, the highest SEQUENCE wins; any
+METHOD:CANCEL message suppresses the event entirely.
+
+Read-only.  Never writes anywhere.  Never touches the maildir directly.
+
+Subcommands:
+    list   [--since YYYY-MM-DD] [--until YYYY-MM-DD]
+           [--account ous|ntnu] [--method REQUEST|CANCEL|*]
+    show   <message-id-or-uid>
+    today
+    week
+
+Output:
+    Newline-delimited JSON (one event per line) for `list`, `today`,
+    `week`.  A single JSON object for `show`.
+
+Exits non-zero on parse / query failure.
+
+The calendar truth lives in Outlook and on the user's phone.  This
+helper sees only what arrived as mail invites in the allowlisted
+folders (INBOX, Calendar, ...).  Items the user accepted on a phone
+that get moved by server-side rules to non-allowlisted folders are
+not visible.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+try:
+    from icalendar import Calendar
+except ImportError:
+    sys.stderr.write(
+        "mail-calendar: python-icalendar not installed.\n"
+        "Run `home-reconfigure` after the email profile picks up the dep.\n"
+    )
+    sys.exit(2)
+
+
+# --- notmuch-agent shell-out -----------------------------------------
+
+def notmuch_agent(*args: str, tolerate_errors: bool = False) -> str:
+    """Invoke notmuch-agent (the only permitted notmuch entry point).
+
+    With tolerate_errors=True, returns whatever stdout was produced
+    even when the process exits non-zero — `notmuch show` reports
+    individual file-open failures via stderr while still emitting
+    valid JSON for the messages it did manage to read.  Stale-index
+    scenarios (mbsync renamed a file since the last `sync-mail`)
+    surface as such errors; they are recoverable and should not
+    abort the whole query.
+    """
+    cmd = ["notmuch-agent", *args]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if res.returncode != 0 and not tolerate_errors:
+        sys.stderr.write(f"mail-calendar: {' '.join(cmd)} failed:\n{res.stderr}")
+        sys.exit(res.returncode)
+    if res.returncode != 0 and res.stderr:
+        sys.stderr.write(
+            f"mail-calendar: notmuch-agent reported non-fatal errors "
+            f"(stale index? run `sync-mail`):\n{res.stderr}"
+        )
+    return res.stdout
+
+
+def show_messages(query: str) -> list[dict]:
+    """Yield flat per-message dicts from `notmuch-agent show --format=json`.
+
+    The notmuch JSON show output is nested by thread / siblings; flatten
+    it here so callers see one dict per matched message.  Each dict
+    carries `id`, `filename` (list, first entry used for account), and
+    `body` (recursive MIME tree).
+    """
+    out = notmuch_agent("show", "--format=json", query, tolerate_errors=True)
+    if not out.strip():
+        return []
+    try:
+        threads = json.loads(out)
+    except json.JSONDecodeError as e:
+        sys.stderr.write(f"mail-calendar: malformed JSON from notmuch-agent ({e})\n")
+        return []
+
+    def walk_thread(node, acc: list[dict]) -> None:
+        if isinstance(node, list):
+            for child in node:
+                walk_thread(child, acc)
+        elif isinstance(node, dict):
+            if "id" in node and "headers" in node:
+                acc.append(node)
+            for sib in node.get("siblings", []) or []:
+                walk_thread(sib, acc)
+            for child in node.get("children", []) or []:
+                walk_thread(child, acc)
+
+    flat: list[dict] = []
+    walk_thread(threads, flat)
+    return flat
+
+
+def find_calendar_parts(body) -> list[str]:
+    """Walk the body tree returned by notmuch show JSON, return iCal contents."""
+    out: list[str] = []
+
+    def walk(node) -> None:
+        if isinstance(node, list):
+            for child in node:
+                walk(child)
+        elif isinstance(node, dict):
+            ctype = (node.get("content-type") or "").lower()
+            content = node.get("content")
+            if ctype == "text/calendar" and isinstance(content, str):
+                out.append(content)
+            if isinstance(content, (list, dict)):
+                walk(content)
+
+    walk(body)
+    return out
+
+
+def account_from_path(message_path: str) -> str:
+    """Infer short account label from the maildir path.
+
+    notmuch-agent's filtered DB stores messages under
+    ~/.local/share/mail-agent/<email>/INBOX/cur/...; we map the
+    email-shaped folder name to a short label (ous, ntnu) so
+    callers can filter without typing the full address.
+    """
+    p = Path(message_path)
+    parts = p.parts
+    folder = "unknown"
+    for anchor in ("mail-agent", "mail"):
+        if anchor in parts:
+            idx = parts.index(anchor)
+            if idx + 1 < len(parts):
+                folder = parts[idx + 1]
+                break
+    if "@ntnu.no" in folder:
+        return "ntnu"
+    if "@ous-research.no" in folder or "@ous-hf.no" in folder:
+        return "ous"
+    return folder or "unknown"
+
+
+# --- iCal → dict -----------------------------------------------------
+
+def iso(value) -> str | None:
+    """Best-effort ISO-8601 rendering of an iCalendar date/datetime/period."""
+    if value is None:
+        return None
+    if isinstance(value, dt.datetime):
+        return value.isoformat()
+    if isinstance(value, dt.date):
+        return value.isoformat()
+    return str(value)
+
+
+def parse_attendees(component) -> list[dict]:
+    raw = component.get("ATTENDEE", [])
+    if not isinstance(raw, list):
+        raw = [raw]
+    out = []
+    for a in raw:
+        addr = str(a).removeprefix("mailto:").removeprefix("MAILTO:")
+        name = a.params.get("CN") if hasattr(a, "params") else None
+        partstat = a.params.get("PARTSTAT") if hasattr(a, "params") else None
+        out.append({"name": name, "email": addr, "partstat": partstat})
+    return out
+
+
+def parse_organizer(component) -> dict | None:
+    org = component.get("ORGANIZER")
+    if org is None:
+        return None
+    addr = str(org).removeprefix("mailto:").removeprefix("MAILTO:")
+    name = org.params.get("CN") if hasattr(org, "params") else None
+    return {"name": name, "email": addr}
+
+
+def event_from_vevent(vevent, *, method: str, msg_id: str | None,
+                     account: str) -> dict:
+    return {
+        "uid":       str(vevent.get("UID", "")),
+        "method":    method,
+        "sequence":  int(vevent.get("SEQUENCE", 0) or 0),
+        "summary":   str(vevent.get("SUMMARY", "")) or None,
+        "dtstart":   iso(vevent.get("DTSTART").dt) if vevent.get("DTSTART") else None,
+        "dtend":     iso(vevent.get("DTEND").dt)   if vevent.get("DTEND")   else None,
+        "rrule":     str(vevent.get("RRULE").to_ical().decode())
+                       if vevent.get("RRULE") else None,
+        "location":  str(vevent.get("LOCATION", "")) or None,
+        "description": str(vevent.get("DESCRIPTION", "")) or None,
+        "organizer": parse_organizer(vevent),
+        "attendees": parse_attendees(vevent),
+        "msg_id":    msg_id,
+        "account":   account,
+    }
+
+
+def events_from_message(msg: dict) -> list[dict]:
+    msg_id = msg.get("id")
+    files = msg.get("filename") or []
+    account = account_from_path(files[0]) if files else "unknown"
+    out = []
+    for ical_text in find_calendar_parts(msg.get("body", [])):
+        try:
+            cal = Calendar.from_ical(ical_text)
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(f"mail-calendar: parse error in id:{msg_id}: {e}\n")
+            continue
+        method = str(cal.get("METHOD", "REQUEST")).upper()
+        for component in cal.walk("VEVENT"):
+            out.append(event_from_vevent(
+                component, method=method, msg_id=msg_id, account=account))
+    return out
+
+
+# --- UID dedup -------------------------------------------------------
+
+def reconcile(events: list[dict]) -> list[dict]:
+    """Group by UID; latest SEQUENCE wins; CANCEL suppresses the series.
+
+    REPLY entries (attendee RSVPs sent back to organizers) are dropped:
+    they share the UID of the underlying REQUEST and are not events
+    in their own right.  Use --no-dedup if the caller wants to see them.
+    """
+    cancelled: set[str] = set()
+    by_uid: dict[str, dict] = {}
+    for ev in events:
+        if ev["method"] == "REPLY":
+            continue
+        uid = ev.get("uid") or ""
+        if not uid:
+            key = ev.get("msg_id") or id(ev)
+            by_uid[f"_anon:{key}"] = ev
+            continue
+        if ev["method"] == "CANCEL":
+            cancelled.add(uid)
+            continue
+        cur = by_uid.get(uid)
+        if cur is None or ev["sequence"] > cur["sequence"]:
+            by_uid[uid] = ev
+    return [ev for uid, ev in by_uid.items() if uid not in cancelled]
+
+
+# --- subcommands -----------------------------------------------------
+
+def build_query(*, since: str | None, until: str | None,
+                account: str | None, method: str | None,
+                extra: str | None = None) -> str:
+    parts = ["mimetype:text/calendar"]
+    if since and until:
+        parts.append(f"date:{since}..{until}")
+    elif since:
+        parts.append(f"date:{since}..")
+    elif until:
+        parts.append(f"date:..{until}")
+    if account:
+        domain = {"ous": "ous-research.no", "ntnu": "ntnu.no"}[account]
+        parts.append(f"folder:/{domain}/")
+    if extra:
+        parts.append(extra)
+    return " AND ".join(parts)
+
+
+def cmd_list(args) -> int:
+    query = build_query(
+        since=args.since, until=args.until,
+        account=args.account, method=None)
+    events: list[dict] = []
+    for msg in show_messages(query):
+        events.extend(events_from_message(msg))
+    if args.method and args.method != "*":
+        events = [e for e in events if e["method"] == args.method.upper()]
+    final = reconcile(events) if not args.no_dedup else events
+    final.sort(key=lambda e: e.get("dtstart") or "")
+    for ev in final:
+        sys.stdout.write(json.dumps(ev) + "\n")
+    return 0
+
+
+def cmd_show(args) -> int:
+    key = args.key.strip().strip("<>")
+    events: list[dict] = []
+    # Try Message-ID first.
+    for msg in show_messages(f"id:{key} AND mimetype:text/calendar"):
+        events.extend(events_from_message(msg))
+    if not events:
+        # Fall back: scan the recent window for the UID.
+        window_query = build_query(since="1y", until=None,
+                                   account=None, method=None)
+        for msg in show_messages(window_query):
+            for ev in events_from_message(msg):
+                if ev.get("uid") == key:
+                    events.append(ev)
+    if not events:
+        sys.stderr.write(f"mail-calendar: no event found for {key}\n")
+        return 1
+    final = reconcile(events)
+    if not final:
+        sys.stderr.write(f"mail-calendar: event {key} is cancelled\n")
+        return 1
+    sys.stdout.write(json.dumps(final[0], indent=2) + "\n")
+    return 0
+
+
+def cmd_today(args) -> int:
+    today = dt.date.today().isoformat()
+    args.since = today
+    args.until = today
+    args.account = None
+    args.method = None
+    args.no_dedup = False
+    return cmd_list(args)
+
+
+def cmd_week(args) -> int:
+    today = dt.date.today()
+    args.since = today.isoformat()
+    args.until = (today + dt.timedelta(days=7)).isoformat()
+    args.account = None
+    args.method = None
+    args.no_dedup = False
+    return cmd_list(args)
+
+
+# --- argparse --------------------------------------------------------
+
+def main() -> int:
+    p = argparse.ArgumentParser(prog="mail-calendar", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    pl = sub.add_parser("list", help="list invites in a date range")
+    pl.add_argument("--since", help="ISO date (default: 30d ago via notmuch)",
+                    default="30d")
+    pl.add_argument("--until", help="ISO date (default: open-ended)",
+                    default=None)
+    pl.add_argument("--account", choices=["ous", "ntnu"], default=None)
+    pl.add_argument("--method", default=None,
+                    help="REQUEST | CANCEL | * (default: post-dedup)")
+    pl.add_argument("--no-dedup", action="store_true",
+                    help="Emit raw events without UID/SEQUENCE collapse")
+    pl.set_defaults(func=cmd_list)
+
+    ps = sub.add_parser("show", help="show one event by Message-ID or UID")
+    ps.add_argument("key", help="Message-ID (with or without <>) or iCal UID")
+    ps.set_defaults(func=cmd_show)
+
+    pt = sub.add_parser("today", help="events scheduled for today")
+    pt.set_defaults(func=cmd_today)
+
+    pw = sub.add_parser("week", help="events for the next 7 days")
+    pw.set_defaults(func=cmd_week)
+
+    args = p.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
