@@ -4,6 +4,7 @@
   #:use-module (gnu packages)
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages mail)
+  #:use-module (gnu packages python-xyz)
   #:export (email-home-packages))
 
 ;;; Email home profile
@@ -18,6 +19,9 @@
 ;;;       Machine-queryable mail layer alongside mu4e: notmuch's
 ;;;       `--format=json` output is the interface agents / scripts use.
 ;;;       mu4e remains the primary human UI.
+;;;   - python-icalendar       iCal parser used by `mail-calendar` to
+;;;                            extract DTSTART / RRULE / ATTENDEE / UID
+;;;                            from text/calendar parts of invite mails.
 
 (define email-home-packages
   (list cyrus-sasl-xoauth2
@@ -26,4 +30,5 @@
         msmtp
         notmuch
         emacs-notmuch
-        emacs-consult-notmuch))
+        emacs-consult-notmuch
+        python-icalendar))

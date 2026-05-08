@@ -6,7 +6,7 @@
 # one directory per account, containing per-folder symlinks into the
 # real maildir at ~/.local/share/mail/.  Only folders listed in
 # ALLOW_FOLDERS below are linked; everything else (Sensitive, Junk,
-# Deleted Items, Calendar, ...) is simply absent.  notmuch-agent
+# Deleted Items, ...) is simply absent.  notmuch-agent
 # indexes this tree, and because the non-allowlisted folders aren't
 # reachable from the agent root, no query flag — including
 # --exclude=false — can surface them.
@@ -36,6 +36,7 @@ AGENT_ROOT="$HOME/.local/share/mail-agent"
 ALLOW_FOLDERS='
 INBOX
 Archive
+Calendar
 Drafts
 Kladd
 Sent
