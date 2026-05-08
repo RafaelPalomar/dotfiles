@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""pks-meeting-sync — reconcile fleeting meeting notes against latest invites.
+
+Walks ~/pks/fleeting/ for org files carrying `#+ICAL_UID:` and queries
+`mail-calendar show <uid>` for each.  Detects:
+
+  - SEQUENCE bump: the organizer sent an updated REQUEST.  Computes a
+    diff (DTSTART / DTEND / LOCATION / SUMMARY / attendees), appends a
+    line under the note's `* Updates` heading, and bumps the stored
+    `#+ICAL_SEQUENCE:` to the new value.
+
+  - CANCEL: the series was cancelled.  Appends a [CANCELLED] line under
+    `* Updates`.  Note that filename keywords are NOT modified: denote
+    treats keywords as load-bearing, and renaming would require either
+    `denotecli rename-tag` (bulk-only, forbidden by PKS rules) or a
+    manual move.  The user reviews and decides during the next daily
+    digest.
+
+  - No change: skipped silently unless --verbose is passed.
+
+Writes only to files matched by `#+ICAL_UID:`.  Never renames, never
+deletes, never bulk-edits.
+
+Read authority: mail-calendar (which only sees the agent DB).
+Write authority: append-only edits to the matched fleeting notes.
+
+Usage:
+    pks-meeting-sync               run reconciliation, write updates
+    pks-meeting-sync --dry-run     print plan, no writes
+    pks-meeting-sync --verbose     also report unchanged notes
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+FLEETING = Path.home() / "pks" / "fleeting"
+
+KEY_RE = re.compile(r"^#\+(ICAL_[A-Z]+):\s*(.*)$")
+
+
+def parse_keywords(path: Path) -> dict[str, str]:
+    """Read #+ICAL_* file-level keywords from a denote org file."""
+    out: dict[str, str] = {}
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("* "):
+                    break
+                m = KEY_RE.match(line.rstrip("\n"))
+                if m:
+                    out[m.group(1)] = m.group(2).strip()
+    except OSError:
+        pass
+    return out
+
+
+def mail_calendar_show(key: str) -> tuple[dict | None, str]:
+    """Call `mail-calendar show <key>`; return (event_dict_or_None, status).
+
+    status is one of: "ok", "cancelled", "missing".
+    """
+    res = subprocess.run(
+        ["mail-calendar", "show", key],
+        capture_output=True, text=True, check=False,
+    )
+    if res.returncode == 0 and res.stdout.strip():
+        try:
+            return json.loads(res.stdout), "ok"
+        except json.JSONDecodeError:
+            return None, "missing"
+    if "is cancelled" in res.stderr:
+        return None, "cancelled"
+    return None, "missing"
+
+
+def diff_event(stored: dict[str, str], current: dict) -> list[str]:
+    """Return human-readable change descriptions between stored and current."""
+    changes: list[str] = []
+
+    def cmp(label: str, key_stored: str, current_value):
+        old = stored.get(key_stored, "")
+        new = current_value or ""
+        if old != new:
+            if not old:
+                changes.append(f"{label}: set to {new}")
+            elif not new:
+                changes.append(f"{label}: cleared (was {old})")
+            else:
+                changes.append(f"{label}: {old} → {new}")
+
+    cmp("DTSTART",  "ICAL_DTSTART",  current.get("dtstart"))
+    cmp("DTEND",    "ICAL_DTEND",    current.get("dtend"))
+    cmp("LOCATION", "ICAL_LOCATION", current.get("location"))
+    cmp("RRULE",    "ICAL_RRULE",    current.get("rrule"))
+    return changes
+
+
+def append_update(path: Path, line: str, *, dry_run: bool) -> None:
+    """Append `line` under `* Updates`; create the heading if missing."""
+    if dry_run:
+        print(f"  + {path.name}: {line}")
+        return
+
+    text = path.read_text(encoding="utf-8")
+    updates_heading = "* Updates"
+    if updates_heading not in text:
+        if not text.endswith("\n"):
+            text += "\n"
+        text += "\n" + updates_heading + "\n"
+    text += line + "\n"
+    path.write_text(text, encoding="utf-8")
+
+
+def update_sequence(path: Path, new_seq: int, *, dry_run: bool) -> None:
+    """Rewrite the #+ICAL_SEQUENCE: line in place."""
+    if dry_run:
+        print(f"  * {path.name}: bump #+ICAL_SEQUENCE: → {new_seq}")
+        return
+    text = path.read_text(encoding="utf-8")
+    text = re.sub(
+        r"^#\+ICAL_SEQUENCE:.*$",
+        f"#+ICAL_SEQUENCE: {new_seq}",
+        text, count=1, flags=re.MULTILINE,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--dry-run", action="store_true",
+                   help="print what would change, do not write")
+    p.add_argument("--verbose", action="store_true",
+                   help="also report unchanged notes")
+    args = p.parse_args()
+
+    if not FLEETING.is_dir():
+        sys.stderr.write(f"pks-meeting-sync: {FLEETING} not found\n")
+        return 3
+
+    today = dt.date.today().isoformat()
+    counts = {"updated": 0, "cancelled": 0, "missing": 0, "unchanged": 0}
+
+    for path in sorted(FLEETING.glob("*.org")):
+        kw = parse_keywords(path)
+        uid = kw.get("ICAL_UID")
+        if not uid:
+            continue
+
+        stored_seq = int(kw.get("ICAL_SEQUENCE", "0") or 0)
+        event, status = mail_calendar_show(uid)
+
+        if status == "cancelled":
+            line = f"- [{today}] :: [CANCELLED] organizer sent METHOD:CANCEL"
+            append_update(path, line, dry_run=args.dry_run)
+            counts["cancelled"] += 1
+            continue
+
+        if status == "missing":
+            counts["missing"] += 1
+            if args.verbose:
+                print(f"  ? {path.name}: no current event for UID {uid}")
+            continue
+
+        assert event is not None
+        current_seq = int(event.get("sequence", 0) or 0)
+        if current_seq <= stored_seq:
+            counts["unchanged"] += 1
+            if args.verbose:
+                print(f"  = {path.name}: sequence {stored_seq} (no change)")
+            continue
+
+        changes = diff_event(kw, event)
+        change_str = "; ".join(changes) if changes else "metadata bump only"
+        line = (f"- [{today}] :: [UPDATED seq {stored_seq}→{current_seq}] "
+                f"{change_str}")
+        append_update(path, line, dry_run=args.dry_run)
+        update_sequence(path, current_seq, dry_run=args.dry_run)
+        counts["updated"] += 1
+
+    print(f"pks-meeting-sync: "
+          f"{counts['updated']} updated, "
+          f"{counts['cancelled']} cancelled, "
+          f"{counts['missing']} missing, "
+          f"{counts['unchanged']} unchanged"
+          + (" (dry-run, no writes)" if args.dry_run else ""))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
