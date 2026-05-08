@@ -1,0 +1,170 @@
+#!/bin/sh
+# pks-meeting-from-mid — capture a calendar invite into ~/pks/fleeting/
+#
+# Reads a Message-ID (or iCal UID), pulls the parsed event JSON from
+# `mail-calendar show <key>`, and writes a denote meeting note via
+# `denotecli create`.  Stores the iCal UID and SEQUENCE as file-level
+# org keywords (#+ICAL_UID: / #+ICAL_SEQUENCE:) so `pks-meeting-sync`
+# can later reconcile reschedules and cancellations.
+#
+# Refuses to duplicate: if any note in ~/pks/fleeting/ already carries
+# the same #+ICAL_UID: <uid>, exits non-zero with a pointer to that
+# note.  Use pks-meeting-sync to update existing notes.
+#
+# Read + write authority:
+#   - reads via `mail-calendar` (which only sees the agent DB)
+#   - writes via `denotecli` into ~/pks/fleeting/ only
+#   - never sends mail, never modifies the maildir
+#
+# Usage:
+#   pks-meeting-from-mid <message-id-or-uid>
+#                        [--silo fleeting]      # only fleeting today
+#                        [--dry-run]            # print plan, do not write
+#
+# Exits:
+#   0  on success (or successful dry-run)
+#   1  duplicate UID already captured
+#   2  no such event in the agent DB
+#   3  argument / setup error
+
+set -eu
+
+usage() {
+  cat <<'EOF'
+pks-meeting-from-mid <message-id-or-uid> [--dry-run]
+
+Capture an Office 365 / Google calendar invite as a denote meeting
+note in ~/pks/fleeting/.  Refuses to duplicate by iCal UID.
+EOF
+}
+
+DRY_RUN=0
+KEY=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run)        DRY_RUN=1 ; shift ;;
+    --silo)           shift ; [ "$1" = "fleeting" ] || {
+                        printf 'pks-meeting-from-mid: only --silo fleeting supported\n' >&2
+                        exit 3
+                      } ; shift ;;
+    -h|--help|help)   usage ; exit 0 ;;
+    --*)              printf 'pks-meeting-from-mid: unknown flag %s\n' "$1" >&2
+                      exit 3 ;;
+    *)                if [ -z "$KEY" ]; then KEY="$1"; else
+                        printf 'pks-meeting-from-mid: unexpected argument %s\n' "$1" >&2
+                        exit 3
+                      fi ; shift ;;
+  esac
+done
+
+if [ -z "$KEY" ]; then usage >&2 ; exit 3 ; fi
+
+command -v mail-calendar >/dev/null 2>&1 || {
+  printf 'pks-meeting-from-mid: mail-calendar not on PATH\n' >&2
+  exit 3
+}
+command -v denotecli >/dev/null 2>&1 || {
+  printf 'pks-meeting-from-mid: denotecli not on PATH\n' >&2
+  exit 3
+}
+command -v jq >/dev/null 2>&1 || {
+  printf 'pks-meeting-from-mid: jq not on PATH\n' >&2
+  exit 3
+}
+
+FLEETING="$HOME/pks/fleeting"
+[ -d "$FLEETING" ] || {
+  printf 'pks-meeting-from-mid: %s not found\n' "$FLEETING" >&2
+  exit 3
+}
+
+# 1. Resolve event.  --strip <> on the key for shell-friendly callers.
+KEY_NORM=$(printf '%s' "$KEY" | sed 's/^<//; s/>$//')
+EVENT_JSON=$(mail-calendar show "$KEY_NORM" 2>/dev/null || true)
+if [ -z "$EVENT_JSON" ]; then
+  printf 'pks-meeting-from-mid: no event found for %s\n' "$KEY_NORM" >&2
+  exit 2
+fi
+
+EV_UID=$(printf '%s' "$EVENT_JSON" | jq -r '.uid // empty')
+[ -n "$EV_UID" ] || {
+  printf 'pks-meeting-from-mid: event has no UID — cannot dedup safely\n' >&2
+  exit 2
+}
+
+# 2. Refuse if a note with this UID already exists.
+EXISTING=$(grep -rl --include='*.org' -F "#+ICAL_UID: $EV_UID" "$FLEETING" 2>/dev/null || true)
+if [ -n "$EXISTING" ]; then
+  printf 'pks-meeting-from-mid: UID already captured: %s\n' "$EXISTING" >&2
+  printf '  use pks-meeting-sync to update this note instead.\n' >&2
+  exit 1
+fi
+
+# 3. Build keywords.  agenda + meeting + account context.
+ACCOUNT=$(printf '%s' "$EVENT_JSON" | jq -r '.account // "unknown"')
+case "$ACCOUNT" in
+  ous|ntnu)  TAGS="meeting,agenda,$ACCOUNT" ;;
+  *)         TAGS="meeting,agenda" ;;
+esac
+
+# 4. Build the body.
+SUMMARY=$(printf '%s' "$EVENT_JSON" | jq -r '.summary // "(no subject)"')
+DTSTART=$(printf '%s' "$EVENT_JSON" | jq -r '.dtstart // ""')
+DTEND=$(printf   '%s' "$EVENT_JSON" | jq -r '.dtend   // ""')
+SEQUENCE=$(printf '%s' "$EVENT_JSON" | jq -r '.sequence // 0')
+LOCATION=$(printf '%s' "$EVENT_JSON" | jq -r '.location // ""')
+RRULE=$(printf    '%s' "$EVENT_JSON" | jq -r '.rrule // ""')
+MSG_ID=$(printf   '%s' "$EVENT_JSON" | jq -r '.msg_id // ""')
+ORG_NAME=$(printf '%s' "$EVENT_JSON" | jq -r '.organizer.name  // .organizer.email // ""')
+ORG_EMAIL=$(printf '%s' "$EVENT_JSON" | jq -r '.organizer.email // ""')
+DESCRIPTION=$(printf '%s' "$EVENT_JSON" | jq -r '.description // ""')
+
+ATTENDEE_LINES=$(printf '%s' "$EVENT_JSON" \
+  | jq -r '.attendees[]? | "- " + (.name // .email // "(unknown)") + " <" + (.email // "") + ">"')
+
+BODY=$(cat <<EOF
+#+ICAL_UID: $EV_UID
+#+ICAL_SEQUENCE: $SEQUENCE
+#+ICAL_DTSTART: $DTSTART
+#+ICAL_DTEND: $DTEND
+#+ICAL_RRULE: $RRULE
+#+ICAL_LOCATION: $LOCATION
+
+* Attendees
+- Organizer: $ORG_NAME <$ORG_EMAIL>
+$ATTENDEE_LINES
+
+* Agenda
+$DESCRIPTION
+
+* Notes
+
+* Action items
+  - [ ]
+
+* Source
+- Invite: [[notmuch:id:$MSG_ID][$SUMMARY · $DTSTART]]
+- Location: $LOCATION
+EOF
+)
+
+# 5. Dry-run: print the plan, exit.
+if [ "$DRY_RUN" = "1" ]; then
+  cat <<EOF
+Silo:     $FLEETING
+Title:    $SUMMARY
+Keywords: $TAGS
+UID:      $EV_UID  (sequence $SEQUENCE)
+DTSTART:  $DTSTART
+EOF
+  printf -- '--- body ---\n%s\n' "$BODY"
+  exit 0
+fi
+
+# 6. Create.
+denotecli create \
+  --title   "$SUMMARY" \
+  --tags    "$TAGS" \
+  --dir     "$FLEETING" \
+  --content "$BODY"
