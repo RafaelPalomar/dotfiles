@@ -16,9 +16,9 @@
 ;; This is a copy of the original in
 ;; https://github.com/hiecaq/guix-config?tab=readme-ov-file#evil-snipe
 (define-public emacs-evil-snipe
-  (let ((commit "3ad53b8da0dd23093a3f2f0e5c13ecdb08ba8efa")
+  (let ((commit "c07788c35cf8cd8e652a494322fdc0643e30a89f")
         (last-release-version "2.0.8") ;; from the el file version header
-        (revision "0")
+        (revision "1")
         (url "https://github.com/hiecaq/evil-snipe"))
     (package
      (name "emacs-evil-snipe")
@@ -32,7 +32,7 @@
        (file-name (git-file-name name version))
        (sha256
         (base32
-         "0fk9nl0h1j1ig6pvb4aix3injxi2jyw9djixchxf4aky11znivgj"))))
+         "06zhpsmn67f2n0f2yqzcv978l10nkvdr25kkl3cwkhhj9a56x62g"))))
      (propagated-inputs
       (list upstream:emacs-evil))
      (build-system emacs-build-system)
@@ -46,16 +46,16 @@ f/F/t/T motions, incrementally highlighting candidate targets as you type.")
 (define-public emacs-ob-mermaid
   (package
     (name "emacs-ob-mermaid")
-    (version "20250621.1655")
+    (version "20260323.0059")
     (source
      (origin
        (method git-fetch)
        (uri (git-reference
              (url "https://github.com/arnm/ob-mermaid.git")
-             (commit "372c2d91d3cdba5da9f7ac23e7bce7a0b3b46862")))
+             (commit "30c2da02e3d24dbec0d004d3c6dfe7b381500b05")))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "1bvg7xgm9ph7hbkgzm145ifxi833rg6lamanngqq564n7d0l4ng0"))))
+        (base32 "09mhzj1x4zvfj9yik71rcnk02rlidq2si018ah9iwy93r49hdslv"))))
     (build-system emacs-build-system)
     (home-page "https://github.com/arnm/ob-mermaid")
     (synopsis "Org-babel support for mermaid evaluation")
@@ -100,16 +100,16 @@ https://github.com/nex3/perspective-el.")
 (define-public emacs-tabspaces
   (package
     (name "emacs-tabspaces")
-    (version "20250116.229")
+    (version "20260222.1459")
     (source
      (origin
        (method git-fetch)
        (uri (git-reference
              (url "https://github.com/mclear-tools/tabspaces.git")
-             (commit "f552823f51f11d66492f754deb51abd709c08ed9")))
+             (commit "9fdbb0c9a7a153459408c1a93f9a9139d00f254a")))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "038il7nvymxh7wryskylz3ma4xl63jjvg6fvdjpa8x4ry60w4z5j"))))
+        (base32 "0jwmkxjzjb7jplnh1p7n4i580hjhxz9ijyvpq9gksamwgk1zd62i"))))
     (build-system emacs-build-system)
     (propagated-inputs (list upstream:emacs-project))
     (home-page "https://github.com/mclear-tools/tabspaces")
@@ -195,16 +195,16 @@ config), simplified menu.")
 (define-public emacs-copilot
   (package
     (name "emacs-copilot")
-    (version "0.3.0")
+    (version "0.5.0")
     (source
      (origin
        (method git-fetch)
        (uri (git-reference
              (url "https://github.com/copilot-emacs/copilot.el")
-             (commit "b98754712ad05282e1bb392bb35e5918ed35c9b6")))
+             (commit "c8c06efaa508569e13d7191882ae33435bb14543")))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "0n1kpjkr6vdfpb20x28bsg14piqv9vl0iz0jswc5qm0qgdmi23ah"))))
+        (base32 "1xvhfwgddms0cxhi9pn75vb6qsd6gqfv8s59xjk9ilh57nvwzqfn"))))
     (build-system emacs-build-system)
     (propagated-inputs (list upstream:emacs-editorconfig upstream:emacs-jsonrpc
                              upstream:emacs-track-changes upstream:emacs-f))

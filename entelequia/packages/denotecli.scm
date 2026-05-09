@@ -13,8 +13,8 @@
 ;;; Requires Go 1.25+ per the module's go directive.
 
 (define-public denotecli
-  (let ((commit "240c9d4b43fc6b791576224ff872df7e183d797b")
-        (revision "0"))
+  (let ((commit "19985eee8eeeea420042f2c77dae2b1e531545c8")
+        (revision "1"))
     (package
       (name "denotecli")
       (version (git-version "0.8.0" revision commit))
@@ -26,7 +26,7 @@
                (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "0k96gdgbps5ic1z82csp8vs4yivg9yms3j1vzfqsvp67dqg37l2d"))))
+          (base32 "0251mf1km78287vqf4sjajn8p3nd6fi2yfl9vsa69y70ar45xv88"))))
       (build-system go-build-system)
       (arguments
        (list #:go go-1.25
