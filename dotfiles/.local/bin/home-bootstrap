@@ -27,4 +27,4 @@ if [ ! -r "$HOME_FILE" ]; then
 fi
 
 exec guix time-machine -C "$DOTFILES/channels-lock.scm" -- \
-    home reconfigure --allow-downgrades -L "$DOTFILES" "$HOME_FILE"
+    home reconfigure -L "$DOTFILES" "$HOME_FILE"

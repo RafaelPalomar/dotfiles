@@ -84,8 +84,8 @@ auth-email-* aliases."
                (append
                 '(("sys-reconfigure"  . "sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure -L ~/.dotfiles ~/.dotfiles/entelequia/system/machines/$(hostname).scm")
                   ("sys-update"       . "git -C ~/.dotfiles pull && sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure -L ~/.dotfiles ~/.dotfiles/entelequia/system/machines/$(hostname).scm")
-                  ("home-reconfigure" . "guix time-machine -C ~/.dotfiles/channels-lock.scm -- home reconfigure --allow-downgrades -L ~/.dotfiles ~/.dotfiles/entelequia/home/machines/$(hostname)-$(whoami).scm")
-                  ("home-update"      . "git -C ~/.dotfiles pull && guix time-machine -C ~/.dotfiles/channels-lock.scm -- home reconfigure --allow-downgrades -L ~/.dotfiles ~/.dotfiles/entelequia/home/machines/$(hostname)-$(whoami).scm")
+                  ("home-reconfigure" . "guix time-machine -C ~/.dotfiles/channels-lock.scm -- home reconfigure -L ~/.dotfiles ~/.dotfiles/entelequia/home/machines/$(hostname)-$(whoami).scm")
+                  ("home-update"      . "git -C ~/.dotfiles pull && guix time-machine -C ~/.dotfiles/channels-lock.scm -- home reconfigure -L ~/.dotfiles ~/.dotfiles/entelequia/home/machines/$(hostname)-$(whoami).scm")
                   ("mbsync-all"       . "sync-mail"))
                 (if email-aliases?
                     '(("auth-email-ntnu" . "mutt_oauth2.py --provider microsoft --client-id $OAUTH_CLIENT_ID --client-secret $OAUTH_CLIENT_SECRET ~/.password-store/email/ntnu.no.gpg --authorize --authflow localhostauthcode --email rafael.palomar@ntnu.no")
