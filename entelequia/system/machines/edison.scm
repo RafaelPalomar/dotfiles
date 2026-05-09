@@ -6,15 +6,10 @@
   #:use-module (entelequia system lib common-packages)
   #:use-module (entelequia system lib server-services)
   #:use-module (entelequia system lib edison-services)
-  #:use-module (entelequia home profiles base)
-  #:use-module (entelequia home profiles server)
-  #:use-module (entelequia systems server)
   #:use-module (gnu)
-  #:use-module (gnu home)
   #:use-module (gnu services)
   #:use-module (gnu services base)
   #:use-module (gnu services containers)
-  #:use-module (gnu services guix)
   #:use-module (gnu services networking)
   #:use-module (gnu system accounts)
   #:use-module (gnu system shadow)
@@ -58,13 +53,9 @@
    (specifications->packages (gpu-driver-packages 'nvidia))
    (specifications->packages edison-specific-packages)))
 
-;;; Home environment — minimal server setup
-
-(define edison-home-env
-  (home-environment
-   (packages (append (base-home-packages)
-                     (server-home-packages)))
-   (services server-home-services)))
+;;; Home environment for rafael lives in
+;;; entelequia/home/machines/edison-rafael.scm and is deployed
+;;; independently via `guix home reconfigure' (alias `home-reconfigure').
 
 ;;; Edison-specific services
 
@@ -107,10 +98,7 @@
    ;; MPD music daemon (port 6600 MPD protocol, port 8000 HTTP stream)
    edison-mpd-service
    ;; OCI containers: Jellyfin, Navidrome, ARM
-   edison-container-services
-   ;; Guix Home
-   (list (service guix-home-service-type
-                  `(("rafael" ,edison-home-env))))))
+   edison-container-services))
 
 ;;; Edison operating system
 

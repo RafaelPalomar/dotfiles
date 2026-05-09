@@ -10,8 +10,7 @@
   #:use-module (btv tailscale)
   #:use-module (nongnu system linux-initrd)
   #:use-module (guix gexp)
-  #:export (make-base-operating-system
-            guix-home-config))
+  #:export (make-base-operating-system))
 
 (use-package-modules audio video nfs certs shells ssh linux bash emacs gnome
                      networking wm fonts libusb cups freedesktop file-systems
@@ -292,9 +291,3 @@
    ;; Allow resolution of '.local' host names with mDNS
    (name-service-switch %mdns-host-lookup-nss)))
 
-(define* (guix-home-config config home-environment)
-  "Helper function to create a guix-home service for the configured user.
-   CONFIG should be the machine-config record.
-   HOME-ENVIRONMENT should be the home-environment configuration."
-  (service guix-home-service-type
-           `((,(machine-config-username config) ,home-environment))))

@@ -8,16 +8,7 @@
   #:use-module (entelequia system lib common-services)
   #:use-module (entelequia system lib pam-gnupg)
   #:use-module (entelequia system machines datalocker-udev-rules)
-  #:use-module (entelequia systems desktop)  ; For desktop-home-services
-  #:use-module (entelequia home services emacs)
-  #:use-module (entelequia home profiles base)
-  #:use-module (entelequia home profiles development)
-  #:use-module (entelequia home profiles email)
-  #:use-module (entelequia home profiles documentation)
-  #:use-module (entelequia home profiles gaming)
-  #:use-module (entelequia home profiles networking)
   #:use-module (gnu)
-  #:use-module (gnu home)
   #:use-module (gnu services)
   #:use-module (gnu services xorg)
   #:use-module (gnu services containers)
@@ -83,18 +74,9 @@
    ;; DataLocker Sentry ONE auto-unlock udev rule
    datalocker-udev-rules-service
 
-   ;; Guix Home configuration
-   (guix-home-config
-    einstein-config
-    (home-environment
-     ;; Include profile packages
-     (packages (append (base-home-packages)
-                       (development-home-packages)
-                       (networking-home-packages)
-                       email-home-packages
-                       documentation-home-packages))
-     ;; desktop-home-services already includes emacs service
-     (services desktop-home-services)))
+   ;; Home environment for rafael lives in
+   ;; entelequia/home/machines/einstein-rafael.scm and is deployed
+   ;; independently via `guix home reconfigure' (alias `home-reconfigure').
 
    ;; SLiM display manager with NVIDIA Xorg config
    (service slim-service-type

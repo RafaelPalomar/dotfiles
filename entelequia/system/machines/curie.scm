@@ -7,17 +7,7 @@
   #:use-module (entelequia packages latex)
   #:use-module (entelequia system lib common-services)
   #:use-module (entelequia system lib pam-gnupg)
-  #:use-module (entelequia systems desktop)  ; For desktop-home-services
-  #:use-module (entelequia home services tailscale-work)
-  #:use-module (btv tailscale)
-  #:use-module (entelequia home profiles base)
-  #:use-module (entelequia home profiles development)
-  #:use-module (entelequia home profiles email)
-  #:use-module (entelequia home profiles documentation)
-  #:use-module (entelequia home profiles gaming)
-  #:use-module (entelequia home profiles networking)
   #:use-module (gnu)
-  #:use-module (gnu home)
   #:use-module (gnu services)
   #:use-module (gnu services base)     ; guix-extension, guix-service-type
   #:use-module (gnu services xorg)
@@ -90,23 +80,9 @@
               (subuids (list (subid-range (name "rafael"))))
               (subgids (list (subid-range (name "rafael"))))))
 
-    ;; Guix Home configuration
-    (guix-home-config
-     curie-config
-     (home-environment
-      ;; Include profile packages
-      (packages (append (base-home-packages)
-                        (development-home-packages)
-                        (networking-home-packages)
-                        email-home-packages
-                        documentation-home-packages
-                        (gaming-home-packages)
-                        (list tailscaled)))  ; work tailscaled daemon (userspace mode)
-      ;; desktop-home-services includes DataLocker service.
-      ;; Curie-only: userspace tailscaled for the work tailnet
-      ;; (side-by-side with the system-level personal tailscaled).
-      (services (cons (service home-tailscale-work-service-type)
-                      desktop-home-services))))
+    ;; Home environment for rafael lives in
+    ;; entelequia/home/machines/curie-rafael.scm and is deployed
+    ;; independently via `guix home reconfigure' (alias `home-reconfigure').
 
     ;; SLiM display manager with AMD Xlibre config
     (service slim-service-type

@@ -4,20 +4,11 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
-  #:use-module (entelequia systems desktop)  ; For desktop-home-services
-  #:use-module (entelequia home profiles base)
-  #:use-module (entelequia home profiles development)
-  #:use-module (entelequia home profiles email)
-  #:use-module (entelequia home profiles documentation)
-  #:use-module (entelequia home profiles gaming)
-  #:use-module (entelequia home profiles python-learning)
   #:use-module (gnu)
-  #:use-module (gnu home)
   #:use-module (gnu services)
   #:use-module (gnu services xorg)
   #:use-module (gnu services containers)
   #:use-module (gnu system accounts)
-  #:use-module (gnu services guix)
   #:use-module (nongnu packages nvidia)
   #:use-module (nongnu services nvidia)
   #:use-module (nonguix transformations)
@@ -59,28 +50,10 @@
    (specifications->packages nvidia-specific-packages)
    (specifications->packages alucard-specific-packages)))
 
-;;; Home environments
-
-;; Rafael's home: full bspwm desktop setup (same as einstein/curie)
-(define rafael-home-env
-  (home-environment
-   (packages (append (base-home-packages)
-                     (development-home-packages)
-                     (gaming-home-packages)
-                     email-home-packages
-                     documentation-home-packages))
-   (services desktop-home-services)))
-
-;; Leandro's home: same bspwm desktop setup as rafael.
-;; Use native CoQ (alucard is NVIDIA — no gfx1150 black-screen issue);
-;; wine variant excluded to avoid the no-prefix error.
-(define leandro-home-env
-  (home-environment
-   (packages (append (base-home-packages)
-                     (python-learning-home-packages)
-                     (gaming-home-packages
-                      #:exclude '("caves-of-qud"))))
-   (services desktop-home-services)))
+;;; Home environments for rafael and leandro live in
+;;; entelequia/home/machines/alucard-rafael.scm and alucard-leandro.scm
+;;; respectively, and are deployed independently per-user via
+;;; `guix home reconfigure' (alias `home-reconfigure').
 
 ;;; Alucard-specific services
 
@@ -91,11 +64,6 @@
             (rootless-podman-configuration
              (subuids (list (subid-range (name "rafael"))))
              (subgids (list (subid-range (name "rafael"))))))
-
-   ;; Guix Home for both users
-   (service guix-home-service-type
-            `(("rafael" ,rafael-home-env)
-              ("leandro" ,leandro-home-env)))
 
    ;; SLiM display manager with NVIDIA xorg (proven to work with xlibre + NVIDIA)
    ;; Both rafael and leandro use bspwm via .xsession from dotfiles

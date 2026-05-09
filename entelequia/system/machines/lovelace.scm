@@ -5,15 +5,10 @@
   #:use-module (entelequia system layers server-base)
   #:use-module (entelequia system lib common-packages)
   #:use-module (entelequia system lib server-services)
-  #:use-module (entelequia systems server)
-  #:use-module (entelequia home profiles base)
-  #:use-module (entelequia home profiles server)
   #:use-module (gnu)
-  #:use-module (gnu home)
   #:use-module (gnu services)
   #:use-module (gnu services base)
   #:use-module (gnu services containers)
-  #:use-module (gnu services guix)
   #:use-module (gnu services networking)
   #:use-module (gnu system accounts)
   #:use-module (gnu system shadow)
@@ -53,13 +48,9 @@
 (define %sops-lovelace
   (local-file "../../../sops/lovelace.yaml"))
 
-;;; Home environment — minimal server setup
-
-(define lovelace-home-env
-  (home-environment
-   (packages (append (base-home-packages)
-                     (server-home-packages)))
-   (services server-home-services)))
+;;; Home environment for rafael lives in
+;;; entelequia/home/machines/lovelace-rafael.scm and is deployed
+;;; independently via `guix home reconfigure' (alias `home-reconfigure').
 
 ;;; Lovelace-specific services
 
@@ -173,11 +164,7 @@
                             (permissions #o444))
                (sops-secret (key '("borg" "ssh_private_key"))
                             (file %sops-lovelace)
-                            (permissions #o400))))))
-
-   ;; ── Guix Home ─────────────────────────────────────────────────────────
-   (service guix-home-service-type
-            `(("rafael" ,lovelace-home-env)))))
+                            (permissions #o400))))))))
 
 ;;; Lovelace operating system
 

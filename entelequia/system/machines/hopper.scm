@@ -4,17 +4,8 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
-  #:use-module (entelequia systems desktop)  ; For desktop-home-services
-  #:use-module (entelequia home profiles base)
-  #:use-module (entelequia home profiles development)
-  #:use-module (entelequia home profiles email)
-  #:use-module (entelequia home profiles documentation)
-  #:use-module (entelequia home profiles gaming)
-  #:use-module (entelequia home profiles python-learning)
   #:use-module (gnu)
-  #:use-module (gnu home)
   #:use-module (gnu services)
-  #:use-module (gnu services guix)       ; guix-home-service-type
   #:use-module (gnu services xorg)
   #:use-module (gnu services pm)         ; thermald
   #:use-module (gnu services containers)
@@ -76,31 +67,10 @@
                                "lm-sensors"))
    (specifications->packages curie-specific-packages)))
 
-;;; Home environments
-
-(define rafael-home-env
-  (home-environment
-   (packages (append (base-home-packages)
-                     (development-home-packages)
-                     (gaming-home-packages)
-                     email-home-packages
-                     documentation-home-packages))
-   (services desktop-home-services)))
-
-;; Adrian: minimal desktop env (bspwm + dotfiles + games).
-;; No dev/email/docs — keeps the surface small.
-;; Filter out age-inappropriate titles (TAB has graphic content).
-(define adrian-home-env
-  (home-environment
-   (packages (append (base-home-packages)
-                     (python-learning-home-packages)
-                     (gaming-home-packages
-                      ;; Exclude TAB (age).
-                      ;; Native CoQ broken on Mesa 25.2.3 + Unity 2021 (same bug as curie's
-                      ;; gfx1150 — confirmed Intel UHD 620 also affected).  Use wine variant.
-                      #:exclude '("they-are-billions"
-                                  "caves-of-qud-native"))))
-   (services desktop-home-services)))
+;;; Home environments for rafael and adrian live in
+;;; entelequia/home/machines/hopper-rafael.scm and hopper-adrian.scm
+;;; respectively, and are deployed independently per-user via
+;;; `guix home reconfigure' (alias `home-reconfigure').
 
 ;;; Hopper-specific services
 
@@ -115,11 +85,6 @@
             (rootless-podman-configuration
              (subuids (list (subid-range (name "rafael"))))
              (subgids (list (subid-range (name "rafael"))))))
-
-   ;; Guix Home for rafael (full) + adrian (minimal)
-   (service guix-home-service-type
-            `(("rafael" ,rafael-home-env)
-              ("adrian" ,adrian-home-env)))
 
    ;; SLiM display manager with Intel xorg
    (service slim-service-type

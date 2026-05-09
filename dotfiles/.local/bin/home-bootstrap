@@ -1,0 +1,30 @@
+#!/bin/sh
+# home-bootstrap — first-deploy of the per-user Guix Home on a new machine.
+#
+# After `sudo guix system reconfigure ...' on a fresh install there is no
+# guix-home in place (the system layer no longer includes
+# guix-home-service-type — see the home/system decoupling).  This script
+# runs the first `guix home reconfigure' for the current user, after which
+# the `home-reconfigure' bash alias does the same job in one keystroke.
+#
+# Usage:  ~/.dotfiles/dotfiles/.local/bin/home-bootstrap
+#
+# Resolves the home file as
+#   ~/.dotfiles/entelequia/home/machines/$(hostname)-$(whoami).scm
+# which mirrors the per-(machine,user) layout under entelequia/home/machines/.
+
+set -eu
+
+DOTFILES="${DOTFILES:-$HOME/.dotfiles}"
+HOST="$(hostname)"
+USER_NAME="$(whoami)"
+HOME_FILE="$DOTFILES/entelequia/home/machines/$HOST-$USER_NAME.scm"
+
+if [ ! -r "$HOME_FILE" ]; then
+    echo "home-bootstrap: no home file for $HOST-$USER_NAME at $HOME_FILE" >&2
+    echo "  expected: entelequia/home/machines/<hostname>-<whoami>.scm" >&2
+    exit 1
+fi
+
+exec guix time-machine -C "$DOTFILES/channels-lock.scm" -- \
+    home reconfigure -L "$DOTFILES" "$HOME_FILE"
