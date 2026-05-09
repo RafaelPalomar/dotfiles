@@ -4,6 +4,7 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
+  #:use-module (entelequia system lib librewolf-policy)
   #:use-module (gnu)
   #:use-module (gnu services)
   #:use-module (gnu services xorg)
@@ -71,7 +72,12 @@
             (slim-configuration
              (auto-login? #f)
              (default-user "rafael")
-             (xorg-configuration nvidia-xorg-config)))))
+             (xorg-configuration nvidia-xorg-config)))
+
+   ;; Librewolf managed policy: both SearXNG variants installed, adult as
+   ;; system-wide default, Bitwarden force-installed.  Kids (leandro) get
+   ;; a per-user user.js override via librewolf-kids home service.
+   librewolf-policy-service))
 
 (define alucard-system
   (operating-system

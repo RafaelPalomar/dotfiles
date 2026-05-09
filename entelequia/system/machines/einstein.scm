@@ -7,6 +7,8 @@
   #:use-module (entelequia packages latex)
   #:use-module (entelequia system lib common-services)
   #:use-module (entelequia system lib pam-gnupg)
+  #:use-module (entelequia system lib chromium-policy)
+  #:use-module (entelequia system lib librewolf-policy)
   #:use-module (entelequia system machines datalocker-udev-rules)
   #:use-module (gnu)
   #:use-module (gnu services)
@@ -88,7 +90,15 @@
    ;; pam-gnupg: SLiM login password → gpg-agent passphrase cache.
    ;; Eliminates pinentry prompts for keygrips listed in ~/.pam-gnupg.
    ;; Requires the GPG passphrase to equal the login password.
-   (service pam-gnupg-service-type)))
+   (service pam-gnupg-service-type)
+
+   ;; Chromium managed policy: SearXNG default search + Bitwarden forcelist.
+   ;; Per-profile launchers come from the home environment.
+   chromium-policy-service
+
+   ;; Librewolf managed policy: both SearXNG variants installed, adult as
+   ;; default, Bitwarden force-installed via Mozilla's AMO.
+   librewolf-policy-service))
 
 (define einstein-system
   (operating-system

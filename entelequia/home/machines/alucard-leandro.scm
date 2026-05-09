@@ -3,6 +3,7 @@
   #:use-module (entelequia home profiles gaming)
   #:use-module (entelequia home profiles python-learning)
   #:use-module (entelequia home services desktop-suite)
+  #:use-module (entelequia home services librewolf-kids)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -24,6 +25,7 @@
   (append
    (common-home-services)
    (desktop-home-services)
-   (list (service home-dotfiles-service-type
+   (list librewolf-kids-home-service
+         (service home-dotfiles-service-type
                   (home-dotfiles-configuration
                    (directories '("../../../dotfiles"))))))))

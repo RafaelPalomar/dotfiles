@@ -6,6 +6,7 @@
   #:use-module (entelequia home profiles gaming)
   #:use-module (entelequia home profiles networking)
   #:use-module (entelequia home services desktop-suite)
+  #:use-module (entelequia home services chromium)
   #:use-module (entelequia home services tailscale-work)
   #:use-module (btv tailscale)
   #:use-module (gnu)
@@ -34,6 +35,7 @@
    (common-home-services)
    (desktop-home-services)
    (laptop-home-services)
+   (chromium-home-services)
    (list (service home-tailscale-work-service-type)
          (service home-dotfiles-service-type
                   (home-dotfiles-configuration

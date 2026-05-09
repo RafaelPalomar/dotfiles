@@ -74,8 +74,11 @@
         tmux
 
         ;; Browsers
+        ;; librewolf is the secondary browser everywhere; native
+        ;; ungoogled-chromium is added per-(machine,user) in
+        ;; entelequia/home/services/chromium.scm so launchers can be
+        ;; profile-aware (only used on einstein and curie).
         librewolf
-        ;;ungoogled-chromium ;; Quite unstable on Guix, maybe better to use the flatpak
 
         ;; Authentication
         password-store

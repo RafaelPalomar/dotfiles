@@ -5,6 +5,7 @@
   #:use-module (entelequia home profiles documentation)
   #:use-module (entelequia home profiles networking)
   #:use-module (entelequia home services desktop-suite)
+  #:use-module (entelequia home services chromium)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -27,6 +28,7 @@
   (append
    (common-home-services)
    (desktop-home-services)
+   (chromium-home-services)
    (list (service home-dotfiles-service-type
                   (home-dotfiles-configuration
                    (directories '("../../../dotfiles"))))))))
