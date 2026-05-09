@@ -1241,38 +1241,58 @@ image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
     "rss-bridge" "rssbridge/rss-bridge:latest"
     #:volumes (list "/data/rss-bridge:/app/config"))
 
-   ;; ── SearxNG ───────────────────────────────────────────────────────────
-   (make-ts-sidecar "searxng" #:serve-port 8080)
-   (make-app-container
+   ;; ── SearxNG (adult + kids, both via Mullvad) ─────────────────────────
+   ;; Both SearxNG instances share gluetun-pihole's Mullvad netns so search-
+   ;; engine queries leave through Mullvad while the inbound tailnet path
+   ;; stays plain Tailscale.  Reuses pihole's existing WG key/device — no
+   ;; extra Mullvad device, no extra sops secret.
+   ;;
+   ;;   client ──TS──► ts-searxng ──proxy──► host.containers.internal:8080
+   ;;                                          │
+   ;;                                  [gluetun-pihole netns]
+   ;;                                          ├─ pihole        :53, :80
+   ;;                                          ├─ searxng       :8080
+   ;;                                          ├─ searxng-kids  :8081
+   ;;                                          └─ wg0 → Mullvad → upstream engines
+   ;;
+   ;; Tradeoff: a gluetun-pihole restart bounces searxng too.  Acceptable
+   ;; because pihole's gluetun is the most stable of the three.
+   ;;
+   ;; The kids instance shares the same Tailscale auth key as the adult
+   ;; (#:secret-name "searxng") — must be REUSABLE in Tailscale admin.
+   ;; Both SearxNG containers also share the same secret_key (HMAC-only).
+   (make-podman-shepherd-service
     "searxng" "searxng/searxng:latest"
+    #:requirement '(gluetun-pihole sops-secrets)
     #:volumes
     (list "/data/searxng:/etc/searxng:rw"
           "/run/secrets/searxng/secret_key:/run/secrets/secret_key:ro")
-    #:environment (list "SEARXNG_SETTINGS_PATH=/etc/searxng/settings.yml")
-    #:extra-arguments
+    #:env (list "SEARXNG_SETTINGS_PATH=/etc/searxng/settings.yml")
+    #:network "container:gluetun-pihole"
+    #:extra-args
     (list "--cap-drop=ALL" "--cap-add=CHOWN" "--cap-add=SETGID" "--cap-add=SETUID"))
 
-   ;; ── SearxNG (kids) ────────────────────────────────────────────────────
-   ;; Parallel SearxNG instance with strict SafeSearch + reduced engine set,
-   ;; on its own Tailscale node so kids' devices browse it via MagicDNS at
-   ;; http://searxng-kids:8080.  Settings live at /data/searxng-kids/.
-   ;; Shares the secret_key with the adult instance — the key is just for
-   ;; session-state HMAC; no privacy advantage to a separate one.
-   ;; Shares the same Tailscale auth key as the main searxng node — needs
-   ;; to be REUSABLE in Tailscale admin (re-generate if it was single-use).
-   ;; Port 8081 (not 8080) because make-ts-sidecar routes via host LAN IP
-   ;; and main searxng already claims host port 8080 via pasta.
-   (make-ts-sidecar "searxng-kids" #:serve-port 8081 #:secret-name "searxng")
-   (make-app-container
+   (make-podman-shepherd-service
     "searxng-kids" "searxng/searxng:latest"
+    #:requirement '(gluetun-pihole sops-secrets)
     #:volumes
     (list "/data/searxng-kids:/etc/searxng:rw"
           "/run/secrets/searxng/secret_key:/run/secrets/secret_key:ro")
-    #:environment (list "SEARXNG_SETTINGS_PATH=/etc/searxng/settings.yml"
-                        "SEARXNG_PORT=8081"
-                        "SEARXNG_BIND_ADDRESS=0.0.0.0")
-    #:extra-arguments
+    ;; The image's ENV sets GRANIAN_PORT=8080.  searx.webapp:app is loaded
+    ;; by granian directly, so SEARXNG_PORT (only honoured by the dev-mode
+    ;; searx.webapp:run() entrypoint) has no effect — override GRANIAN_PORT.
+    #:env (list "SEARXNG_SETTINGS_PATH=/etc/searxng/settings.yml"
+                "GRANIAN_PORT=8081")
+    #:network "container:gluetun-pihole"
+    #:extra-args
     (list "--cap-drop=ALL" "--cap-add=CHOWN" "--cap-add=SETGID" "--cap-add=SETUID"))
+
+   ;; serve-port refers to the host-side port that gluetun-pihole publishes
+   ;; (8090/8091, see ports list above), not the in-container 8080/8081.
+   (make-ts-sidecar "searxng" #:serve-port 8090
+                    #:backend-host "host.containers.internal")
+   (make-ts-sidecar "searxng-kids" #:serve-port 8091 #:secret-name "searxng"
+                    #:backend-host "host.containers.internal")
 
    ;; ── Habitica ──────────────────────────────────────────────────────────
    ;; Three-container stack sharing one Tailscale netns:
@@ -1346,11 +1366,22 @@ image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
           "/run/secrets/mullvad/pihole_wg_address:/run/secrets/wg-address:ro")
     #:env
     (list "VPN_SERVICE_PROVIDER=mullvad"
-          "VPN_TYPE=wireguard")
+          "VPN_TYPE=wireguard"
+          ;; Pin exit to Nordics — close to Oslo for low latency on pihole's
+          ;; DNS path and on searxng's outbound search-engine queries; also
+          ;; reduces 403/anti-bot rates from engines like Wikidata that
+          ;; aggressively rate-limit US Mullvad ranges.
+          "SERVER_COUNTRIES=Norway,Sweden,Denmark")
     #:entrypoint "/bin/sh"
     #:command (list "-c"
                     "export WIREGUARD_PRIVATE_KEY=$(cat /run/secrets/wg-key); export WIREGUARD_ADDRESSES=$(cat /run/secrets/wg-address); exec /gluetun-entrypoint")
-    #:ports (list "53:53/tcp" "53:53/udp" "0.0.0.0:8053:80")
+    ;; 8090/8091 also published here because searxng + searxng-kids share
+    ;; gluetun-pihole's netns to route their outbound through Mullvad (see
+    ;; SearxNG block below).  Host ports 8090/8091 (not 8080/8081) avoid
+    ;; collision with gluetun-qbt which already publishes :8080 for qbt's
+    ;; webUI; the in-netns ports searxng listens on are still 8080/8081.
+    #:ports (list "53:53/tcp" "53:53/udp" "0.0.0.0:8053:80"
+                  "0.0.0.0:8090:8080" "0.0.0.0:8091:8081")
     #:extra-args (list "--cap-add=NET_ADMIN" "--device=/dev/net/tun"))
 
    (make-podman-shepherd-service
