@@ -2384,21 +2384,91 @@ Used by the mail-derived Action Item and Waiting For workflows."
     (if match (find-file match)
       (user-error "No matching project note: %s" query))))
 
+;; ─── Move / promote helpers ────────────────────────────────────────
+;; Move (or promote) a denote note across PKS silos via denotecli,
+;; preserving the denote ID so backlinks survive.  After a successful
+;; move the buffer follows the file to its new silo.
+(defun my-pks--silo-path (label)
+  "Return the absolute path of silo LABEL.
+Includes \"fleeting\" (the default `denote-directory') plus everything
+in `denote-silo-extras-directories'."
+  (cond
+   ((string= label "fleeting") (expand-file-name "~/pks/fleeting/"))
+   (t (let ((cell (assoc label denote-silo-extras-directories)))
+        (and cell (expand-file-name (cdr cell)))))))
+
+(defun my-pks--silo-labels ()
+  "All known PKS silo labels for completion."
+  (cons "fleeting" (mapcar #'car denote-silo-extras-directories)))
+
+(defun my-pks--reopen-after-move (id silo-label)
+  "After a denotecli move, kill the old buffer and visit ID in SILO-LABEL."
+  (let* ((silo-dir (my-pks--silo-path silo-label))
+         (matches (and silo-dir (file-directory-p silo-dir)
+                       (directory-files
+                        silo-dir t
+                        (concat "^" (regexp-quote id) ".*\\.org\\'"))))
+         (new-file (car matches))
+         (old-buf (current-buffer)))
+    (when new-file (find-file new-file))
+    (when (and (not (eq old-buf (current-buffer)))
+               (buffer-live-p old-buf))
+      (let ((kill-buffer-query-functions nil))
+        (kill-buffer old-buf)))))
+
+(defun my-pks--move-current-to (silo &optional kw-vocab restrict-to-path)
+  "Move the current denote note to SILO via denotecli, preserving its ID.
+KW-VOCAB seeds `completing-read-multiple' for new keywords (empty = keep
+existing).  If RESTRICT-TO-PATH is non-nil, error unless the buffer's
+file lives under that path."
+  (let ((file (buffer-file-name)))
+    (unless (and file (denote-file-is-note-p file))
+      (user-error "Current buffer is not a denote note"))
+    (when restrict-to-path
+      (unless (string-prefix-p (expand-file-name restrict-to-path) file)
+        (user-error "Current note is not under %s" restrict-to-path)))
+    (let* ((id (denote-retrieve-filename-identifier file))
+           (kw (completing-read-multiple
+                (format "%s keywords (comma-separated, empty = keep): " silo)
+                kw-vocab))
+           (args (append (list "rename" id "--silo" silo "--keep-id")
+                         (when kw
+                           (list "--keywords" (string-join kw ","))))))
+      (save-buffer)
+      (with-temp-buffer
+        (let ((status (apply #'call-process "denotecli" nil t nil args)))
+          (unless (zerop status)
+            (user-error "denotecli failed (%d): %s"
+                        status (string-trim (buffer-string))))
+          (message "denotecli: %s"
+                   (if (> (buffer-size) 0)
+                       (string-trim (buffer-string))
+                     (format "moved %s → %s" id silo)))))
+      (my-pks--reopen-after-move id silo))))
+
 (defun my-denote-promote-fleeting-to-permanent ()
-  "Promote current fleeting note to permanent/ via denotecli (preserves ID)."
+  "Promote the current fleeting note to permanent/ (preserves denote ID)."
   (interactive)
-  (unless (string-prefix-p (expand-file-name "~/pks/fleeting/")
-                           (buffer-file-name))
-    (user-error "Current buffer is not a fleeting note"))
-  (let* ((id (denote-retrieve-filename-identifier (buffer-file-name)))
-         (kw (completing-read-multiple
-              "Permanent keywords (comma-separated): "
-              '("perm" "research" "code" "learn" "ntnu" "ous"))))
-    (save-buffer)
-    (shell-command
-     (format "denotecli rename %s --silo permanent --keywords %s --keep-id"
-             (shell-quote-argument id)
-             (shell-quote-argument (string-join kw ","))))))
+  (my-pks--move-current-to
+   "permanent"
+   '("perm" "research" "code" "learn" "ntnu" "ous")
+   "~/pks/fleeting/"))
+
+(defun my-denote-promote-to-reference ()
+  "Promote the current note to reference/ as a hub/MOC (preserves denote ID)."
+  (interactive)
+  (my-pks--move-current-to
+   "reference"
+   '("moc" "hub" "research" "code" "learn" "ntnu" "ous")))
+
+(defun my-pks-move-note-to-silo ()
+  "Move the current denote note to a chosen PKS silo (preserves denote ID).
+Generic counterpart to `my-denote-promote-fleeting-to-permanent' — pick
+any target silo from `denote-silo-extras-directories' (plus fleeting)."
+  (interactive)
+  (let ((target (completing-read "Move to silo: "
+                                 (my-pks--silo-labels) nil t)))
+    (my-pks--move-current-to target denote-known-keywords)))
 
 ;; Bind the C-c n prefix once denote is available.  The prefix map
 ;; itself is created earlier in this file; binding it here keeps the
@@ -2430,6 +2500,8 @@ Used by the mail-derived Action Item and Waiting For workflows."
     (define-key m "a" #'my-denote-add-to-agenda)
     (define-key m "A" #'my-denote-remove-from-agenda)
     (define-key m "!" #'my-denote-promote-fleeting-to-permanent)
+    (define-key m "^" #'my-denote-promote-to-reference)
+    (define-key m "m" #'my-pks-move-note-to-silo)
     (define-key m (kbd "l l") #'denote-org-dblock-insert-links)
     (define-key m (kbd "l b") #'denote-org-dblock-insert-backlinks)
     (define-key m (kbd "l m") #'denote-org-dblock-insert-missing-links)))

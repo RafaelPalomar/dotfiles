@@ -1,4 +1,6 @@
 .aider*
+claude.txt
+dotfiles/.local/bin/__pycache__/
 
 # Generated documentation (auto-generated from RST sources).
 # Anchored to repo root so per-scope CLAUDE.md files (e.g. user-level
