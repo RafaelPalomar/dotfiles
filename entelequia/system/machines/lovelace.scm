@@ -183,7 +183,6 @@
               nextcloud-proxy-config-service
               postgresql-lovelace-service
               smartd-lovelace-service
-              luanti-lovelace-service
               borgmatic-lovelace-service
               lovelace-container-services
               (list habitica-rs-init-service
@@ -198,8 +197,7 @@
                2049)     ; NFS server (Edison)
              #:firewall-extra-udp-ports
              '(53        ; DNS (Pi-hole)
-               2049      ; NFS server (Edison)
-               30000)    ; Luanti game server
+               2049)     ; NFS server (Edison)
              #:enable-ip-forwarding? #t))
 
    ;; Single user (no desktop, no audio groups)

@@ -20,7 +20,7 @@
   #:use-module (srfi srfi-1)
   #:export (postgresql-lovelace-service
             smartd-lovelace-service
-            luanti-lovelace-service
+            luanti-game-service
             borgmatic-lovelace-service
             lovelace-data-dir-service
             nextcloud-proxy-config-service
@@ -257,8 +257,9 @@ host    all             all             192.168.88.0/24  md5
 ;;; Luanti — game server
 ;;;
 
-;;; luanti-lovelace-service: Luanti game server with dedicated system user.
-(define luanti-lovelace-service
+;;; luanti-game-service: Luanti game server with dedicated system user.
+;;; Currently used by edison (port 30000 needs to be open in the firewall).
+(define luanti-game-service
   (list
    ;; System user for Luanti
    (simple-service 'luanti-user
@@ -304,6 +305,36 @@ host    all             all             192.168.88.0/24  md5
                                              "/share/luanti/mods/goblins"))
                         '("goblins"))))
 
+   ;; Luanti server config — managed declaratively at /etc/luanti.conf.
+   ;; Tuned for the AMD Opteron X3421 APU (low-power 4-core, weak single-thread):
+   ;; reduced active range, capped block sends, doubled abm_interval (mineclonia
+   ;; ships 0.25 — half the Luanti default), and capped liquid simulation.
+   (simple-service 'luanti-config
+                   etc-service-type
+                   (list `("luanti.conf"
+                           ,(plain-file "luanti.conf"
+                                        "# Luanti server configuration — managed by entelequia.
+
+# Identity
+server_name = Lovelace
+server_description = Lovelace Mineclonia server
+port = 30000
+max_users = 10
+
+# Gameplay
+enable_damage = true
+creative_mode = false
+
+# Performance tuning (low-power CPU)
+active_block_range = 3
+max_block_send_distance = 8
+max_simultaneous_block_sends_per_client = 20
+emergequeue_limit_total = 256
+abm_interval = 0.5
+liquid_loop_max = 1000
+liquid_update = 1.0
+"))))
+
    ;; Luanti shepherd service
    (simple-service 'luanti-server
                    shepherd-root-service-type
@@ -314,7 +345,7 @@ host    all             all             192.168.88.0/24  md5
                      (requirement '(file-systems networking))
                      (start #~(make-forkexec-constructor
                                (list #$(file-append luanti-server "/bin/luantiserver")
-                                     "--config" "/data/luanti/luanti.conf"
+                                     "--config" "/etc/luanti.conf"
                                      "--world" "/data/luanti/worlds/mineclonia"
                                      "--gameid" "mineclonia"
                                      "--logfile" "/data/luanti/luanti.log")
@@ -356,7 +387,6 @@ source_directories:
   - /data/wallabag
   - /data/pihole
   - /data/searxng
-  - /data/luanti
   - /data/grafana
   # PostgreSQL dump is created by the before_backup hook:
   - /data/postgresql-backup

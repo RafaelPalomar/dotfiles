@@ -98,7 +98,11 @@
    ;; MPD music daemon (port 6600 MPD protocol, port 8000 HTTP stream)
    edison-mpd-service
    ;; OCI containers: Jellyfin, Navidrome, ARM
-   edison-container-services))
+   edison-container-services
+   ;; Luanti (Mineclonia) game server — moved from lovelace.
+   ;; Lovelace's Opteron X3421 APU was too weak; edison's Xeon E5-1620 is ~2-3x
+   ;; faster single-thread, which is what Luanti's main loop needs.
+   luanti-game-service))
 
 ;;; Edison operating system
 
@@ -114,7 +118,8 @@
                ("rafael" ,(plain-file "edison-deploy-rafael.pub"
                                       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINjd0lrTPhG75R5jWBCrtN7xX4u7D12527agB+Jolx9f openpgp:0xA08C8C2F")))
              ;; Ports: 8096 Jellyfin, 4533 Navidrome HTTP, 4534 Navidrome HTTPS (Caddy),
-             ;;        8080 ARM web UI, 6600 MPD, 8000 MPD HTTP stream
+             ;;        8080 ARM web UI, 6600 MPD, 8000 MPD HTTP stream,
+             ;;        30000 Luanti
              #:firewall-extra-tcp-ports
              '(8096   ; Jellyfin (LAN fallback)
                4533   ; Navidrome HTTP (LAN)
@@ -122,7 +127,8 @@
                8080   ; ARM web UI (LAN fallback)
                6600   ; MPD protocol
                8000)  ; MPD HTTP stream
-             #:firewall-extra-udp-ports '()))
+             #:firewall-extra-udp-ports
+             '(30000)))  ; Luanti (Mineclonia)
 
    ;; NVIDIA kernel arguments: blacklist nouveau, enable DRM modesetting
    (kernel-arguments (gpu-kernel-arguments 'nvidia))
