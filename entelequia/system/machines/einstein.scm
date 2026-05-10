@@ -44,10 +44,21 @@
 
 (define nvidia-xorg-config
   (xlibre-configuration
+   ;; Patched xlibre-server: drops `Module "glx"` from the bundled
+   ;; share/X11/xorg.conf.d/10-nvidia.conf so the OutputClass only
+   ;; loads NVIDIA's GLX (see entelequia/packages/xlibre-fix.scm).
    (server xlibre-server-no-mesa-glx)
    (modules (list nvidia-driver xlibre-input-libinput))
    (drivers '("nvidia"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
+   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
+   ;; Belt-and-suspenders: even with the OutputClass patched, X still
+   ;; loads a default `glx` module that registers as the GLX vendor
+   ;; for screen 0 ahead of glxserver_nvidia.  Disable it explicitly.
+   (extra-config
+    (list "Section \"Module\""
+          "  Disable \"glx\""
+          "  Load \"glxserver_nvidia\""
+          "EndSection"))))
 
 ;;; Einstein-specific packages
 
