@@ -1124,3 +1124,154 @@ inside the container."
     ;; CC0: some textures and sounds
     (license (list license:cc0 license:expat))
     (properties `((upstream-name . "freelikegnu/mobs_goblins")))))
+
+;;;
+;;; Additional Luanti mob mods for the edison server.
+;;;
+;;; All of these were originally written for Minetest Game and depend on
+;;; either TenPlus1's Mobs Redo (luanti-mobs) or ElCeejo's Creatura.  They
+;;; load and run alongside Mineclonia's mcl_mobs ecosystem but their
+;;; entities, drops and spawn rules are NOT integrated with mineclonia's
+;;; biomes/items — expect a parallel mob ecosystem feel.
+;;;
+
+(define-public luanti-mobs-skeletons
+  (package
+    (name "luanti-mobs-skeletons")
+    (version "2026-04-21")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/tenplus1/mobs_skeletons")
+             (commit "4bee07f07b3578874844b6e21e48e778c7f74f7f")))
+       (sha256
+        (base32 "0yq66nikalnl6gfyhk118ggabirc4lrdjgac3rmh8f76sm3qn9ff"))
+       (file-name (git-file-name name version))))
+    (build-system luanti-mod-build-system)
+    (arguments
+     '(#:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'drop-default-dep
+           ;; mod.conf has `depends = default, mobs`.  We don't ship Minetest
+           ;; Game's `default` mod (mineclonia replaces it with mcl_core).
+           ;; Make `default` optional so the mod loads in mineclonia; the
+           ;; only `default` reference is a steel-sword drop that just
+           ;; silently no-ops without it.
+           (lambda _
+             (substitute* "mod.conf"
+               (("^depends = default, mobs")  "depends = mobs")
+               (("^optional_depends = ")      "optional_depends = default, ")))))))
+    (inputs (list luanti-mobs))
+    (home-page "https://codeberg.org/tenplus1/mobs_skeletons")
+    (synopsis "Add skeleton mobs to Luanti")
+    (description
+     "Adds skeletons (with various weapons) to Luanti via the Mobs Redo API.")
+    (license license:expat)
+    (properties `((upstream-name . "TenPlus1/mobs_skeletons")))))
+
+(define-public luanti-animalworld
+  (package
+    (name "luanti-animalworld")
+    (version "1.8.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Skandarella/Animal-World")
+             (commit "ac835da96681774679ace90656812aab67e25b5c")))
+       (sha256
+        (base32 "17dfchhcvmaynddly7q7j8adf6fpvipcxr7ac50zpd2qclq6m61w"))
+       (file-name (git-file-name name version))))
+    (build-system luanti-mod-build-system)
+    (inputs (list luanti-mobs))
+    (home-page "https://github.com/Skandarella/Animal-World")
+    (synopsis "Wilhelmine's Animal World — wildlife mob pack")
+    (description
+     "Adds many animal mobs (territorial, attacking, with multiple animations)
+to Luanti.  Supports Minetest Game and Mineclonia/VoxeLibre via the Mobs
+Redo API.  Includes hunting trophies (decorative animal heads).")
+    (license license:expat)
+    (properties `((upstream-name . "Liil/animalworld")))))
+
+(define-public luanti-creatura
+  (package
+    (name "luanti-creatura")
+    (version "2025-12-25")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/ElCeejo/Creatura")
+             (commit "4eb507cf2433f0787691f560842deea79a1666f4")))
+       (sha256
+        (base32 "1b0s3d2pdmgmsyx6hn7lxzlqx7b1nb83ml3h0za379xfjryxa695"))
+       (file-name (git-file-name name version))))
+    (build-system luanti-mod-build-system)
+    (home-page "https://github.com/ElCeejo/Creatura")
+    (synopsis "Performant, semi-modular mob API for Luanti")
+    (description
+     "Creatura is an alternative mob API for Luanti, focused on performance
+and semi-modular mob construction.  It is the mob framework used by
+@code{luanti-draconis} and other ElCeejo mods.")
+    (license license:expat)
+    (properties `((upstream-name . "ElCeejo/creatura")))))
+
+(define-public luanti-draconis
+  (package
+    (name "luanti-draconis")
+    (version "2026-02-18")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/ElCeejo/draconis")
+             (commit "5ad66e400ec31aa8c6ca33e8a8c2510b6fa5d6fd")))
+       (sha256
+        (base32 "1gr15w29ykfil852p6h57h4simiwv01jbdqrjqrf28kyn6kqk5yh"))
+       (file-name (git-file-name name version))))
+    (build-system luanti-mod-build-system)
+    (inputs (list luanti-creatura))
+    (home-page "https://github.com/ElCeejo/draconis")
+    (synopsis "Adds advanced Dragons and powerful equipment to Luanti")
+    (description
+     "Draconis adds Fire and Ice Dragons to Luanti, with full lifecycle
+(eggs, hatching, growth), flight, breath weapons, dragon-themed armor and
+weapons.  Built on the Creatura mob API.")
+    (license license:expat)
+    (properties `((upstream-name . "ElCeejo/draconis")))))
+
+(define-public luanti-forgotten-monsters
+  (package
+    (name "luanti-forgotten-monsters")
+    (version "0.60.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/pixelzone/forgotten_monsters_reworked")
+             (commit "01010b7cc8f4db3bb80a110795d25ad7ce0d82d0")))
+       (sha256
+        (base32 "0v63l5631dmb6jpjb173c6da053kbvsb4nz07b56vl6kvjaxlf46"))
+       (file-name (git-file-name name version))))
+    (build-system luanti-mod-build-system)
+    (arguments
+     '(#:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'fix-foreign-namespace-registrations
+           ;; Upstream registers a few entities under foreign mod prefixes
+           ;; (e.g. `rb_animals:skeleton_swordfish` in a file shipped by
+           ;; `forgotten_monsters`).  Luanti rejects that since 5.x;
+           ;; rewrite the mob names to use the `forgotten_monsters:` prefix
+           ;; so the mod loads cleanly.
+           (lambda _
+             (substitute* (find-files "fg_monsters" "\\.lua$")
+               (("\"rb_animals:") "\"forgotten_monsters:")))))))
+    (inputs (list luanti-mobs))
+    (home-page "https://codeberg.org/pixelzone/forgotten_monsters_reworked")
+    (synopsis "Forgotten Monsters (Reworked) — bosses and monsters for Luanti")
+    (description
+     "Adds skulls, spectrums and bosses to Luanti gameplay, inspired by the
+\"Forbidden Island\" mod.  Uses the Mobs Redo API.")
+    (license (list license:expat license:cc-by-sa4.0))
+    (properties `((upstream-name . "pixelzone/forgotten_monsters")))))
