@@ -301,8 +301,8 @@ host    all             all             192.168.88.0/24  md5
                             (unless (file-exists? mod-dir)
                               (symlink mod-src mod-dir))))
                         (list #$(file-append luanti-mobs-goblins
-                                             "/share/luanti/mods/mobs_goblins"))
-                        '("mobs_goblins"))))
+                                             "/share/luanti/mods/goblins"))
+                        '("goblins"))))
 
    ;; Luanti shepherd service
    (simple-service 'luanti-server
