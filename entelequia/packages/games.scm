@@ -1135,6 +1135,44 @@ inside the container."
 ;;; biomes/items — expect a parallel mob ecosystem feel.
 ;;;
 
+;; Newer Mobs Redo than upstream Guix (2021-12-12 has hard `default.*`
+;; calls that crash in mineclonia).  The 2026-05-09 upstream guards
+;; every `default.*` access behind `core.get_modpath("default")` and
+;; adds explicit mcl_core compat.  Override transparently.
+(define-public luanti-mobs
+  (package
+    (inherit (@ (gnu packages luanti) luanti-mobs))
+    (name "luanti-mobs")
+    (version "2026-05-09")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/tenplus1/mobs_redo")
+             (commit "03e6aada512e7faf2fb1cca5008dda0357baf97d")))
+       (sha256
+        (base32 "16fkp9j4j0vnljvl90y1y7qg5c4gd3jj6spi35ylb4l1lypdr8a2"))
+       (file-name (git-file-name name version))))))
+
+;; Same situation for mobs_monster: upstream Guix pins 2022-12-10.
+;; The 2026-05-09 upstream has mineclonia compat and depends on the
+;; matching newer mobs_redo.  Override to track our local luanti-mobs.
+(define-public luanti-mobs-monster
+  (package
+    (inherit (@ (gnu packages luanti) luanti-mobs-monster))
+    (name "luanti-mobs-monster")
+    (version "2026-05-09")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/tenplus1/mobs_monster")
+             (commit "a21a1f71c762e97ff3f1c337c679a0b310e8a761")))
+       (sha256
+        (base32 "1mx4k8hxlvy18hclhvq7b0ywskw7bkjndc5qba82h5na0642wqdk"))
+       (file-name (git-file-name name version))))
+    (propagated-inputs (list luanti-mobs))))
+
 (define-public luanti-mobs-skeletons
   (package
     (name "luanti-mobs-skeletons")
@@ -1156,12 +1194,18 @@ inside the container."
            ;; mod.conf has `depends = default, mobs`.  We don't ship Minetest
            ;; Game's `default` mod (mineclonia replaces it with mcl_core).
            ;; Make `default` optional so the mod loads in mineclonia; the
-           ;; only `default` reference is a steel-sword drop that just
-           ;; silently no-ops without it.
+           ;; only drop reference is a steel-sword that just silently
+           ;; no-ops without it.
            (lambda _
              (substitute* "mod.conf"
                (("^depends = default, mobs")  "depends = mobs")
-               (("^optional_depends = ")      "optional_depends = default, ")))))))
+               (("^optional_depends = ")      "optional_depends = default, "))))
+         (add-after 'drop-default-dep 'replace-default-light-max
+           ;; init.lua references `default.LIGHT_MAX` at top level (eager
+           ;; eval).  In Luanti core LIGHT_MAX is always 14, so substitute.
+           (lambda _
+             (substitute* "init.lua"
+               (("default\\.LIGHT_MAX") "14")))))))
     (inputs (list luanti-mobs))
     (home-page "https://codeberg.org/tenplus1/mobs_skeletons")
     (synopsis "Add skeleton mobs to Luanti")
@@ -1184,6 +1228,16 @@ inside the container."
         (base32 "17dfchhcvmaynddly7q7j8adf6fpvipcxr7ac50zpd2qclq6m61w"))
        (file-name (git-file-name name version))))
     (build-system luanti-mod-build-system)
+    (arguments
+     '(#:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'guard-default-sound-call
+           ;; concretecrafting.lua eagerly calls default.node_sound_stone_defaults()
+           ;; at top level.  Wrap in a guarded expression so it's nil-safe.
+           (lambda _
+             (substitute* "concretecrafting.lua"
+               (("default\\.node_sound_stone_defaults\\(\\)")
+                "((rawget(_G,\"default\") or {}).node_sound_stone_defaults or function() return {} end)()")))))))
     (inputs (list luanti-mobs))
     (home-page "https://github.com/Skandarella/Animal-World")
     (synopsis "Wilhelmine's Animal World — wildlife mob pack")
@@ -1231,6 +1285,26 @@ and semi-modular mob construction.  It is the mob framework used by
         (base32 "1gr15w29ykfil852p6h57h4simiwv01jbdqrjqrf28kyn6kqk5yh"))
        (file-name (git-file-name name version))))
     (build-system luanti-mod-build-system)
+    (arguments
+     '(#:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'guard-default-access
+           ;; init.lua does `if default.node_sound_X then` which still
+           ;; throws because `default` itself is nil.  Replace bare
+           ;; `default.node_sound_` with a nil-safe lookup.
+           (lambda _
+             (substitute* "init.lua"
+               (("default\\.node_sound_")
+                "(rawget(_G,\"default\") or {}).node_sound_"))))
+         (add-after 'guard-default-access 'guard-steel-ingot-lookup
+           ;; nodes.lua:256 indexes minetest.registered_items[steel_ingot]
+           ;; at load time, before the runtime mods_loaded callback can
+           ;; rebind steel_ingot to mineclonia's mcl_core:iron_ingot.
+           ;; default:steel_ingot doesn't exist → nil deref crashes.
+           (lambda _
+             (substitute* "nodes.lua"
+               (("minetest\\.registered_items\\[steel_ingot\\]\\.stack_max")
+                "(minetest.registered_items[steel_ingot] or {}).stack_max")))))))
     (inputs (list luanti-creatura))
     (home-page "https://github.com/ElCeejo/draconis")
     (synopsis "Adds advanced Dragons and powerful equipment to Luanti")

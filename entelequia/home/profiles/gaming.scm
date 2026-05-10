@@ -1,7 +1,10 @@
 (define-module (entelequia home profiles gaming)
   #:use-module (entelequia packages games)
   #:use-module (gnu packages linux)       ; For dualsensectl
-  #:use-module (gnu packages luanti)
+  ;; Hide upstream luanti-mobs / luanti-mobs-monster so our newer
+  ;; mineclonia-compatible overrides in (entelequia packages games) win.
+  #:use-module ((gnu packages luanti)
+                #:hide (luanti-mobs luanti-mobs-monster))
   #:use-module (gnu packages emulators)   ; For scummvm
   #:use-module (gnu packages compression) ; For innoextract
   #:use-module (gnu packages wine)        ; For wine64-staging

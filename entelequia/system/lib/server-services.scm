@@ -12,7 +12,10 @@
   #:use-module (gnu packages backup)
   #:use-module (gnu packages containers)
   #:use-module (gnu packages databases)
-  #:use-module (gnu packages luanti)
+  ;; Hide upstream luanti-mobs / luanti-mobs-monster so our newer
+  ;; mineclonia-compatible overrides in (entelequia packages games) win.
+  #:use-module ((gnu packages luanti)
+                #:hide (luanti-mobs luanti-mobs-monster))
   #:use-module (gnu packages linux)
   #:use-module (entelequia packages games)
   #:use-module (guix gexp)
@@ -294,16 +297,41 @@ host    all             all             192.168.88.0/24  md5
                                                       "/share/luanti/games/mineclonia")))
                          (unless (file-exists? games-dir)
                            (symlink game-src games-dir)))
-                       ;; Symlink mods from system profile
+                       ;; Symlink mods from system profile.
+                       ;; Always (re)create the symlink so deploys that bump
+                       ;; the mod source see the new store path — without
+                       ;; this, an old symlink to a stale store path would
+                       ;; persist forever.
                        (mkdir-p "/var/lib/luanti/mods")
                        (for-each
                         (lambda (mod-src mod-name)
                           (let ((mod-dir (string-append "/var/lib/luanti/mods/" mod-name)))
-                            (unless (file-exists? mod-dir)
-                              (symlink mod-src mod-dir))))
-                        (list #$(file-append luanti-mobs-goblins
-                                             "/share/luanti/mods/goblins"))
-                        '("goblins"))))
+                            (false-if-exception (delete-file mod-dir))
+                            (symlink mod-src mod-dir)))
+                        (list #$(file-append luanti-mobs
+                                             "/share/luanti/mods/mobs")
+                              #$(file-append luanti-creatura
+                                             "/share/luanti/mods/creatura")
+                              #$(file-append luanti-mobs-goblins
+                                             "/share/luanti/mods/goblins")
+                              #$(file-append luanti-mobs-monster
+                                             "/share/luanti/mods/mobs_monster")
+                              #$(file-append luanti-mobs-skeletons
+                                             "/share/luanti/mods/mobs_skeletons")
+                              #$(file-append luanti-animalworld
+                                             "/share/luanti/mods/animalworld")
+                              #$(file-append luanti-draconis
+                                             "/share/luanti/mods/draconis")
+                              #$(file-append luanti-forgotten-monsters
+                                             "/share/luanti/mods/forgotten_monsters"))
+                        '("mobs"
+                          "creatura"
+                          "goblins"
+                          "mobs_monster"
+                          "mobs_skeletons"
+                          "animalworld"
+                          "draconis"
+                          "forgotten_monsters"))))
 
    ;; Luanti server config — managed declaratively at /etc/luanti.conf.
    ;; Tuned for edison: Xeon E5-1650 v4 (6c/12t, 3.6/4.0 GHz boost, 15 G RAM).
@@ -327,10 +355,14 @@ max_users = 10
 enable_damage = true
 creative_mode = false
 
-# Performance (edison: Xeon E5-1650 v4, 6c/12t, 15 G RAM)
-active_block_range = 5                          # default 4
-max_block_send_distance = 14                    # default 12
-max_simultaneous_block_sends_per_client = 60    # default 40
+# Performance (edison: Xeon E5-1650 v4, 6c/12t, 15 G RAM).
+# Slight bumps above defaults (4 / 12 / 40) — Luanti's conf parser does
+# NOT strip trailing # comments, so values must be on a clean line or
+# the whole `5  # default 4` ends up as a non-numeric string and breaks
+# mods like Mobs Redo (api.lua does tonumber(settings:get(...)) * 16).
+active_block_range = 5
+max_block_send_distance = 14
+max_simultaneous_block_sends_per_client = 60
 "))))
 
    ;; Luanti shepherd service
