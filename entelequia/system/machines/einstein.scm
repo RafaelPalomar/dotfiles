@@ -9,6 +9,7 @@
   #:use-module (entelequia system lib pam-gnupg)
   #:use-module (entelequia system lib chromium-policy)
   #:use-module (entelequia system lib librewolf-policy)
+  #:use-module (entelequia packages xlibre-fix)
   #:use-module (entelequia system machines datalocker-udev-rules)
   #:use-module (gnu)
   #:use-module (gnu services)
@@ -43,19 +44,10 @@
 
 (define nvidia-xorg-config
   (xlibre-configuration
+   (server xlibre-server-no-mesa-glx)
    (modules (list nvidia-driver xlibre-input-libinput))
    (drivers '("nvidia"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
-   ;; Disable xlibre's bundled Mesa-based "glx" module so NVIDIA's
-   ;; glxserver_nvidia wins the GLX vendor registration for screen 0.
-   ;; Without this (xlibre >= 25.1.5), Mesa registers first and apps
-   ;; using libglvnd/GLX fall through to a Mesa "nvidia-drm" DRI driver
-   ;; that doesn't exist, then to llvmpipe (software rendering).
-   (extra-config
-    (list "Section \"Module\""
-          "  Disable \"glx\""
-          "  Load \"glxserver_nvidia\""
-          "EndSection"))))
+   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
 
 ;;; Einstein-specific packages
 

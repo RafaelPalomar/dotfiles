@@ -5,6 +5,7 @@
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
   #:use-module (entelequia system lib librewolf-policy)
+  #:use-module (entelequia packages xlibre-fix)
   #:use-module (gnu)
   #:use-module (gnu services)
   #:use-module (gnu services xorg)
@@ -40,21 +41,10 @@
 
 (define nvidia-xorg-config
   (xlibre-configuration
+   (server xlibre-server-no-mesa-glx)
    (modules (list nvidia-driver xlibre-input-libinput))
    (drivers '("nvidia"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl"))
-   ;; Disable xlibre's bundled Mesa-based "glx" module so NVIDIA's
-   ;; glxserver_nvidia wins the GLX vendor registration for screen 0.
-   ;; Without this (xlibre >= 25.1.5), Mesa registers first and apps
-   ;; using libglvnd/GLX fall through to a Mesa "nvidia-drm" DRI driver
-   ;; that doesn't exist, then to llvmpipe (software rendering).  Visible
-   ;; in Xorg.0.log as: "GLX: Another vendor is already registered for
-   ;; screen 0".  Verified 2026-05-10 with Luanti slow on leandro@alucard.
-   (extra-config
-    (list "Section \"Module\""
-          "  Disable \"glx\""
-          "  Load \"glxserver_nvidia\""
-          "EndSection"))))
+   (keyboard-layout (keyboard-layout "us" "altgr-intl"))))
 
 ;;; Alucard-specific packages
 
