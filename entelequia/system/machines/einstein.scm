@@ -45,7 +45,17 @@
   (xlibre-configuration
    (modules (list nvidia-driver xlibre-input-libinput))
    (drivers '("nvidia"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
+   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
+   ;; Disable xlibre's bundled Mesa-based "glx" module so NVIDIA's
+   ;; glxserver_nvidia wins the GLX vendor registration for screen 0.
+   ;; Without this (xlibre >= 25.1.5), Mesa registers first and apps
+   ;; using libglvnd/GLX fall through to a Mesa "nvidia-drm" DRI driver
+   ;; that doesn't exist, then to llvmpipe (software rendering).
+   (extra-config
+    (list "Section \"Module\""
+          "  Disable \"glx\""
+          "  Load \"glxserver_nvidia\""
+          "EndSection"))))
 
 ;;; Einstein-specific packages
 

@@ -42,7 +42,19 @@
   (xlibre-configuration
    (modules (list nvidia-driver xlibre-input-libinput))
    (drivers '("nvidia"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl"))))
+   (keyboard-layout (keyboard-layout "us" "altgr-intl"))
+   ;; Disable xlibre's bundled Mesa-based "glx" module so NVIDIA's
+   ;; glxserver_nvidia wins the GLX vendor registration for screen 0.
+   ;; Without this (xlibre >= 25.1.5), Mesa registers first and apps
+   ;; using libglvnd/GLX fall through to a Mesa "nvidia-drm" DRI driver
+   ;; that doesn't exist, then to llvmpipe (software rendering).  Visible
+   ;; in Xorg.0.log as: "GLX: Another vendor is already registered for
+   ;; screen 0".  Verified 2026-05-10 with Luanti slow on leandro@alucard.
+   (extra-config
+    (list "Section \"Module\""
+          "  Disable \"glx\""
+          "  Load \"glxserver_nvidia\""
+          "EndSection"))))
 
 ;;; Alucard-specific packages
 
