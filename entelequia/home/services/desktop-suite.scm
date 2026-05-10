@@ -134,7 +134,20 @@ unset __sops_oauth_file
                       ("VISUAL"        . "emacsclient")
                       ("EDITOR"        . "emacsclient")
                       ("PATH"          . "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH")
-                      ("XDG_DATA_DIRS" . "/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS"))))
+                      ("XDG_DATA_DIRS" . "/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS")
+                      ;; OpenGL dispatch chain.  Many GL clients (luanti,
+                      ;; chromium, librewolf, etc.) have their build-time
+                      ;; Mesa libGL.so.1 baked into DT_RUNPATH and would
+                      ;; load that directly — bypassing libglvnd and the
+                      ;; NVIDIA GLX vendor.  Putting the home profile
+                      ;; (with libglvnd) and the system profile (with
+                      ;; libGLX_nvidia / libGLX_mesa) ahead of RUNPATH
+                      ;; ensures libglvnd is the libGL.so.1 actually
+                      ;; loaded, then it dispatches at runtime to the
+                      ;; right vendor based on the X server's GLX
+                      ;; advertisement.  No-op on Intel/AMD (libglvnd
+                      ;; just dispatches to libGLX_mesa.so as before).
+                      ("LD_LIBRARY_PATH" . "$HOME/.guix-home/profile/lib:/run/current-system/profile/lib"))))
 
    (if claude-skills?
        (list (simple-service 'claude-skills-files
