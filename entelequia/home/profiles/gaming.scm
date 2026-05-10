@@ -57,11 +57,21 @@ profiles that shouldn't ship age-inappropriate titles)."
          luanti-mineclonia-csm
          luanti-halon
          luanti-mobs-goblins
-         ;; Minetest Game only (depend on 'default' mod, incompatible with Mineclonia/VoxeLibre):
-         ;; luanti-mobs
-         ;; luanti-mobs-animal
-         ;; luanti-mobs-monster
-         ;; luanti-moreores
-         ;; luanti-unifieddyes
+         ;; Mob frameworks + extra mob packs for mineclonia.
+         ;; Originally written for Minetest Game (Mobs Redo) or for
+         ;; ElCeejo's Creatura framework.  They load in mineclonia and
+         ;; coexist as a parallel mob ecosystem.  Spawn rules referencing
+         ;; Minetest Game's `default:*` nodes silently no-op in mineclonia,
+         ;; so natural spawning ranges from "works fine" (animalworld has
+         ;; mcl_core spawn rules) to "summon-via-egg only" (mobs_skeletons).
+         luanti-mobs                ; Mobs Redo API (TenPlus1)
+         luanti-mobs-monster        ; surface + cave monsters
+         luanti-mobs-skeletons      ; skeletons (default dep patched out)
+         luanti-animalworld         ; Wilhelmine's wildlife pack
+         luanti-creatura            ; Creatura mob API (ElCeejo)
+         luanti-draconis            ; Fire/Ice Dragons (uses creatura)
+         luanti-forgotten-monsters  ; bosses + spectral monsters
+         ;; ;; luanti-moreores
+         ;; ;; luanti-unifieddyes
          dualsensectl
          lgogdownloader)))
