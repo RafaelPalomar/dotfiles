@@ -36,4 +36,16 @@
          "ffmpegthumbnailer"  ;; Video thumbnails
          "imagemagick"        ;; Image processing and previews
          "poppler"            ;; PDF previews (includes pdftotext, pdftocairo)
+
+         ;; OpenGL dispatcher.  Without this in the home profile,
+         ;; Mesa's libGL.so.1 (pulled in transitively by browsers,
+         ;; games, GTK apps, etc.) wins the profile-union conflict
+         ;; against the system libglvnd, and on NVIDIA hosts every
+         ;; OpenGL client falls through to llvmpipe / software
+         ;; rendering — visible as: glxinfo "Vendor: Mesa", apps
+         ;; running at single-digit fps.  libglvnd ships its own
+         ;; libGL.so.1 which dispatches at runtime to libGLX_nvidia.so
+         ;; or libGLX_mesa.so based on the X server's GLX vendor
+         ;; advertisement, so it works correctly on Intel/AMD too.
+         "libglvnd"
          )))
