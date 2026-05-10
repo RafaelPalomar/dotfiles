@@ -306,9 +306,11 @@ host    all             all             192.168.88.0/24  md5
                         '("goblins"))))
 
    ;; Luanti server config — managed declaratively at /etc/luanti.conf.
-   ;; Tuned for the AMD Opteron X3421 APU (low-power 4-core, weak single-thread):
-   ;; reduced active range, capped block sends, doubled abm_interval (mineclonia
-   ;; ships 0.25 — half the Luanti default), and capped liquid simulation.
+   ;; Tuned for edison: Xeon E5-1650 v4 (6c/12t, 3.6/4.0 GHz boost, 15 G RAM).
+   ;; Modest bump above Luanti defaults to use the available headroom — bigger
+   ;; active simulation area and longer view distance.  ABM interval and emerge
+   ;; thread count are left at their mineclonia/luanti defaults (0.25s ABM,
+   ;; auto-scaled emerge thread count which on a 6-core lands around 4-5).
    (simple-service 'luanti-config
                    etc-service-type
                    (list `("luanti.conf"
@@ -316,8 +318,8 @@ host    all             all             192.168.88.0/24  md5
                                         "# Luanti server configuration — managed by entelequia.
 
 # Identity
-server_name = Lovelace
-server_description = Lovelace Mineclonia server
+server_name = Edison
+server_description = Edison Mineclonia server
 port = 30000
 max_users = 10
 
@@ -325,14 +327,10 @@ max_users = 10
 enable_damage = true
 creative_mode = false
 
-# Performance tuning (low-power CPU)
-active_block_range = 3
-max_block_send_distance = 8
-max_simultaneous_block_sends_per_client = 20
-emergequeue_limit_total = 256
-abm_interval = 0.5
-liquid_loop_max = 1000
-liquid_update = 1.0
+# Performance (edison: Xeon E5-1650 v4, 6c/12t, 15 G RAM)
+active_block_range = 5                          # default 4
+max_block_send_distance = 14                    # default 12
+max_simultaneous_block_sends_per_client = 60    # default 40
 "))))
 
    ;; Luanti shepherd service
