@@ -1112,7 +1112,22 @@ inside the container."
            (lambda _
              (substitute* "terrain.lua"
                (("goblins\\.compat_mode == \"mc2\" and goblins_lair_rail_corridor_chance ~= 0 and goblins_lair_chance ~= 0")
-                "goblins.compat_mode == \"mc2\" and goblins_lair_rail_corridor_chance ~= 0 and goblins_lair_chance ~= 0 and mcl_structures.registered_structures[\"mineshaft\"]")))))))
+                "goblins.compat_mode == \"mc2\" and goblins_lair_rail_corridor_chance ~= 0 and goblins_lair_chance ~= 0 and mcl_structures.registered_structures[\"mineshaft\"]"))))
+         (add-after 'fix-mineshaft-nil-check 'spawn-goblins-at-lair-gen
+           ;; Mineclonia stubs out mcl_mobs.spawn_setup() in modern versions,
+           ;; so the mod's natural spawning is a no-op — lair STRUCTURES
+           ;; generate but stay empty.  Spawn goblins directly at lair build
+           ;; time as a workaround, so players actually find inhabitants
+           ;; when they discover a lair.
+           ;; substitute* matches line-by-line, so anchor on the single
+           ;; `        columns(cur_dg)` line (8-space indent inside the
+           ;; goblairgen "LET'S DO IT!" body) and append the spawn block
+           ;; right after it.
+           (lambda _
+             (substitute* "terrain.lua"
+               (("columns\\(cur_dg\\)")
+                "columns(cur_dg) ; do local _gob_types = {\"goblins:goblin_coal\",\"goblins:goblin_iron\",\"goblins:goblin_copper\",\"goblins:goblin_gold\",\"goblins:goblin_diamond\",\"goblins:goblin_digger\",\"goblins:goblin_hoarder\",\"goblins:goblin_snuffer\",\"goblins:goblin_fungiler\",\"goblins:goblin_cobble\"} for _ = 1, math.random(3, 6) do local _gp = vector.add(cur_dg, vector.new(math.random(-4,4), 2, math.random(-4,4))) core.add_entity(_gp, _gob_types[math.random(#_gob_types)]) end end"))))
+         )))
     ;; luanti-mobs (Mobs Redo) is only needed for the build-time check phase
     ;; (which tests against Minetest Game).  At runtime with Mineclonia/VoxeLibre
     ;; the mod uses mcl_mobs directly — no luanti-mobs in the user profile.
