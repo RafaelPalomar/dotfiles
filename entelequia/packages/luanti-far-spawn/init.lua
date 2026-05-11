@@ -44,6 +44,8 @@ end
 
 local function place_player(player_name, slot, idx)
   local x, z = slot.x, slot.z
+  -- Phase 1: small emerge to find the surface so we can teleport
+  -- the player immediately (the big phase-2 emerge can take a while).
   core.emerge_area(
     S(x - 24, Y_SCAN_BOTTOM, z - 24),
     S(x + 24, Y_SCAN_TOP,    z + 24),
@@ -53,13 +55,19 @@ local function place_player(player_name, slot, idx)
       if not (player and player:is_player()) then return end
       local pos = S(x, find_surface_y(x, z), z)
       player:set_pos(pos)
-      -- Persist for later on_respawnplayer overrides.
       player:get_meta():set_string(META_KEY, core.pos_to_string(pos))
       core.log("action", string.format(
         "[far_spawn] %s -> slot %d at %s",
         player_name, idx, core.pos_to_string(pos)))
     end
   )
+  -- Phase 2: wider emerge below the surface so goblin lairs actually
+  -- have a chance to roll in this player's neighborhood (a 48x280x48
+  -- column rarely contains any native-Luanti dungeons; 192x96x192 hits
+  -- ~1100 chunks underground, plenty for lair gen).
+  core.emerge_area(
+    S(x - 96, -80, z - 96),
+    S(x + 96, 16,  z + 96))
 end
 
 core.register_on_newplayer(function(player)
@@ -70,17 +78,23 @@ end)
 -- Backfill META_KEY for players who joined under an older version of
 -- this mod (or any returning player without a saved slot).  On join,
 -- snapshot their current position so death respawn sends them back
--- here instead of the shared world spawn.
+-- here instead of the shared world spawn.  Also pre-emerge a wide
+-- box around the player so lairs (and thus goblins) exist in their
+-- neighborhood without them having to mine for hours.  emerge_area
+-- is a no-op on already-generated chunks.
 core.register_on_joinplayer(function(player)
   local meta = player:get_meta()
-  if meta:get_string(META_KEY) == "" then
-    local pos = player:get_pos()
-    if pos then
+  local pos = player:get_pos()
+  if pos then
+    if meta:get_string(META_KEY) == "" then
       meta:set_string(META_KEY, core.pos_to_string(vector.round(pos)))
       core.log("action", string.format(
         "[far_spawn] backfill %s -> %s",
         player:get_player_name(), core.pos_to_string(vector.round(pos))))
     end
+    core.emerge_area(
+      S(pos.x - 96, -80, pos.z - 96),
+      S(pos.x + 96, 16,  pos.z + 96))
   end
 end)
 

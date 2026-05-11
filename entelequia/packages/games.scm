@@ -1436,7 +1436,7 @@ weapons.  Built on the Creatura mob API.")
   ;; Source lives at entelequia/packages/luanti-far-spawn/.
   (package
     (name "luanti-far-spawn")
-    (version "0.2.0")
+    (version "0.3.0")
     (source (local-file "luanti-far-spawn" #:recursive? #t))
     (build-system luanti-mod-build-system)
     (home-page "https://github.com/rafaelpalomar/dotfiles")
