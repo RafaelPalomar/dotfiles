@@ -363,6 +363,17 @@ creative_mode = false
 active_block_range = 5
 max_block_send_distance = 14
 max_simultaneous_block_sends_per_client = 60
+
+# Native Luanti dungeons — mineclonia disables these by default
+# (mg_flags ... nodungeons ...) because it generates its own structures.
+# But the goblins mod's lair generator REPLACES default Luanti dungeons,
+# so without this the mod registers entities but never spawns them.
+mcl_enable_mt_dungeons = true
+
+# Goblins lair tuning — make lairs frequent and start near the surface
+# so they are findable without deep mining.
+goblins_lair_chance = 1
+goblins_lair_elev_max = -5
 "))))
 
    ;; Luanti shepherd service
