@@ -1127,6 +1127,47 @@ inside the container."
              (substitute* "terrain.lua"
                (("columns\\(cur_dg\\)")
                 "columns(cur_dg) ; do local _gob_types = {\"goblins:goblin_coal\",\"goblins:goblin_iron\",\"goblins:goblin_copper\",\"goblins:goblin_gold\",\"goblins:goblin_diamond\",\"goblins:goblin_digger\",\"goblins:goblin_hoarder\",\"goblins:goblin_snuffer\",\"goblins:goblin_fungiler\",\"goblins:goblin_cobble\"} for _ = 1, math.random(3, 6) do local _gp = vector.add(cur_dg, vector.new(math.random(-4,4), 2, math.random(-4,4))) core.add_entity(_gp, _gob_types[math.random(#_gob_types)]) end end"))))
+         (add-after 'spawn-goblins-at-lair-gen 'repopulate-existing-lairs
+           ;; Retroactively populate lairs already in the world (chunks
+           ;; generated before the lair-gen spawn patch).  Append an LBM
+           ;; (Loading Block Modifier) that fires when chunks containing
+           ;; goblins:cobble_with_moss / goblins:deepslate_with_moss load.
+           ;; Idempotency: skip if a goblin already lives near the lair
+           ;; (so chunks reloaded multiple times don't multiply goblins).
+           ;; Rate limit: 1/24 random trigger keeps density sane (a lair
+           ;; has ~30 moss nodes; expect ~1 spawn event per lair).
+           (lambda _
+             (let ((out (open-file "terrain.lua" "a")))
+               (display "
+
+-- entelequia patch: retroactively populate existing lairs on chunk load.
+core.register_lbm({
+  label = \"goblins: repopulate existing lairs\",
+  name = \"goblins:repopulate_lair\",
+  nodenames = {\"goblins:cobble_with_moss\", \"goblins:deepslate_with_moss\"},
+  run_at_every_load = false,
+  action = function(pos)
+    if math.random(1, 24) ~= 1 then return end
+    for _, obj in ipairs(core.get_objects_inside_radius(pos, 12)) do
+      local ent = obj:get_luaentity()
+      if ent and ent.name and ent.name:match(\"^goblins:goblin\") then
+        return
+      end
+    end
+    local types = {
+      \"goblins:goblin_coal\",\"goblins:goblin_iron\",\"goblins:goblin_copper\",
+      \"goblins:goblin_gold\",\"goblins:goblin_diamond\",\"goblins:goblin_digger\",
+      \"goblins:goblin_hoarder\",\"goblins:goblin_snuffer\",\"goblins:goblin_fungiler\",
+      \"goblins:goblin_cobble\"
+    }
+    for _ = 1, math.random(3, 6) do
+      local p = vector.add(pos, vector.new(math.random(-4,4), 2, math.random(-4,4)))
+      core.add_entity(p, types[math.random(#types)])
+    end
+  end,
+})
+" out)
+               (close-port out))))
          )))
     ;; luanti-mobs (Mobs Redo) is only needed for the build-time check phase
     ;; (which tests against Minetest Game).  At runtime with Mineclonia/VoxeLibre
