@@ -1397,6 +1397,26 @@ weapons.  Built on the Creatura mob API.")
     (license license:expat)
     (properties `((upstream-name . "ElCeejo/draconis")))))
 
+(define-public luanti-far-spawn
+  ;; Tiny in-tree mod that scatters new players around the world on a
+  ;; circle of slots, so families don't all land at (0, ?, 0) together.
+  ;; Source lives at entelequia/packages/luanti-far-spawn/.
+  (package
+    (name "luanti-far-spawn")
+    (version "0.1.0")
+    (source (local-file "luanti-far-spawn" #:recursive? #t))
+    (build-system luanti-mod-build-system)
+    (home-page "https://github.com/rafaelpalomar/dotfiles")
+    (synopsis "Scatter new players across a far-away spawn circle")
+    (description
+     "Hooks @code{core.register_on_newplayer} and teleports each
+brand-new player to one of @math{N=8} slots on a circle of radius
+@math{2000} around the world origin.  Slot assignment is round-robin
+and persistent across server restarts via the mod's mod_storage.  Also
+sets the player's respawn point so death sends them back to their
+assigned slot rather than world origin.")
+    (license license:expat)))
+
 (define-public luanti-forgotten-monsters
   (package
     (name "luanti-forgotten-monsters")

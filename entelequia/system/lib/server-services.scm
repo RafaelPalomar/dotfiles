@@ -323,7 +323,9 @@ host    all             all             192.168.88.0/24  md5
                               #$(file-append luanti-draconis
                                              "/share/luanti/mods/draconis")
                               #$(file-append luanti-forgotten-monsters
-                                             "/share/luanti/mods/forgotten_monsters"))
+                                             "/share/luanti/mods/forgotten_monsters")
+                              #$(file-append luanti-far-spawn
+                                             "/share/luanti/mods/far_spawn"))
                         '("mobs"
                           "creatura"
                           "goblins"
@@ -331,7 +333,8 @@ host    all             all             192.168.88.0/24  md5
                           "mobs_skeletons"
                           "animalworld"
                           "draconis"
-                          "forgotten_monsters"))))
+                          "forgotten_monsters"
+                          "far_spawn"))))
 
    ;; Luanti server config — managed declaratively at /etc/luanti.conf.
    ;; Tuned for edison: Xeon E5-1650 v4 (6c/12t, 3.6/4.0 GHz boost, 15 G RAM).
