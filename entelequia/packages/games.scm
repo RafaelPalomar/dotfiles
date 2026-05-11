@@ -1399,7 +1399,27 @@ and semi-modular mob construction.  It is the mob framework used by
            (lambda _
              (substitute* "nodes.lua"
                (("minetest\\.registered_items\\[steel_ingot\\]\\.stack_max")
-                "(minetest.registered_items[steel_ingot] or {}).stack_max")))))))
+                "(minetest.registered_items[steel_ingot] or {}).stack_max"))))
+         (add-after 'guard-steel-ingot-lookup 'fix-is-creative-enabled-arg
+           ;; Modern Mineclonia's mcl_gamemode.is_creative_enabled requires
+           ;; a STRING playername, but Draconis passes the player OBJECT
+           ;; in 4 places (behaviors.lua:144, api.lua:1352/1532,
+           ;; craftitems.lua:115).  Dragon AI's find_target hits
+           ;; behaviors.lua:144 on every tick once a player is in range —
+           ;; the resulting "requires a string" error propagates through
+           ;; creatura's on_step and crashes the whole server.  Rewrite
+           ;; each call to pass a name string, guarded so it falls back
+           ;; to "" if the variable is nil.
+           (lambda _
+             (substitute* (list "api/api.lua"
+                                "api/behaviors.lua"
+                                "craftitems.lua")
+               (("minetest\\.is_creative_enabled\\(player\\)")
+                "minetest.is_creative_enabled(player and player.get_player_name and player:get_player_name() or \"\")")
+               (("minetest\\.is_creative_enabled\\(target\\)")
+                "minetest.is_creative_enabled(target and target.get_player_name and target:get_player_name() or \"\")")
+               (("minetest\\.is_creative_enabled\\(clicker\\)")
+                "minetest.is_creative_enabled(clicker and clicker.get_player_name and clicker:get_player_name() or \"\")")))))))
     (inputs (list luanti-creatura))
     (home-page "https://github.com/ElCeejo/draconis")
     (synopsis "Adds advanced Dragons and powerful equipment to Luanti")
