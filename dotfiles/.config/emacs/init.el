@@ -662,9 +662,24 @@ Deletes other windows and makes the frame floating."
    "C--" 'text-scale-decrease
    "C-0" '(text-scale-set :which-key "Reset text scale")))
 
-;; Basic keybindings
+;; Basic keybindings.  Single-chord shortcuts mirror Doom's defaults:
+;;   SPC SPC  M-x         SPC :    M-x (chord-friendly)
+;;   SPC .    find-file   SPC ;    eval-expression
+;;   SPC ,    switch buffer (workspace)
+;;   SPC <    switch buffer (all)
+;;   SPC '    resume last ivy
+;;   SPC X    org-capture
+;;   SPC RET  bookmark jump
 (my/leader-keys
   "SPC" '(counsel-M-x :which-key "M-x")
+  ":"   '(counsel-M-x :which-key "M-x")
+  ";"   '(eval-expression :which-key "Eval expression")
+  "."   '(counsel-find-file :which-key "Find file")
+  ","   '(persp-ivy-switch-buffer :which-key "Switch buffer (workspace)")
+  "<"   '(ivy-switch-buffer :which-key "Switch buffer (all)")
+  "'"   '(ivy-resume :which-key "Resume last search")
+  "X"   '(org-capture :which-key "Org capture")
+  "RET" '(counsel-bookmark :which-key "Bookmark jump")
   "f"   '(:ignore t :which-key "Files")
   "ff"  '(counsel-find-file :which-key "Find file")
   "fs"  '(save-buffer :which-key "Save buffer")
@@ -771,8 +786,11 @@ Deletes other windows and makes the frame floating."
 
 ;; Org Mode keybindings (under `SPC o'; `SPC n' is reserved for PKS).
 ;; Clock subcommands use `ok' to keep `oc' for capture without overload.
+;; `SPC o o' duplicates the most-used Org primary (agenda) per the
+;; Doom doubling convention.
 (my/leader-keys
   "o"   '(:ignore t :which-key "Org")
+  "oo"  '(org-agenda :which-key "Agenda")
   "oc"  '(org-capture :which-key "Capture")
   "oa"  '(org-agenda :which-key "Agenda")
   "ol"  '(org-store-link :which-key "Store link")
@@ -1098,10 +1116,11 @@ If no active region, use the whole buffer."
           (kill-new (string-trim response))
           (message "Commit message copied: %s" (string-trim response)))))))
 
-;; AI / gptel keybindings (under `SPC a a').
+;; AI / gptel keybindings (under `SPC a a'; `SPC a a a' opens gptel —
+;; the doubling-for-primary convention).
 (my/leader-keys
   "aa"   '(:ignore t :which-key "AI models")
-  "aaa"  '(gptel-abort :which-key "Abort gptel invocation")
+  "aaa"  '(gptel :which-key "Invoke gptel")
   "aab"  '(my/gptel-switch-backend :which-key "Switch AI backend")
   "aac"  '(:ignore t :which-key "AI context")
   "aacb" '(gptel-add :which-key "Add/Remove buffer to AI context")
@@ -1109,10 +1128,10 @@ If no active region, use the whole buffer."
   "aacf" '(gptel-context-add-file :which-key "Add file to AI context")
   "aacr" '(gptel-context-remove-all :which-key "Remove all AI context")
   "aaf"  '(my/ai-fix-error :which-key "Fix this error")
-  "aag"  '(gptel :which-key "Invoke gptel")
   "aai"  '(gptel-send :which-key "Send to AI")
   "aam"  '(gptel-menu :which-key "gptel-menu")
-  "aar"  '(gptel-rewrite :which-key "AI model rewrite"))
+  "aar"  '(gptel-rewrite :which-key "AI model rewrite")
+  "aax"  '(gptel-abort :which-key "Abort gptel invocation"))
 
 ;; Org task AI keybindings — local leader under `SPC m a' in org buffers.
 (my/local-leader-keys
@@ -2608,6 +2627,6 @@ machine irc.libera.chat login yournick password yourpass"
 (my/leader-keys
   "a"   '(:ignore t :which-key "Applications")
   "ai"  '(:ignore t :which-key "IRC")
-  "aic" '(my/erc-connect :which-key "Connect to IRC")
+  "aii" '(my/erc-connect :which-key "Connect to IRC")
   "aiq" '(erc-quit-server :which-key "Quit IRC server")
   "aib" '(erc-switch-to-buffer :which-key "Switch IRC buffer"))
