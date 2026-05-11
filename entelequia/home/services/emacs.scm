@@ -19,7 +19,6 @@
 
 (define %emacs-packages
   (list emacs-ace-window
-        emacs-aider
         emacs-all-the-icons
         emacs-all-the-icons-dired
         emacs-avy

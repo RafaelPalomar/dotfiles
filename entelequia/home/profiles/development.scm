@@ -1,6 +1,5 @@
 (define-module (entelequia home profiles development)
   #:use-module (gnu packages)
-  #:use-module (entelequia packages aider)
   #:use-module (entelequia packages claude-code)
   #:use-module (entelequia packages denotecli)
   #:use-module (entelequia packages mermaid-cli)
@@ -51,7 +50,6 @@
    (list claude-code
          denotecli
          mermaid-cli
-         python-aider-chat
          openclaw
          slicer-skill
          guix-systole-dev-skill)))

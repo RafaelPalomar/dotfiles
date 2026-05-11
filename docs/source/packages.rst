@@ -164,7 +164,7 @@ User Dotfiles
 - ``dotfiles/.config/bspwm/bspwmrc`` - Window manager config
 - ``dotfiles/.config/sxhkd/sxhkdrc`` - Keybindings (Super key shortcuts)
 - ``dotfiles/.config/kitty/kitty.conf`` - Terminal emulator
-- ``dotfiles/.local/bin/`` - User scripts (wallpaper, keyboard layout, aider wrapper)
+- ``dotfiles/.local/bin/`` - User scripts (wallpaper, keyboard layout, mail/PKS helpers)
 
 Performance Considerations
 ==========================

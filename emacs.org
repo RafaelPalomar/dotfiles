@@ -972,6 +972,13 @@ To bring the convenience of Doom Emacs's keybinding system into our configuratio
     :keymaps 'override
     :prefix "SPC"
     :non-normal-prefix "M-SPC")
+  ;; Doom/Spacemacs-style local leader: `SPC m' for major-mode commands.
+  ;; Bindings are mode-scoped via `:keymaps' at the call site, e.g.
+  ;;   (my/local-leader-keys :keymaps 'org-mode-map "a" 'org-agenda)
+  (general-create-definer my/local-leader-keys
+    :states '(normal visual emacs motion)
+    :prefix "SPC m"
+    :non-normal-prefix "M-SPC m")
   ;; Additional keybindings
   (general-define-key
    :states '(normal insert visual emacs)
@@ -1003,6 +1010,7 @@ Now we'll define keybindings that correspond to the functionalities we've enable
   "ws"  '(split-window-below :which-key "Split window below")
   "wv"  '(split-window-right :which-key "Split window right")
   "u"   '(universal-argument :which-key "Universal argument")
+  "m"   '(:ignore t :which-key "Major mode")
   "q"   '(:ignore t :which-key "Quit/Restart")
   "qq"  '(save-buffers-kill-terminal :which-key "Quit Emacs"))
 
@@ -1081,9 +1089,9 @@ Now we'll define keybindings that correspond to the functionalities we've enable
   "pk"  '(my/project-kanban :which-key "Project Kanban"))
 
 ;; PKS digests
-(my/leader-keys
-  "nd"  '(my-pks-show-daily-review  :which-key "Daily review")
-  "nw"  '(my-pks-show-weekly-review :which-key "Weekly review"))
+;; PKS daily/weekly review live on the `SPC n' prefix map (mirror of
+;; `C-c n'); bindings added alongside the rest of the PKS map in the
+;; denote section below.
 #+end_src
 
 *** Window and Buffer Navigation
@@ -1111,19 +1119,20 @@ Now we'll define keybindings that correspond to the functionalities we've enable
 *** Org Mode
 
 #+begin_src emacs-lisp :tangle dotfiles/.config/emacs/init.el
-;; Org Mode keybindings
+;; Org Mode keybindings (under `SPC o'; `SPC n' is reserved for PKS).
+;; Clock subcommands use `ok' to keep `oc' for capture without overload.
 (my/leader-keys
-  "n"   '(:ignore t :which-key "Notes")
-  "nn"  '(org-capture :which-key "Org Capture")
-  "na"  '(org-agenda :which-key "Org Agenda")
-  "nl"  '(org-store-link :which-key "Store org link")
-  "nb"  '(org-switchb :which-key "Switch Org buffer")
-  "nc"  '(:ignore t :which-key "Clock")
-  "nci" '(org-clock-in :which-key "Clock in")
-  "nco" '(org-clock-out :which-key "Clock out")
-  "ncr" '(my/org-clock-in-last :which-key "Resume last clock")
-  "ncg" '(my/org-clock-goto-current :which-key "Go to current clock")
-  "ncR" '(my/org-clock-report-today :which-key "Clock report today"))
+  "o"   '(:ignore t :which-key "Org")
+  "oc"  '(org-capture :which-key "Capture")
+  "oa"  '(org-agenda :which-key "Agenda")
+  "ol"  '(org-store-link :which-key "Store link")
+  "ob"  '(org-switchb :which-key "Switch Org buffer")
+  "ok"  '(:ignore t :which-key "Clock")
+  "oki" '(org-clock-in :which-key "Clock in")
+  "oko" '(org-clock-out :which-key "Clock out")
+  "okr" '(my/org-clock-in-last :which-key "Resume last clock")
+  "okg" '(my/org-clock-goto-current :which-key "Go to current clock")
+  "okR" '(my/org-clock-report-today :which-key "Clock report today"))
 #+end_src
 
 *** Git Integration
@@ -1470,31 +1479,42 @@ If no active region, use the whole buffer."
   (let ((desc (org-get-entry)))
     (gptel-send (format "Create a project plan for:\n\n%s\n\nFormat as org-mode outline with milestones and tasks." desc))))
 
-;; Keybindings
-(my/leader-keys
-  "o"    '(:ignore t :which-key "AI models")
-  "oa"   '(gptel-abort :which-key "Abort gptel invocation")
-  "ob"   '(my/gptel-switch-backend :which-key "Switch AI backend")
-  "oc"   '(:ignore t :which-key "AI context")
-  "ocb"  '(gptel-add :which-key "Add/Remove buffer to AI context")
-  "occ"  '(my/ai-continue-code :which-key "Continue this")
-  "ocf"  '(gptel-context-add-file :which-key "Add file to AI context")
-  "ocr"  '(gptel-context-remove-all :which-key "Remove all AI context")
-  "of"   '(my/ai-fix-error :which-key "Fix this error")
-  "og"   '(gptel :which-key "Invoke gptel")
-  "oi"   '(gptel-send :which-key "Send to AI")
-  "om"   '(gptel-menu :which-key "gptel-menu")
-  "or"   '(gptel-rewrite :which-key "AI model rewrite")
-  "ov"   '(aider-transient-menu :which-key "Vibe code w/ Aider"))
+(defun my/ai-commit-message ()
+  "Generate a commit message from staged changes via gptel."
+  (interactive)
+  (let* ((diff (shell-command-to-string "git diff --cached"))
+         (prompt (format "Write a concise commit message (conventional commits format) for:\n\n%s" diff)))
+    (gptel-request
+        prompt
+      :callback
+      (lambda (response _info)
+        (when response
+          (kill-new (string-trim response))
+          (message "Commit message copied: %s" (string-trim response)))))))
 
-;; Org task AI keybindings
-(general-define-key
- :states 'normal
+;; AI / gptel keybindings (under `SPC a a').
+(my/leader-keys
+  "aa"   '(:ignore t :which-key "AI models")
+  "aaa"  '(gptel-abort :which-key "Abort gptel invocation")
+  "aab"  '(my/gptel-switch-backend :which-key "Switch AI backend")
+  "aac"  '(:ignore t :which-key "AI context")
+  "aacb" '(gptel-add :which-key "Add/Remove buffer to AI context")
+  "aacc" '(my/ai-continue-code :which-key "Continue this")
+  "aacf" '(gptel-context-add-file :which-key "Add file to AI context")
+  "aacr" '(gptel-context-remove-all :which-key "Remove all AI context")
+  "aaf"  '(my/ai-fix-error :which-key "Fix this error")
+  "aag"  '(gptel :which-key "Invoke gptel")
+  "aai"  '(gptel-send :which-key "Send to AI")
+  "aam"  '(gptel-menu :which-key "gptel-menu")
+  "aar"  '(gptel-rewrite :which-key "AI model rewrite"))
+
+;; Org task AI keybindings — local leader under `SPC m a' in org buffers.
+(my/local-leader-keys
  :keymaps 'org-mode-map
- :prefix "SPC o t"
- "x" 'my/org-task-to-ai-context
- "b" 'my/ai-break-down-task
- "p" 'my/ai-project-plan)
+ "a"  '(:ignore t :which-key "AI on task")
+ "ax" '(my/org-task-to-ai-context :which-key "Copy task → AI context")
+ "ab" '(my/ai-break-down-task    :which-key "Break down task")
+ "ap" '(my/ai-project-plan       :which-key "Project plan"))
 #+end_src
 
 * CMake Mode
@@ -1699,7 +1719,7 @@ This setup is inspired by [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
   (mu4e-alert-enable-mode-line-display))
 
 ;; Org → HTML email via org-mime (replaces removed `org-mu4e`).
-;; Compose in plain text/org syntax; press `C-c M-o` (or `SPC m h`) in
+;; Compose in plain text/org syntax; press `C-c M-o` (or `SPC a m h`) in
 ;; the message buffer to convert to multipart/alternative + inline HTML
 ;; before sending.
 (with-eval-after-load 'org-mime
@@ -1717,18 +1737,20 @@ This setup is inspired by [[https://github.com/rougier/dotemacs/blob/b31f0bea9ff
           (:name "OUS"          :query "maildir:/rafael.palomar@ous-research.no/*"  :key ?o)
           (:name "Large (>5MB)" :query "size:5M..500M"                    :key ?l))))
 
+;; Mail keybindings — under `SPC a m' (Applications → Mail).  `SPC m' is
+;; the major-mode local leader (Doom/Spacemacs convention).
 (my/leader-keys
-  "m"    '(:ignore t :which-key "Mail")
-  "mm"   '(mu4e :which-key "Open mu4e")
-  "mq"   '(mu4e-quit :which-key "Quit mu4e")
+  "am"   '(:ignore t :which-key "Mail")
+  "amm"  '(mu4e :which-key "Open mu4e")
+  "amq"  '(mu4e-quit :which-key "Quit mu4e")
 
-  "mc"  '(:ignore t :which-key "Compose")
-  "mcc" '(mu4e-compose-new :which-key "Compose new")
-  "mh"  '(org-mime-htmlize :which-key "Htmlize compose (org → HTML)")
+  "amc"  '(:ignore t :which-key "Compose")
+  "amcc" '(mu4e-compose-new :which-key "Compose new")
+  "amh"  '(org-mime-htmlize :which-key "Htmlize compose (org → HTML)")
 
-  "mr"  '(:ignore t :which-key "Reply")
-  "mrr" '(mu4e-compose-reply :which-key "Reply")
-  "mra" '(mu4e-compose-wide-reply :which-key "Reply all"))
+  "amr"  '(:ignore t :which-key "Reply")
+  "amrr" '(mu4e-compose-reply :which-key "Reply")
+  "amra" '(mu4e-compose-wide-reply :which-key "Reply all"))
 #+end_src
 
 #+RESULTS:
@@ -1767,13 +1789,13 @@ pleasant for full-text search across large archives.
   :commands (consult-notmuch consult-notmuch-tree))
 
 (my/leader-keys
-  "mn"  '(:ignore t :which-key "Notmuch")
-  "mnn" '(notmuch :which-key "Notmuch hello")
-  "mns" '(notmuch-search :which-key "Search")
-  "mni" '((lambda () (interactive) (notmuch-search "tag:inbox")) :which-key "Inbox")
-  "mnu" '((lambda () (interactive) (notmuch-search "tag:unread")) :which-key "Unread")
-  "mnc" '(consult-notmuch :which-key "Consult search")
-  "mnt" '(consult-notmuch-tree :which-key "Consult tree"))
+  "amn"  '(:ignore t :which-key "Notmuch")
+  "amnn" '(notmuch :which-key "Notmuch hello")
+  "amns" '(notmuch-search :which-key "Search")
+  "amni" '((lambda () (interactive) (notmuch-search "tag:inbox")) :which-key "Inbox")
+  "amnu" '((lambda () (interactive) (notmuch-search "tag:unread")) :which-key "Unread")
+  "amnc" '(consult-notmuch :which-key "Consult search")
+  "amnt" '(consult-notmuch-tree :which-key "Consult tree"))
 #+end_src
 
 #+RESULTS:
@@ -2472,9 +2494,12 @@ any target silo from `denote-silo-extras-directories' (plus fleeting)."
 
 ;; Bind the C-c n prefix once denote is available.  The prefix map
 ;; itself is created earlier in this file; binding it here keeps the
-;; top-level binding gated on denote being usable.
+;; top-level binding gated on denote being usable.  We also mirror the
+;; map onto `SPC n' so PKS has a single canonical leader home (the
+;; previous `SPC n d/w' shortcuts now arrive via the map at `D'/`W').
 (with-eval-after-load 'denote
   (global-set-key (kbd "C-c n") 'my-pks-prefix-map)
+  (my/leader-keys "n" `(,my-pks-prefix-map :which-key "Notes/PKS"))
   (let ((m my-pks-prefix-map))
     (define-key m "c" #'denote)
     (define-key m "C" #'denote-open-or-create)
@@ -3137,69 +3162,4 @@ machine irc.libera.chat login yournick password yourpass"
   ;; Suppress the warning
   (setq warning-suppress-types '((copilot copilot-no-mode-indent))))
 
-#+end_src
-
-* Aider
-
-#+begin_src emacs-lisp :tangle dotfiles/.config/emacs/init.el
-
-(use-package aider
-  :config
-  (setq aider-program "aider")
-
-  (setq aider-args
-        (list "--model" "openrouter/anthropic/claude-sonnet-4-6"
-              "--no-auto-commits"
-              "--no-stream"          ;; Disable streaming to prevent repetition
-              "--no-check-update"))  ;; Skip pip upgrade prompt on startup
-
-  ;; Better buffer configuration
-  (setq aider-buffer-window-setup 'split-window-below)
-
-  ;; Clean buffer before new output
-  (defun my/aider-clean-buffer ()
-    "Clean aider buffer before running new commands."
-    (when-let ((buf (get-buffer "*aider*")))
-      (with-current-buffer buf
-        (let ((inhibit-read-only t))
-          (erase-buffer)))))
-
-  (advice-add 'aider :before #'my/aider-clean-buffer)
-
-  ;; Better terminal handling
-  (setq comint-scroll-to-bottom-on-input t
-        comint-scroll-to-bottom-on-output t
-        comint-move-point-for-output t))
-
-(defun my/aider-setup-env ()
-  "Set up environment for aider: set OpenRouter API key from authinfo."
-  (unless (getenv "OPENROUTER_API_KEY")
-    (when-let ((key (auth-source-pick-first-password :host "openrouter.ai")))
-      (setenv "OPENROUTER_API_KEY" key))))
-
-(advice-add 'aider-transient-menu :before #'my/aider-setup-env)
-(advice-add 'aider :before #'my/aider-setup-env)
-
-(defun my/aider-pretty-terminal (orig-fn &rest args)
-  "Override aider-core's hardcoded TERM=dumb to get pretty output.
-aider-run-aider binds comint-terminfo-terminal to \"dumb\" before calling
-aider--create-aider-buffer. This around advice rebinds it to xterm-256color
-at the point of process creation, taking precedence via dynamic scoping."
-  (let ((comint-terminfo-terminal "xterm-256color"))
-    (apply orig-fn args)))
-
-(advice-add 'aider--create-aider-buffer :around #'my/aider-pretty-terminal)
-
-(defun my/ai-commit-message ()
-  "Generate a commit message from staged changes."
-  (interactive)
-  (let* ((diff (shell-command-to-string "git diff --cached"))
-         (prompt (format "Write a concise commit message (conventional commits format) for:\n\n%s" diff)))
-    (gptel-request
-        prompt
-      :callback
-      (lambda (response info)
-        (when response
-          (kill-new (string-trim response))
-          (message "Commit message copied: %s" (string-trim response)))))))
 #+end_src

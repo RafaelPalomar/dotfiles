@@ -93,8 +93,8 @@ Press `super + shift + c` to see:
 
 ### Use with AI
 1. In Emacs, navigate to your AI task
-2. Press `SPC o t x` → Copies formatted task to clipboard
-3. Paste into GPtel/Claude/Aider
+2. Press `SPC m a x` → Copies formatted task to clipboard
+3. Paste into GPtel/Claude
 4. AI has all context needed!
 
 ## 📂 Where Things Go
