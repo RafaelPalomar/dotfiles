@@ -1135,7 +1135,20 @@ inside the container."
              (substitute* "terrain.lua"
                (("columns\\(cur_dg\\)")
                 "columns(cur_dg) ; do local _gob_types = {\"goblins:goblin_coal\",\"goblins:goblin_iron\",\"goblins:goblin_copper\",\"goblins:goblin_gold\",\"goblins:goblin_diamond\",\"goblins:goblin_digger\",\"goblins:goblin_hoarder\",\"goblins:goblin_snuffer\",\"goblins:goblin_fungiler\",\"goblins:goblin_cobble\"} local _gn = math.random(3, 6) for _ = 1, _gn do local _gp = vector.add(cur_dg, vector.new(math.random(-4,4), 2, math.random(-4,4))) local _gt = _gob_types[math.random(#_gob_types)] core.add_entity(_gp, _gt) core.log(\"action\", \"[goblins-lairgen] spawned \" .. _gt .. \" at \" .. vector.to_string(_gp)) end end"))))
-         (add-after 'spawn-goblins-at-lair-gen 'repopulate-existing-lairs
+         (add-after 'spawn-goblins-at-lair-gen 'nilsafe-time-of-day
+           ;; Upstream goblins reads `self.time_of_day` in 3 places
+           ;; (goblins.lua:44, behaviors.lua:83/84) and compares it to
+           ;; numeric constants, but nothing ever assigns to it.  With
+           ;; mcl_mobs.spawn_setup() being a no-op stub in modern
+           ;; mineclonia, that field never gets populated, so on the
+           ;; first do_custom tick the comparison `nil > 0.2` raises
+           ;; "attempt to compare number with nil", killing the whole
+           ;; server via on_step.  Wrap each read so it falls back to
+           ;; the current global time-of-day if missing.
+           (lambda _
+             (substitute* (list "goblins.lua" "behaviors.lua")
+               (("self\\.time_of_day") "(self.time_of_day or core.get_timeofday())"))))
+         (add-after 'nilsafe-time-of-day 'repopulate-existing-lairs
            ;; Retroactively populate lairs already in the world (chunks
            ;; generated before the lair-gen spawn patch).  Append an LBM
            ;; (Loading Block Modifier) that fires when chunks containing
