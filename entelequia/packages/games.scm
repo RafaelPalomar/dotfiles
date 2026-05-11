@@ -1113,7 +1113,15 @@ inside the container."
              (substitute* "terrain.lua"
                (("goblins\\.compat_mode == \"mc2\" and goblins_lair_rail_corridor_chance ~= 0 and goblins_lair_chance ~= 0")
                 "goblins.compat_mode == \"mc2\" and goblins_lair_rail_corridor_chance ~= 0 and goblins_lair_chance ~= 0 and mcl_structures.registered_structures[\"mineshaft\"]"))))
-         (add-after 'fix-mineshaft-nil-check 'spawn-goblins-at-lair-gen
+         (add-after 'fix-mineshaft-nil-check 'lower-dungeon-count-threshold
+           ;; Upstream goblins requires #dg.dungeon > 1 — i.e. at least
+           ;; TWO native Luanti dungeons in a single mapchunk — before
+           ;; building a lair.  That's rare: most chunks have 0-1
+           ;; dungeons, so lairs almost never trigger.  Lower to >= 1.
+           (lambda _
+             (substitute* "terrain.lua"
+               (("#dg\\.dungeon > 1") "#dg.dungeon >= 1"))))
+         (add-after 'lower-dungeon-count-threshold 'spawn-goblins-at-lair-gen
            ;; Mineclonia stubs out mcl_mobs.spawn_setup() in modern versions,
            ;; so the mod's natural spawning is a no-op — lair STRUCTURES
            ;; generate but stay empty.  Spawn goblins directly at lair build
@@ -1126,7 +1134,7 @@ inside the container."
            (lambda _
              (substitute* "terrain.lua"
                (("columns\\(cur_dg\\)")
-                "columns(cur_dg) ; do local _gob_types = {\"goblins:goblin_coal\",\"goblins:goblin_iron\",\"goblins:goblin_copper\",\"goblins:goblin_gold\",\"goblins:goblin_diamond\",\"goblins:goblin_digger\",\"goblins:goblin_hoarder\",\"goblins:goblin_snuffer\",\"goblins:goblin_fungiler\",\"goblins:goblin_cobble\"} for _ = 1, math.random(3, 6) do local _gp = vector.add(cur_dg, vector.new(math.random(-4,4), 2, math.random(-4,4))) core.add_entity(_gp, _gob_types[math.random(#_gob_types)]) end end"))))
+                "columns(cur_dg) ; do local _gob_types = {\"goblins:goblin_coal\",\"goblins:goblin_iron\",\"goblins:goblin_copper\",\"goblins:goblin_gold\",\"goblins:goblin_diamond\",\"goblins:goblin_digger\",\"goblins:goblin_hoarder\",\"goblins:goblin_snuffer\",\"goblins:goblin_fungiler\",\"goblins:goblin_cobble\"} local _gn = math.random(3, 6) for _ = 1, _gn do local _gp = vector.add(cur_dg, vector.new(math.random(-4,4), 2, math.random(-4,4))) local _gt = _gob_types[math.random(#_gob_types)] core.add_entity(_gp, _gt) core.log(\"action\", \"[goblins-lairgen] spawned \" .. _gt .. \" at \" .. vector.to_string(_gp)) end end"))))
          (add-after 'spawn-goblins-at-lair-gen 'repopulate-existing-lairs
            ;; Retroactively populate lairs already in the world (chunks
            ;; generated before the lair-gen spawn patch).  Append an LBM
@@ -1160,12 +1168,30 @@ core.register_lbm({
       \"goblins:goblin_hoarder\",\"goblins:goblin_snuffer\",\"goblins:goblin_fungiler\",
       \"goblins:goblin_cobble\"
     }
-    for _ = 1, math.random(3, 6) do
+    local n = math.random(3, 6)
+    for _ = 1, n do
       local p = vector.add(pos, vector.new(math.random(-4,4), 2, math.random(-4,4)))
-      core.add_entity(p, types[math.random(#types)])
+      local t = types[math.random(#types)]
+      core.add_entity(p, t)
+      core.log(\"action\", \"[goblins-lbm] spawned \" .. t .. \" at \" .. vector.to_string(p))
     end
   end,
 })
+
+-- entelequia patch: auto-emerge a small spawn-area volume at server
+-- start.  Luanti doesn't pre-generate chunks on fresh worlds until a
+-- player arrives, so lair gen (and thus our spawn patch) never fires
+-- before someone logs in.  Pre-emerging makes \"are goblins working?\"
+-- verifiable from the server log.  Idempotent: on subsequent starts
+-- the chunks already exist and emerge_area just loads them.
+core.after(3, function()
+  core.log(\"action\", \"[goblins-init] auto-emerging spawn area for lair generation\")
+  core.emerge_area(vector.new(-256, -80, -256), vector.new(256, 16, 256), function(_, _, calls_remaining)
+    if calls_remaining == 0 then
+      core.log(\"action\", \"[goblins-init] spawn-area emerge complete\")
+    end
+  end)
+end)
 " out)
                (close-port out))))
          )))
