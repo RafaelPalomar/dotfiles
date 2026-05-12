@@ -19,7 +19,7 @@
 
 (home-environment
  (packages
-  (append (base-home-packages)
+  (append (base-home-packages #:gpu-type 'intel)
           (development-home-packages)
           (gaming-home-packages)
           email-home-packages

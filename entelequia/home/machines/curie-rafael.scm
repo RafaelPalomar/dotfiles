@@ -23,7 +23,7 @@
 
 (home-environment
  (packages
-  (append (base-home-packages)
+  (append (base-home-packages #:gpu-type 'amd)
           (development-home-packages)
           (networking-home-packages)
           email-home-packages

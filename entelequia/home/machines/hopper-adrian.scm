@@ -20,7 +20,7 @@
 
 (home-environment
  (packages
-  (append (base-home-packages)
+  (append (base-home-packages #:gpu-type 'intel)
           (python-learning-home-packages)
           (gaming-home-packages
            #:exclude '("they-are-billions"
