@@ -30,7 +30,11 @@ denotecli create \
   [--content "<body text>"]
 ```
 
-`--content -` reads from stdin.
+`--content` takes a literal string.  In entelequia, the package is patched so
+that `--content -` reads the body from stdin (see
+`~/.dotfiles/entelequia/packages/denotecli.scm`).  Off-entelequia hosts run
+unpatched upstream 0.8.0, where `--content -` writes a one-character body
+("`-`") and stdin is silently dropped — pass the body inline there.
 
 ## Required confirmation step
 
