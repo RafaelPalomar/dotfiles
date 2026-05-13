@@ -48,8 +48,18 @@ import socket
 import sys
 import time
 from email.message import EmailMessage
+from email.policy import EmailPolicy
 from email.utils import formatdate, make_msgid
 from pathlib import Path
+
+# Default EmailPolicy folds headers at 78 chars; when a long opaque
+# value (e.g. a 90-char Outlook Message-ID in In-Reply-To/References)
+# does not fit, it falls back to RFC-2047 quoted-printable encoding.
+# That is invalid for msg-id headers and breaks threading + draft
+# rendering in Outlook 365 (compose view shows an empty body). Raise
+# to the RFC 5322 hard limit so msg-ids stay literal; Subject and
+# other unstructured headers still encode UTF-8 via RFC-2047.
+DRAFT_POLICY = EmailPolicy(max_line_length=998)
 
 SIG_HEADER = (
     "Prof. Rafael Palomar, Ph.D.\n"
@@ -145,7 +155,7 @@ def main() -> int:
     if not args.no_signature:
         body = body + "\n-- \n" + acct["signature"]
 
-    msg = EmailMessage()
+    msg = EmailMessage(policy=DRAFT_POLICY)
     msg["From"] = f'{acct["from_name"]} <{acct["from_addr"]}>'
     msg["To"] = args.to
     if args.cc:
