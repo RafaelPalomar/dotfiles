@@ -26,7 +26,30 @@
                (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "0251mf1km78287vqf4sjajn8p3nd6fi2yfl9vsa69y70ar45xv88"))))
+          (base32 "0251mf1km78287vqf4sjajn8p3nd6fi2yfl9vsa69y70ar45xv88"))
+         ;; Make `denotecli create --content -' read the body from stdin.
+         ;; Upstream 0.8.0 treats --content's value as a literal string with
+         ;; no `-' special case, which silently drops piped bodies.  Patch
+         ;; the CLI layer (cmdCreate in main.go) so CreateNote stays pure.
+         (snippet
+          '(begin
+             (use-modules (guix build utils))
+             ;; Add the "io" import — needed for io.ReadAll.
+             (substitute* "denotecli/main.go"
+               (("\t\"fmt\"\n")
+                "\t\"fmt\"\n\t\"io\"\n"))
+             ;; Splice stdin-read right after the --content flag is parsed.
+             (substitute* "denotecli/main.go"
+               (("\tcontent := getFlag\\(args, \"--content\", \"\"\\)\n")
+                (string-append
+                 "\tcontent := getFlag(args, \"--content\", \"\")\n"
+                 "\tif content == \"-\" {\n"
+                 "\t\tdata, err := io.ReadAll(os.Stdin)\n"
+                 "\t\tif err != nil {\n"
+                 "\t\t\tfatal(\"read stdin: \" + err.Error())\n"
+                 "\t\t}\n"
+                 "\t\tcontent = string(data)\n"
+                 "\t}\n")))))))
       (build-system go-build-system)
       (arguments
        (list #:go go-1.25
