@@ -1088,24 +1088,31 @@ inside the container."
    #:desktop-name "Dwarf Fortress"
    #:desktop-icon "applications-games"))
 
-;;; Mindustry — Tier 1 (Java)
+;;; Mindustry — hermetic Java package
 ;;;
-;;; Anuken/Mindustry direct download (free GPL3 release).  Drop
-;;; Mindustry.jar from the GitHub release page into ~/Games/Mindustry/.
+;;; Anuken/Mindustry (free GPL3 release).  Unlike the GOG / Bay 12
+;;; launchers (which wrap user-managed install dirs), the jar here is
+;;; fetched and pinned by Guix at build time and lives in /gnu/store.
+;;; No ~/Games/Mindustry/ setup needed.  Save data still goes to
+;;; ~/.local/share/Mindustry (Mindustry's default).
+;;;
 ;;; The jar bundles its LWJGL3 natives (extracted at runtime), so no
-;;; LD_LIBRARY_PATH wiring — just a JRE.  Upstream builds with Java 17+;
-;;; openjdk17 is the documented minimum.
-;;;
-;;; Setup:
-;;;   mkdir -p ~/Games/Mindustry
-;;;   curl -L -o ~/Games/Mindustry/Mindustry.jar \
-;;;     https://github.com/Anuken/Mindustry/releases/latest/download/Mindustry.jar
+;;; LD_LIBRARY_PATH wiring — just a JRE.  Upstream builds against
+;;; Java 17+; openjdk17 is the documented minimum.
 
 (define-public anuken-mindustry
   (package
     (name "anuken-mindustry")
-    (version "1.0")
-    (source #f)
+    (version "157.4")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://github.com/Anuken/Mindustry/releases/download/v"
+             version "/Mindustry.jar"))
+       (file-name (string-append "Mindustry-" version ".jar"))
+       (sha256
+        (base32 "0cwzcyys9ycq69ns36fwbc1nvwd9s294rd5hkpkp8nfg21vqjwxb"))))
     (build-system trivial-build-system)
     (arguments
      `(#:modules ((guix build utils))
@@ -1114,28 +1121,22 @@ inside the container."
          (use-modules (guix build utils))
          (let* ((out      (assoc-ref %outputs "out"))
                 (jdk      (assoc-ref %build-inputs "openjdk"))
+                (jar-src  (assoc-ref %build-inputs "source"))
                 (bin      (string-append out "/bin"))
+                (share    (string-append out "/share/mindustry"))
                 (apps     (string-append out "/share/applications"))
+                (jar      (string-append share "/Mindustry.jar"))
                 (launcher (string-append bin "/mindustry"))
                 (desktop  (string-append apps "/mindustry.desktop")))
            (mkdir-p bin)
+           (mkdir-p share)
            (mkdir-p apps)
+           (copy-file jar-src jar)
            (call-with-output-file launcher
              (lambda (port)
                (format port "#!/bin/sh~%")
-               (format port "# Mindustry launcher (Tier 1, Java).~%")
-               (format port "# JRE path embedded at build time; refresh with~%")
-               (format port "# 'guix home reconfigure' after 'guix pull'.~%")
-               (format port "GAMEDIR=\"${HOME}/Games/Mindustry\"~%")
-               (format port "JAR=\"${GAMEDIR}/Mindustry.jar\"~%")
-               (format port "if [ ! -f \"${JAR}\" ]; then~%")
-               (format port "  echo \"mindustry: ${JAR} not found.\" >&2~%")
-               (format port "  echo \"Download Mindustry.jar from https://github.com/Anuken/Mindustry/releases\" >&2~%")
-               (format port "  echo \"and place it at ${JAR}.\" >&2~%")
-               (format port "  exit 1~%")
-               (format port "fi~%")
-               (format port "cd \"${GAMEDIR}\"~%")
-               (format port "exec \"~a/bin/java\" -jar \"${JAR}\" \"$@\"~%" jdk)))
+               (format port "exec \"~a/bin/java\" -jar \"~a\" \"$@\"~%"
+                       jdk jar)))
            (chmod launcher #o755)
            (call-with-output-file desktop
              (lambda (port)
@@ -1149,13 +1150,12 @@ inside the container."
                (format port "Terminal=false~%")))))))
     (inputs `(("openjdk" ,openjdk17 "jdk")))
     (supported-systems '("x86_64-linux"))
-    (synopsis "Launcher for Anuken's Mindustry (Java)")
+    (synopsis "Mindustry — tower defense / factory game (Anuken)")
     (description
-     "Shell wrapper that runs ~/Games/Mindustry/Mindustry.jar with the
-Guix-managed openjdk JRE.  Mindustry is a free, GPL3-licensed
-tower-defense / factory game by Anuken.  Download Mindustry.jar from
-https://github.com/Anuken/Mindustry/releases and place it at
-~/Games/Mindustry/Mindustry.jar before launching.")
+     "Mindustry is a free, GPL3-licensed tower-defense / factory game
+by Anuken.  This package fetches the official Mindustry.jar release
+asset, pins it by SHA-256, and provides a @command{mindustry} launcher
+that runs it with the Guix-managed openjdk JRE.")
     (home-page "https://mindustrygame.github.io/")
     (license license:gpl3)))
 
