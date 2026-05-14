@@ -57,6 +57,7 @@ profiles that shouldn't ship age-inappropriate titles)."
          coq-caves-of-qud
          coq-caves-of-qud-native
          bay12-dwarf-fortress
+         anuken-mindustry
          luanti-mineclonia-csm
          luanti-halon
          luanti-mobs-goblins

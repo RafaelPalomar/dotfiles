@@ -17,6 +17,7 @@
   #:use-module (gnu packages gtk)        ; gtk+ (GTK3), gtk+-2 (GTK2)
   #:use-module (gnu packages glib)       ; glib
   #:use-module (gnu packages pulseaudio) ; pulseaudio (libpulse-simple)
+  #:use-module (gnu packages java)       ; openjdk17 for Mindustry
   #:use-module (guix git-download)
   #:use-module (guix gexp)
   #:use-module (guix utils)
@@ -47,7 +48,8 @@
             ;; Direct-download games
             coq-caves-of-qud
             coq-caves-of-qud-native
-            bay12-dwarf-fortress))
+            bay12-dwarf-fortress
+            anuken-mindustry))
 
 ;;;
 ;;; Game launcher helpers
@@ -1085,6 +1087,77 @@ inside the container."
    #:extra-lib-dirs '("${GAMEDIR}")
    #:desktop-name "Dwarf Fortress"
    #:desktop-icon "applications-games"))
+
+;;; Mindustry — Tier 1 (Java)
+;;;
+;;; Anuken/Mindustry direct download (free GPL3 release).  Drop
+;;; Mindustry.jar from the GitHub release page into ~/Games/Mindustry/.
+;;; The jar bundles its LWJGL3 natives (extracted at runtime), so no
+;;; LD_LIBRARY_PATH wiring — just a JRE.  Upstream builds with Java 17+;
+;;; openjdk17 is the documented minimum.
+;;;
+;;; Setup:
+;;;   mkdir -p ~/Games/Mindustry
+;;;   curl -L -o ~/Games/Mindustry/Mindustry.jar \
+;;;     https://github.com/Anuken/Mindustry/releases/latest/download/Mindustry.jar
+
+(define-public anuken-mindustry
+  (package
+    (name "anuken-mindustry")
+    (version "1.0")
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils))
+         (let* ((out      (assoc-ref %outputs "out"))
+                (jdk      (assoc-ref %build-inputs "openjdk"))
+                (bin      (string-append out "/bin"))
+                (apps     (string-append out "/share/applications"))
+                (launcher (string-append bin "/mindustry"))
+                (desktop  (string-append apps "/mindustry.desktop")))
+           (mkdir-p bin)
+           (mkdir-p apps)
+           (call-with-output-file launcher
+             (lambda (port)
+               (format port "#!/bin/sh~%")
+               (format port "# Mindustry launcher (Tier 1, Java).~%")
+               (format port "# JRE path embedded at build time; refresh with~%")
+               (format port "# 'guix home reconfigure' after 'guix pull'.~%")
+               (format port "GAMEDIR=\"${HOME}/Games/Mindustry\"~%")
+               (format port "JAR=\"${GAMEDIR}/Mindustry.jar\"~%")
+               (format port "if [ ! -f \"${JAR}\" ]; then~%")
+               (format port "  echo \"mindustry: ${JAR} not found.\" >&2~%")
+               (format port "  echo \"Download Mindustry.jar from https://github.com/Anuken/Mindustry/releases\" >&2~%")
+               (format port "  echo \"and place it at ${JAR}.\" >&2~%")
+               (format port "  exit 1~%")
+               (format port "fi~%")
+               (format port "cd \"${GAMEDIR}\"~%")
+               (format port "exec \"~a/bin/java\" -jar \"${JAR}\" \"$@\"~%" jdk)))
+           (chmod launcher #o755)
+           (call-with-output-file desktop
+             (lambda (port)
+               (format port "[Desktop Entry]~%")
+               (format port "Version=1.0~%")
+               (format port "Type=Application~%")
+               (format port "Name=Mindustry~%")
+               (format port "Exec=mindustry~%")
+               (format port "Icon=applications-games~%")
+               (format port "Categories=Game;~%")
+               (format port "Terminal=false~%")))))))
+    (inputs `(("openjdk" ,openjdk17 "jdk")))
+    (supported-systems '("x86_64-linux"))
+    (synopsis "Launcher for Anuken's Mindustry (Java)")
+    (description
+     "Shell wrapper that runs ~/Games/Mindustry/Mindustry.jar with the
+Guix-managed openjdk JRE.  Mindustry is a free, GPL3-licensed
+tower-defense / factory game by Anuken.  Download Mindustry.jar from
+https://github.com/Anuken/Mindustry/releases and place it at
+~/Games/Mindustry/Mindustry.jar before launching.")
+    (home-page "https://mindustrygame.github.io/")
+    (license license:gpl3)))
 
 
 (define-public luanti-mobs-goblins
