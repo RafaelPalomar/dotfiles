@@ -26,14 +26,14 @@
 (define-public winbox
   (package
     (name "winbox")
-    (version "4.0.1")
+    (version "4.1")
     (source
      (origin
        (method url-fetch)
        (uri (string-append "https://download.mikrotik.com/routeros/winbox/"
                            version "/WinBox_Linux.zip"))
        (sha256
-        (base32 "0w3a69zgabcivmhlkd9grmz0a2znpma367w8i15lqhzx564x1hlf"))))
+        (base32 "13sdllwzzbcdg229ajpd94jjk4v5vxz6nm1ni5hmn7rj3ik5plr8"))))
     (build-system binary-build-system)
     (arguments
      (list

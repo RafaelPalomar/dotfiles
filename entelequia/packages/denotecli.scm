@@ -13,8 +13,8 @@
 ;;; Requires Go 1.25+ per the module's go directive.
 
 (define-public denotecli
-  (let ((commit "19985eee8eeeea420042f2c77dae2b1e531545c8")
-        (revision "1"))
+  (let ((commit "d1c02d07d99e6a23ae00393e01c3b487e020527f")
+        (revision "2"))
     (package
       (name "denotecli")
       (version (git-version "0.8.0" revision commit))
@@ -26,7 +26,7 @@
                (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "0251mf1km78287vqf4sjajn8p3nd6fi2yfl9vsa69y70ar45xv88"))
+          (base32 "0aixcmfcqvmd6qgxx6zd7p4vpy1xb82dqq3r82b0rpxgqq9k5pgm"))
          ;; Make `denotecli create --content -' read the body from stdin.
          ;; Upstream 0.8.0 treats --content's value as a literal string with
          ;; no `-' special case, which silently drops piped bodies.  Patch

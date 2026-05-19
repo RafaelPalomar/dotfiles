@@ -100,16 +100,16 @@ https://github.com/nex3/perspective-el.")
 (define-public emacs-tabspaces
   (package
     (name "emacs-tabspaces")
-    (version "20260222.1459")
+    (version "20260515.2051")
     (source
      (origin
        (method git-fetch)
        (uri (git-reference
              (url "https://github.com/mclear-tools/tabspaces.git")
-             (commit "9fdbb0c9a7a153459408c1a93f9a9139d00f254a")))
+             (commit "ea95efb5b2ef265e3c48059801554042ab0813b3")))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "0jwmkxjzjb7jplnh1p7n4i580hjhxz9ijyvpq9gksamwgk1zd62i"))))
+        (base32 "0lwnj37xrcf7838dnprrdspp92yh5sz9ihks6xr759vjd6iahksj"))))
     (build-system emacs-build-system)
     (propagated-inputs (list upstream:emacs-project))
     (home-page "https://github.com/mclear-tools/tabspaces")
@@ -136,10 +136,10 @@ https://github.com/florommel/bufferlo.")
        (method git-fetch)
        (uri (git-reference
              (url "https://github.com/copilot-emacs/copilot.el")
-             (commit "c8c06efaa508569e13d7191882ae33435bb14543")))
+             (commit "ab5c58bc969f52f6d75e972658f2c3381c70b4fa")))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "1xvhfwgddms0cxhi9pn75vb6qsd6gqfv8s59xjk9ilh57nvwzqfn"))))
+        (base32 "1glqr4x7r2f0wgcn0mbcvphdidirpnq1b771ig5ly4s3zaxnqxl5"))))
     (build-system emacs-build-system)
     (propagated-inputs (list upstream:emacs-editorconfig upstream:emacs-jsonrpc
                              upstream:emacs-track-changes upstream:emacs-f))

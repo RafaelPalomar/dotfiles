@@ -40,7 +40,7 @@ and others.")
 (define-public polybar-themes-fonts
   (package
     (name "polybar-themes-fonts")
-    (version "396a4c3649c2ad15c4724dd541c433b249bb0b9a")
+    (version "a4b8d48500b368122fd010aa6418d8835389871e")
     (source
      (origin
        (method git-fetch)
@@ -49,7 +49,7 @@ and others.")
               (commit version)))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "00pi697wl4ihfdw8sz57rg5cy9isv2zx9k6j00vbr289m7lr6db2"))))
+        (base32 "17sjhwyac6k7z8k03i6s14f7acbfpj5s4mvkaarwzy9n04xmi5rq"))))
     (build-system font-build-system)
     (arguments
      `(#:phases
@@ -149,7 +149,7 @@ and others.")
 (define-public polybar-themes-fonts
   (package
     (name "polybar-themes-fonts")
-    (version "396a4c3649c2ad15c4724dd541c433b249bb0b9a")
+    (version "a4b8d48500b368122fd010aa6418d8835389871e")
     (source
      (origin
        (method git-fetch)
@@ -158,7 +158,7 @@ and others.")
               (commit version)))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "00pi697wl4ihfdw8sz57rg5cy9isv2zx9k6j00vbr289m7lr6db2"))))
+        (base32 "17sjhwyac6k7z8k03i6s14f7acbfpj5s4mvkaarwzy9n04xmi5rq"))))
     (build-system font-build-system)
     (arguments
      `(#:phases
