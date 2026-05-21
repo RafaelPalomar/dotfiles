@@ -1,6 +1,7 @@
 (define-module (entelequia home services desktop)
   #:use-module (entelequia packages python-xyz)
   #:use-module (entelequia packages pass-secret-service)
+  #:use-module (entelequia packages kitty)
   #:use-module (gnu)
   #:use-module (gnu system)
   #:use-module (gnu home services)
@@ -25,7 +26,7 @@
 (define (home-desktop-profile-service config)
   (list bspwm
         sxhkd
-        kitty
+        kitty-with-synergy-scroll
         picom
         gammastep
         network-manager-applet
