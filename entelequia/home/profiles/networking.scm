@@ -13,8 +13,13 @@
 ;;;
 ;;; MikroTik tools:
 ;;;   winbox  — WinBox 4, native Linux Qt GUI for RouterOS management
+;;;
+;;; #:gns3?  Include gns3-gui (defaults to #t).  Off for hosts whose
+;;; profile would otherwise conflict with gns3-server's transitive
+;;; Python deps (e.g. curie pulls hermes-agent, whose discord-py
+;;; demands a newer python-aiohttp than gns3-server propagates).
 
-(define (networking-home-packages)
+(define* (networking-home-packages #:key (gns3? #t))
   (append
    (map specification->package
         '(;; Traffic analysis
@@ -25,5 +30,7 @@
           "nmap"
           ;; SSH tunnelling and port forwarding
           "autossh"))
-   (list gns3-gui         ; gns3-gui pulls in gns3-server as a dep
-         winbox)))         ; MikroTik RouterOS GUI manager (native Linux, WinBox 4)
+   (if gns3?
+       (list gns3-gui      ; gns3-gui pulls in gns3-server as a dep
+             winbox)       ; MikroTik RouterOS GUI manager
+       (list winbox))))
