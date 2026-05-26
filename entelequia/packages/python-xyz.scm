@@ -24,6 +24,10 @@
    (build-system pyproject-build-system)
    (arguments
     (list
+     ;; Upstream ships no tests; pyproject-build-system's default check runs
+     ;; `python -m unittest` which exits 5 ("no tests collected") and fails
+     ;; the build.
+     #:tests? #f
      #:phases
      #~(modify-phases %standard-phases
          (add-after 'unpack 'fix-wayland-detection
