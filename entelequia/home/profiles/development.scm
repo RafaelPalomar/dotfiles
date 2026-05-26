@@ -2,6 +2,8 @@
   #:use-module (gnu packages)
   #:use-module (entelequia packages claude-code)
   #:use-module (entelequia packages denotecli)
+  #:use-module (entelequia packages gh)
+  #:use-module (entelequia packages glab)
   #:use-module (entelequia packages mermaid-cli)
   #:use-module (guix-openclaw packages openclaw)
   #:use-module (systole packages claude-skills)
@@ -49,6 +51,8 @@
    ;; Local packages
    (list claude-code
          denotecli
+         gh
+         glab
          mermaid-cli
          openclaw
          slicer-skill
