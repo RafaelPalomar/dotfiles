@@ -37,10 +37,6 @@
         (url "https://github.com/systoleos/guix-systole-artwork")
         (branch "main"))
       (channel
-        (name 'guix-openclaw)
-        (url "https://github.com/OUH-MESHLab/guix-openclaw")
-        (branch "main"))
-      (channel
         (name 'guix-hermes)
         (url "https://github.com/OUH-MESHLab/guix-hermes")
         (branch "main"))

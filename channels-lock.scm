@@ -39,11 +39,6 @@
        (branch "main")
        (commit "26e4f71bf518a03c646d42d7c65ec8529f3c63a6"))
       (channel
-       (name 'guix-openclaw)
-       (url "https://github.com/OUH-MESHLab/guix-openclaw")
-       (branch "main")
-       (commit "4b8f5ed7449b937d7f17d01706c575476fa72d13"))
-      (channel
        (name 'guix-hermes)
        (url "https://github.com/OUH-MESHLab/guix-hermes")
        (branch "main")

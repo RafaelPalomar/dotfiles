@@ -5,7 +5,6 @@
   #:use-module (entelequia packages gh)
   #:use-module (entelequia packages glab)
   #:use-module (entelequia packages mermaid-cli)
-  #:use-module (guix-openclaw packages openclaw)
   #:use-module (systole packages claude-skills)
   #:export (development-home-packages))
 
@@ -54,6 +53,5 @@
          gh
          glab
          mermaid-cli
-         openclaw
          slicer-skill
          guix-systole-dev-skill)))
