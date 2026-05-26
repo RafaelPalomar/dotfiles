@@ -50,6 +50,16 @@
          ;; live in ~/.hermes/secrets.env — sourced if present, ignored
          ;; if missing, so the daemon doesn't fail to start before
          ;; the file is populated.
+         ;;
+         ;; Onboarding workflow:
+         ;;   1. hermes login    (Nous Portal OAuth in a browser)
+         ;;   2. hermes setup    (interactive config wizard — writes
+         ;;                       ~/.hermes/config.yaml)
+         ;;   3. pass insert hermes/openai-key     (one per provider)
+         ;;      pass insert hermes/telegram-bot-token  ...
+         ;;   4. hermes-pass-sync  (refresh ~/.hermes/secrets.env from
+         ;;                         pass — see dotfiles/.local/bin/)
+         ;;   5. herd restart hermes
          (service home-hermes-service-type
                   (home-hermes-configuration
                    (environment-file
