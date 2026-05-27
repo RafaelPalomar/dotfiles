@@ -32,7 +32,7 @@
        (name 'guix-systole)
        (url "https://github.com/systoleos/guix-systole")
        (branch "main")
-       (commit "3e3db79626d5e4333a8ceb580672124fb1561e77"))
+       (commit "def9078237a144d69fb58278f74b858409bf4108"))
       (channel
        (name 'systole-artwork)
        (url "https://github.com/systoleos/guix-systole-artwork")
@@ -42,7 +42,7 @@
        (name 'guix-hermes)
        (url "https://github.com/OUH-MESHLab/guix-hermes")
        (branch "main")
-       (commit "9116b6ce8f3e1586193322e0ab7b910df9ecee68"))
+       (commit "e93f670a1de32f5e7568ef6e4ad09b82add068bd"))
       (channel
        (name 'sops-guix)
        (url "https://github.com/fishinthecalculator/sops-guix.git")
