@@ -42,6 +42,7 @@
       "Bash(guix shell imagemagick:*)",
       "Bash(guix shell xlibre-server:*)"
     ],
+    "defaultMode": "auto",
     "deny": [
       "Bash(msmtp:*)",
       "Bash(sendmail:*)",
