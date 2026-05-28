@@ -548,6 +548,26 @@ Use =pdftocairo= (from poppler) to convert LaTeX-compiled PDFs to SVG when a
 (setq org-babel-latex-pdf-svg-process "pdftocairo -svg %f %o")
 #+end_src
 
+** Setting Up AUCTeX XeLaTeX engine
+
+AUCTeX is installed but its autoloads don't claim =*.tex= by default — without
+explicit activation, =.tex= files open in Emacs's built-in =latex-mode= and the
+Command menu has no engine selector.  =tex-site= installs the AUCTeX mode map
+(so =.tex= → AUCTeX's =LaTeX-mode=).  Then default the engine to XeTeX (=C-c C-c
+LaTeX= runs =xelatex=) and register an explicit =XeLaTeX= entry in the Command
+menu so it can be picked per-buffer even if the default is later flipped back
+to pdfTeX.
+
+#+begin_src emacs-lisp :tangle dotfiles/.config/emacs/init.el
+(require 'tex-site nil t)
+(with-eval-after-load 'tex
+  (setq-default TeX-engine 'xetex)
+  (add-to-list 'TeX-command-list
+               '("XeLaTeX" "xelatex -synctex=1 -interaction=nonstopmode %s"
+                 TeX-run-TeX nil (latex-mode) :help "Run XeLaTeX")
+               t))
+#+end_src
+
 ** Setting Up org-capture templates
 
 #+begin_src emacs-lisp :tangle dotfiles/.config/emacs/init.el

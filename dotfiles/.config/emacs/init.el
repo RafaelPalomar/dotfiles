@@ -325,6 +325,14 @@
 
 (setq org-babel-latex-pdf-svg-process "pdftocairo -svg %f %o")
 
+(require 'tex-site nil t)
+(with-eval-after-load 'tex
+  (setq-default TeX-engine 'xetex)
+  (add-to-list 'TeX-command-list
+               '("XeLaTeX" "xelatex -synctex=1 -interaction=nonstopmode %s"
+                 TeX-run-TeX nil (latex-mode) :help "Run XeLaTeX")
+               t))
+
 (setq org-capture-templates
       '(;; Mail workflow.  me/mf use the denote pattern; the
         ;; mu4e-link body (with %:subject %:fromname etc. specifiers)
