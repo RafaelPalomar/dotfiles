@@ -147,3 +147,70 @@ https://github.com/florommel/bufferlo.")
     (synopsis "An unofficial Copilot plugin")
     (description "An unofficial Copilot plugin for Emacs.")
     (license #f)))
+
+(define-public emacs-uuidgen
+  ;; Runtime dependency of emacs-code-review; not yet packaged upstream in Guix.
+  (let ((commit "cebbe09d27c63abe61fe8c2e2248587d90265b59")
+        (revision "0"))
+    (package
+      (name "emacs-uuidgen")
+      (version (git-version "1.2" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/kanru/uuidgen-el")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1ih6kj3inwdxypbqj2n5vnfxmc6rfrx114w8bdy60yd8klx7273d"))))
+      (build-system emacs-build-system)
+      (home-page "https://github.com/kanru/uuidgen-el")
+      (synopsis "UUID generation functions for Emacs Lisp")
+      (description
+       "Provides various UUID (Universally Unique IDentifier) generating functions
+following RFC 4122 — UUID versions 1, 3, 4, and 5.")
+      (license license:gpl3+))))
+
+(define-public emacs-code-review
+  ;; PR review UI (inline diff comments, approve/request-changes, suggestion
+  ;; blocks) built on top of Forge.  Upstream (wandersoncferreira) is dormant
+  ;; since 2022-12 and predates the emacsql 4 / closql 2 API change that
+  ;; ships in current Guix; phelrine's `fix/closql-update' branch carries
+  ;; the compatibility patch.  Pinned to that branch's head.
+  (let ((commit "97dae6fca12d49833dcbe865460021151520c10b")
+        (revision "0"))
+    (package
+      (name "emacs-code-review")
+      (version (git-version "0.0.7" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/phelrine/code-review")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "12y2209mkk6c2p1fh8zbzbk044m52690ji1dqjb1a7s2i5yaka2p"))))
+      (build-system emacs-build-system)
+      (arguments
+       (list #:tests? #f))                ; upstream Makefile has no 'check' target
+      (propagated-inputs
+       (list upstream:emacs-closql
+             upstream:emacs-magit
+             upstream:emacs-transient
+             upstream:emacs-a
+             upstream:emacs-ghub
+             emacs-uuidgen
+             upstream:emacs-deferred
+             upstream:emacs-markdown-mode
+             upstream:emacs-forge
+             upstream:emacs-emojify))
+      (home-page "https://github.com/wandersoncferreira/code-review")
+      (synopsis "Perform code review from GitHub, GitLab, and Bitbucket Cloud")
+      (description
+       "Code Review lets you review pull/merge requests directly from Emacs.
+It builds on Magit + Forge and adds inline diff comments, approve /
+request-changes / comment review submission, suggestion blocks, and
+reply-to-thread handling for GitHub, GitLab, and Bitbucket Cloud.")
+      (license license:gpl3+))))

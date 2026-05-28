@@ -24,6 +24,7 @@
         emacs-avy
         emacs-beacon
         emacs-cmake-mode
+        emacs-code-review
         emacs-counsel
         emacs-counsel-projectile
         emacs-company
