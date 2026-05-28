@@ -1612,6 +1612,7 @@ If no active region, use the whole buffer."
           ("projects"   . "~/pks/projects/")
           ("reference"  . "~/pks/reference/")
           ("review"     . "~/pks/review-queue/")
+          ("archive"    . "~/pks/archive/")
           ("legacy"     . "~/Notes/Work-legacy/")))
 
   (setq denote-known-keywords
@@ -2055,6 +2056,42 @@ Uses Denote's native rename API rather than denotecli, since denotecli
    "reference"
    '("moc" "hub" "research" "code" "learn" "ntnu" "ous")))
 
+(defun my-denote-archive-fleeting ()
+  "Archive the current fleeting note to archive/{work,personal}/ (preserves denote ID).
+Cold storage for notes worth keeping but not load-bearing — light
+meeting notes, ephemeral observations, traces that won't ripen into
+permanent claims.  Drops the `fleeting' keyword; does NOT add an
+`archive' keyword (the silo is the marker).  One-way: notes do not
+move back from archive.  Asks for explicit yes-or-no confirmation."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (unless (and file (denote-file-is-note-p file))
+      (user-error "Current buffer is not a denote note"))
+    (unless (string-prefix-p (expand-file-name "~/pks/fleeting/") file)
+      (user-error "Current note is not in fleeting/"))
+    (let* ((kws (denote-extract-keywords-from-path file))
+           (default-domain (if (or (member "ous" kws) (member "ntnu" kws))
+                               "work" "personal"))
+           (domain (completing-read
+                    (format "Archive domain (default %s): " default-domain)
+                    '("work" "personal") nil t nil nil default-domain))
+           (archive-dir (expand-file-name (format "~/pks/archive/%s/" domain)))
+           (new-kws (remove "fleeting" kws))
+           (id (denote-retrieve-filename-identifier file))
+           (title (or (denote-retrieve-title-or-filename file 'org) ""))
+           (sig (or (denote-retrieve-filename-signature file) ""))
+           (ext (file-name-extension file t))
+           (new-path (denote-format-file-name
+                      (file-name-as-directory archive-dir)
+                      id new-kws title ext sig)))
+      (unless (yes-or-no-p
+               (format "Archive %s → archive/%s/ ? (one-way; cannot un-archive) "
+                       id domain))
+        (user-error "Aborted"))
+      (save-buffer)
+      (denote-rename-file-and-buffer file new-path)
+      (message "Archived %s → archive/%s" id domain))))
+
 (defun my-pks-move-note-to-silo ()
   "Move the current denote note to a chosen PKS silo (preserves denote ID).
 Generic counterpart to `my-denote-promote-fleeting-to-permanent' — pick
@@ -2098,6 +2135,7 @@ any target silo from `denote-silo-extras-directories' (plus fleeting)."
     (define-key m "A" #'my-denote-remove-from-agenda)
     (define-key m "!" #'my-denote-promote-fleeting-to-permanent)
     (define-key m "^" #'my-denote-promote-to-reference)
+    (define-key m "z" #'my-denote-archive-fleeting)
     (define-key m "m" #'my-pks-move-note-to-silo)
     (define-key m (kbd "l l") #'denote-org-dblock-insert-links)
     (define-key m (kbd "l b") #'denote-org-dblock-insert-backlinks)
