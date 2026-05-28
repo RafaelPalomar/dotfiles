@@ -2,9 +2,10 @@
 """mail-draft: write a Maildir draft file for later review & send in mu4e.
 
 Produces an RFC-5322 message and deposits it under the target account's
-`Drafts/cur/` directory with Maildir flags ":2,DS" (Draft + Seen).
-mbsync pushes it to the IMAP Drafts folder on next sync; the user
-reviews it in mu4e (or any other IMAP client) and sends from there.
+drafts folder (`Drafts/cur/` for OUS, `Kladd/cur/` for NTNU) with Maildir
+flags ":2,DS" (Draft + Seen). mbsync pushes it to the corresponding IMAP
+drafts folder on next sync; the user reviews it in mu4e (or any other
+IMAP client) and sends from there.
 
 Never sends. Never touches SMTP. Never reads credentials.
 
@@ -88,6 +89,8 @@ ACCOUNTS = {
         "from_addr": "rafael.palomar@ous-research.no",
         "from_name": "Rafael Palomar",
         "maildir":  "rafael.palomar@ous-research.no",
+        # M365 English locale: drafts live in "Drafts".
+        "drafts_folder": "Drafts",
         # Both affiliations on every email; account's own role leads.
         "signature": SIG_HEADER + OUS_BLOCK + "\n" + NTNU_BLOCK,
     },
@@ -95,6 +98,9 @@ ACCOUNTS = {
         "from_addr": "rafael.palomar@ntnu.no",
         "from_name": "Rafael Palomar",
         "maildir":  "rafael.palomar@ntnu.no",
+        # M365 Norwegian locale: drafts live in "Kladd"; "Drafts" is a
+        # leftover sibling folder Outlook does not surface.
+        "drafts_folder": "Kladd",
         "signature": SIG_HEADER + NTNU_BLOCK + "\n" + OUS_BLOCK,
     },
 }
@@ -145,7 +151,7 @@ def main() -> int:
     args = parse_args()
     acct = ACCOUNTS[args.account]
 
-    drafts_dir = Path(args.maildir) / acct["maildir"] / "Drafts"
+    drafts_dir = Path(args.maildir) / acct["maildir"] / acct["drafts_folder"]
     for sub in ("cur", "new", "tmp"):
         (drafts_dir / sub).mkdir(parents=True, exist_ok=True)
 
