@@ -23,7 +23,7 @@
            #:exclude '("caves-of-qud"))))
  (services
   (append
-   (common-home-services)
+   (common-home-services #:nvidia? #t)
    (desktop-home-services)
    (list librewolf-kids-home-service
          (service home-dotfiles-service-type

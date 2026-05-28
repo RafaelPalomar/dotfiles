@@ -26,7 +26,7 @@
           documentation-home-packages))
  (services
   (append
-   (common-home-services)
+   (common-home-services #:nvidia? #t)
    (desktop-home-services)
    (chromium-home-services)
    (list (service home-dotfiles-service-type

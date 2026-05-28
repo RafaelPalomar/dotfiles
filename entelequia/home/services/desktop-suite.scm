@@ -44,7 +44,8 @@
 (define* (common-home-services #:key
                                (email-aliases? #t)
                                (slicer-aliases? #t)
-                               (claude-skills? #t))
+                               (claude-skills? #t)
+                               (nvidia? #f))
   "Bash, environment variables, gpg-agent, dbus, gnupg perms, and (optionally)
 the rafael-specific claude-skills files / slicer-profile bash hooks /
 auth-email-* aliases."
@@ -128,26 +129,25 @@ unset __sops_oauth_file
                     '())))))
 
     ;; Shared user environment variables.
+    ;;
+    ;; LD_LIBRARY_PATH is gated on nvidia?: it forces libglvnd ahead of
+    ;; baked-in DT_RUNPATH Mesa libGL.so.1 so GLX dispatches to
+    ;; libGLX_nvidia.  On Intel/AMD it's not just a no-op — it makes the
+    ;; home profile shadow versions bundled via RUNPATH inside other
+    ;; Guix packages (e.g. arandr's GTK 3.24.51 was linked against pango
+    ;; 1.54.0 but home-profile has pango 1.56.4, and the resulting
+    ;; libpangoft2/libpango symbol mismatch crashes the app).
     (simple-service 'user-env-vars
                     home-environment-variables-service-type
-                    `(("LC_COLLATE"    . "C")
-                      ("VISUAL"        . "emacsclient")
-                      ("EDITOR"        . "emacsclient")
-                      ("PATH"          . "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH")
-                      ("XDG_DATA_DIRS" . "/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS")
-                      ;; OpenGL dispatch chain.  Many GL clients (luanti,
-                      ;; chromium, librewolf, etc.) have their build-time
-                      ;; Mesa libGL.so.1 baked into DT_RUNPATH and would
-                      ;; load that directly — bypassing libglvnd and the
-                      ;; NVIDIA GLX vendor.  Putting the home profile
-                      ;; (with libglvnd) and the system profile (with
-                      ;; libGLX_nvidia / libGLX_mesa) ahead of RUNPATH
-                      ;; ensures libglvnd is the libGL.so.1 actually
-                      ;; loaded, then it dispatches at runtime to the
-                      ;; right vendor based on the X server's GLX
-                      ;; advertisement.  No-op on Intel/AMD (libglvnd
-                      ;; just dispatches to libGLX_mesa.so as before).
-                      ("LD_LIBRARY_PATH" . "$HOME/.guix-home/profile/lib:/run/current-system/profile/lib"))))
+                    (append
+                     `(("LC_COLLATE"    . "C")
+                       ("VISUAL"        . "emacsclient")
+                       ("EDITOR"        . "emacsclient")
+                       ("PATH"          . "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH")
+                       ("XDG_DATA_DIRS" . "/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS"))
+                     (if nvidia?
+                         '(("LD_LIBRARY_PATH" . "$HOME/.guix-home/profile/lib:/run/current-system/profile/lib"))
+                         '()))))
 
    (if claude-skills?
        (list (simple-service 'claude-skills-files
