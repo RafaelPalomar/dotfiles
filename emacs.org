@@ -2446,9 +2446,9 @@ Used by the mail-derived Action Item and Waiting For workflows."
       (user-error "No matching project note: %s" query))))
 
 ;; ─── Move / promote helpers ────────────────────────────────────────
-;; Move (or promote) a denote note across PKS silos via denotecli,
-;; preserving the denote ID so backlinks survive.  After a successful
-;; move the buffer follows the file to its new silo.
+;; Move (or promote) a denote note across PKS silos using Denote's
+;; native rename API, preserving the denote ID so backlinks survive.
+;; After a successful move the buffer follows the file to its new silo.
 (defun my-pks--silo-path (label)
   "Return the absolute path of silo LABEL.
 Includes \"fleeting\" (the default `denote-directory') plus everything
@@ -2462,50 +2462,41 @@ in `denote-silo-extras-directories'."
   "All known PKS silo labels for completion."
   (cons "fleeting" (mapcar #'car denote-silo-extras-directories)))
 
-(defun my-pks--reopen-after-move (id silo-label)
-  "After a denotecli move, kill the old buffer and visit ID in SILO-LABEL."
-  (let* ((silo-dir (my-pks--silo-path silo-label))
-         (matches (and silo-dir (file-directory-p silo-dir)
-                       (directory-files
-                        silo-dir t
-                        (concat "^" (regexp-quote id) ".*\\.org\\'"))))
-         (new-file (car matches))
-         (old-buf (current-buffer)))
-    (when new-file (find-file new-file))
-    (when (and (not (eq old-buf (current-buffer)))
-               (buffer-live-p old-buf))
-      (let ((kill-buffer-query-functions nil))
-        (kill-buffer old-buf)))))
-
 (defun my-pks--move-current-to (silo &optional kw-vocab restrict-to-path)
-  "Move the current denote note to SILO via denotecli, preserving its ID.
+  "Move the current denote note to SILO, preserving its denote ID.
 KW-VOCAB seeds `completing-read-multiple' for new keywords (empty = keep
 existing).  If RESTRICT-TO-PATH is non-nil, error unless the buffer's
-file lives under that path."
+file lives under that path.
+
+Uses Denote's native rename API rather than denotecli, since denotecli
+0.8.0 only exposes read/search/create operations."
   (let ((file (buffer-file-name)))
     (unless (and file (denote-file-is-note-p file))
       (user-error "Current buffer is not a denote note"))
     (when restrict-to-path
       (unless (string-prefix-p (expand-file-name restrict-to-path) file)
         (user-error "Current note is not under %s" restrict-to-path)))
-    (let* ((id (denote-retrieve-filename-identifier file))
-           (kw (completing-read-multiple
-                (format "%s keywords (comma-separated, empty = keep): " silo)
-                kw-vocab))
-           (args (append (list "rename" id "--silo" silo "--keep-id")
-                         (when kw
-                           (list "--keywords" (string-join kw ","))))))
-      (save-buffer)
-      (with-temp-buffer
-        (let ((status (apply #'call-process "denotecli" nil t nil args)))
-          (unless (zerop status)
-            (user-error "denotecli failed (%d): %s"
-                        status (string-trim (buffer-string))))
-          (message "denotecli: %s"
-                   (if (> (buffer-size) 0)
-                       (string-trim (buffer-string))
-                     (format "moved %s → %s" id silo)))))
-      (my-pks--reopen-after-move id silo))))
+    (let ((silo-dir (my-pks--silo-path silo)))
+      (unless silo-dir
+        (user-error "Unknown PKS silo: %s" silo))
+      (let* ((id      (denote-retrieve-filename-identifier file))
+             (title   (or (denote-retrieve-title-or-filename file 'org) ""))
+             (sig     (or (denote-retrieve-filename-signature file) ""))
+             (ext     (file-name-extension file t))
+             (kw-in   (completing-read-multiple
+                       (format "%s keywords (comma-separated, empty = keep): "
+                               silo)
+                       kw-vocab))
+             (new-kw  (if kw-in kw-in
+                        (denote-extract-keywords-from-path file)))
+             (new-path (denote-format-file-name
+                        (file-name-as-directory silo-dir)
+                        id new-kw title ext sig)))
+        (when (file-equal-p file new-path)
+          (user-error "Note is already in %s with the same keywords" silo))
+        (save-buffer)
+        (denote-rename-file-and-buffer file new-path)
+        (message "Moved %s → %s" id silo)))))
 
 (defun my-denote-promote-fleeting-to-permanent ()
   "Promote the current fleeting note to permanent/ (preserves denote ID)."
