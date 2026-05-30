@@ -1,0 +1,736 @@
+#!/usr/bin/env bash
+# keys — unified entry point for entelequia key & secret management.
+#
+# One command to remember, replacing the scatter of gpg-*.sh,
+# manage-deploy-keys.sh and hermes-pass-sync.  Canonical docs:
+#   ~/.dotfiles/docs/source/secrets.rst   (decision tree, identities)
+#   ~/.dotfiles/docs/source/keys-inventory.md
+#   ~/.dotfiles/docs/source/adr/           (why)
+#
+# Subcommands
+#   keys deploy   add|list|enable|disable|pubkey   per-deployment SSH [A] subkeys
+#   keys sync     hermes                            pass -> ~/.hermes/secrets.env
+#   keys host-sops <host> [ssh-target]              per-host SOPS GPG key (host-side)
+#   keys audit [--static]                           reconcile inventory vs live keyring (--static: CI lint, no keyring)
+#   keys inventory show|edit|path                   the key inventory
+#   keys manifest [--identity X]                     reproducible identity hash of a key
+#   keys backup verify --file PATH [--symmetric]    check a secret-key backup is intact
+#   keys escrow <identity> --to PATH.gpg            encrypted, verified secret-key backup
+#   keys paperkey [--identity X]                     printable offline secret-key backup
+#   keys ceremony add-subkey|rotate|list            offline-master IronKey ceremony
+#
+# Design: deploy/sync delegate to the proven standalone scripts (which
+# remain directly invocable); ceremony/audit/host-sops/inventory are
+# implemented here.  See ADR-0001..0004.
+
+set -euo pipefail
+
+# ── Locations ────────────────────────────────────────────────────────────────
+SELF="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+DOTFILES="${DOTFILES:-$HOME/.dotfiles}"
+INVENTORY="${KEYS_INVENTORY:-$DOTFILES/docs/source/keys-inventory.md}"
+GNUPGHOME_REAL="${GNUPGHOME:-$HOME/.gnupg}"
+
+# Identity → master fingerprint.  Personal master is the default.
+PERSONAL_MASTER_FP="${KEYS_PERSONAL_MASTER_FP:-6513C7248D7BECE2EC1BD34B70350DAD507FA72F}"
+IVS_OPERATOR_FP="${KEYS_IVS_OPERATOR_FP:-8EADF28F4F8DC23942345E9A9440CF71CAEA2D0B}"
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+die()  { printf 'keys: error: %s\n' "$*" >&2; exit 1; }
+info() { printf '==> %s\n'  "$*"; }
+ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
+warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
+fail() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
+
+identity_fp() {
+  case "${1:-personal}" in
+    personal) printf '%s' "$PERSONAL_MASTER_FP" ;;
+    ivs)      printf '%s' "$IVS_OPERATOR_FP" ;;
+    *)        printf '%s' "$1" ;;   # accept a raw fingerprint
+  esac
+}
+
+normalize_fp() { printf '%s' "$1" | tr -d ' ' | tr '[:lower:]' '[:upper:]'; }
+
+# Deterministic identity manifest for a key: sorted PRIMARY/SUB/UID
+# lines (fingerprint, caps, created, expires, keygrip).  Reproducible
+# across re-exports because it captures the *identity*, not the
+# S2K-salted serialization.  Optional 2nd arg = an alternate GNUPGHOME.
+keys_manifest() {
+  local fp="$1" home="${2:-}"; local g=(); [[ -n "$home" ]] && g=(--homedir "$home")
+  gpg "${g[@]}" --with-colons --with-keygrip --list-keys "$fp" 2>/dev/null | awk -F: '
+    /^pub:/ { t="P"; c=$6; e=$7; cap=$12 }
+    /^sub:/ { t="S"; c=$6; e=$7; cap=$12 }
+    /^uid:/ { print "UID\t" $10 }
+    /^fpr:/ { f=$10 }
+    /^grp:/ { print (t=="P"?"PRIMARY":"SUB") "\t" f "\t" cap "\t" c "\t" e "\t" $10 }
+  ' | LC_ALL=C sort
+}
+keys_manifest_sha() { keys_manifest "$@" | sha256sum | awk '{print $1}'; }
+
+# ── deploy / sync: delegate to the proven standalone scripts ────────────────────
+cmd_deploy() {
+  local script="$SELF/manage-deploy-keys.sh"
+  [[ -x "$script" ]] || die "deploy backend not found/executable: $script"
+  exec "$script" "$@"
+}
+
+cmd_sync() {
+  local target="${1:-}"
+  case "$target" in
+    hermes)
+      shift
+      local script="$SELF/hermes-pass-sync"
+      [[ -x "$script" ]] || die "sync backend not found/executable: $script"
+      exec "$script" "$@"
+      ;;
+    ""|-h|--help)
+      printf 'usage: keys sync hermes [--verbose]\n'
+      printf '  Materialise pass secrets into an envfile for a service.\n'
+      printf '  Targets: hermes (more can be added as services grow).\n'
+      [[ "$target" == hermes ]] || exit 0
+      ;;
+    *) die "unknown sync target: $target (known: hermes)" ;;
+  esac
+}
+
+# ── inventory ───────────────────────────────────────────────────────────────────
+cmd_inventory() {
+  case "${1:-show}" in
+    path)  printf '%s\n' "$INVENTORY" ;;
+    edit)  "${EDITOR:-vi}" "$INVENTORY" ;;
+    show|*)
+      [[ -f "$INVENTORY" ]] || die "inventory not found: $INVENTORY"
+      if command -v glow >/dev/null 2>&1; then glow "$INVENTORY"; else cat "$INVENTORY"; fi
+      ;;
+  esac
+}
+
+# ── audit: reconcile the personal inventory against the live keyring ────────────
+# Extracts fingerprints from the Master/Daily/Deploy tables (Fingerprint
+# is always the 2nd data column), checks each is present locally, warns
+# on near expiry, verifies the master's secret is absent (sec#), and
+# flags any live [A] subkey of the master that the inventory omits.
+cmd_audit() {
+  local static=0
+  [[ "${1:-}" == --static ]] && { static=1; shift; }
+  [[ -f "$INVENTORY" ]] || die "inventory not found: $INVENTORY"
+  local exit_code=0 fails=0 warns=0
+  _f() { fail "$*"; fails=$((fails+1)); exit_code=1; }
+  _w() { warn "$*"; warns=$((warns+1)); [[ $exit_code -eq 0 ]] && exit_code=2; }
+
+  # Rows under a "## <section>" heading: data rows of a markdown table.
+  rows_under() {
+    awk -v s="$1" '
+      /^## / { inx = ($0 ~ "^## " s) }
+      inx && /^\|/ && !/^\| *:?---/ && !/^\| *(UID|Capability|Deployment) /  { print }
+    ' "$INVENTORY"
+  }
+  # 2nd data column = field $3 when splitting on "|".
+  fp_of_row() { printf '%s' "$1" | awk -F'|' '{print $3}' | sed 's/^ *//;s/ *$//' | tr -d '`'; }
+  label_of_row() { printf '%s' "$1" | awk -F'|' '{print $2}' \
+                     | sed 's/^ *//;s/ *$//;s/&lt;/</g;s/&gt;/>/g;s/&amp;/\&/g'; }
+
+  # Every fingerprint documented anywhere in the inventory (no keyring).
+  declare -A inventoried=()
+  local f
+  while IFS= read -r f; do inventoried["$(normalize_fp "$f")"]=1; done \
+    < <(grep -oE '[0-9A-Fa-f]{40}' "$INVENTORY")
+
+  printf '\nInventory: %s%s\n' "$INVENTORY" "$([[ $static -eq 1 ]] && echo '   [static — no keyring]')"
+  local d
+  d=$(awk -F'last updated ' '/last updated/{print $2; exit}' "$INVENTORY" | sed -E 's/[[:space:]]*-->.*//')
+  [[ -n "$d" ]] && printf '  (last updated: %s)\n' "$d"
+  printf '\n'
+
+  # ── Static checks (no keyring; safe for CI) ──────────────────────────────
+  printf 'Inventory wellformedness:\n'
+  local sec rowfp
+  for sec in "Master key" "Daily subkeys" "Deploy keys" "Host SOPS keys"; do
+    while IFS= read -r row; do
+      [[ -z "$row" ]] && continue
+      rowfp=$(normalize_fp "$(fp_of_row "$row")")
+      [[ "$rowfp" =~ ^[0-9A-F]{40}$ ]] && continue
+      if [[ "$row" == *TBD* || "$row" == *TODO* ]]; then
+        _w "$sec: placeholder fingerprint — $(label_of_row "$row")"
+      else
+        _f "$sec: unparseable fingerprint cell — $(label_of_row "$row")"
+      fi
+    done < <(rows_under "$sec")
+  done
+  ok "fingerprint cells parse as 40-hex (or flagged placeholders)"
+
+  local sops="$DOTFILES/.sops.yaml"
+  if [[ -f "$sops" ]]; then
+    printf '\nSOPS recipients are inventoried [%s]:\n' "${sops/#$HOME/~}"
+    while IFS= read -r rfp; do
+      rfp=$(normalize_fp "$rfp")
+      [[ "$rfp" =~ ^[0-9A-F]{40}$ ]] || continue
+      if [[ -n "${inventoried[$rfp]:-}" ]]; then ok "${rfp:0:16}… in inventory"
+      else _f "${rfp:0:16}… is a .sops.yaml recipient but NOT in the inventory"; fi
+    done < <(grep -oE '[0-9A-Fa-f]{40}' "$sops" | sort -u)
+  fi
+  printf '\n'
+
+  if [[ $static -eq 1 ]]; then
+    printf 'Summary: %d failure(s), %d warning(s)\n' "$fails" "$warns"
+    return "$exit_code"
+  fi
+
+  # ── Keyring checks (require the live keyring) ────────────────────────────
+  local section
+  for section in "Master key" "Daily subkeys" "Deploy keys" "Host SOPS keys"; do
+    printf '%s:\n' "$section"
+    local any=0
+    while IFS= read -r row; do
+      [[ -z "$row" ]] && continue
+      local fp label; fp=$(normalize_fp "$(fp_of_row "$row")"); label=$(label_of_row "$row")
+      [[ "$fp" =~ ^[0-9A-F]{40}$ ]] || continue
+      any=1; inventoried["$fp"]=1
+      if gpg --list-keys --with-colons "$fp" >/dev/null 2>&1; then
+        # expiry of this specific (sub)key
+        local exp
+        exp=$(gpg --with-colons --with-fingerprint --with-fingerprint --list-keys "$fp" 2>/dev/null \
+              | awk -F: -v want="$fp" '
+                  ($1=="pub"||$1=="sub"){e=$7}
+                  ($1=="fpr" && $10==want){print e; exit}')
+        if [[ -n "$exp" && "$exp" != "0" ]]; then
+          local now days; now=$(date +%s); days=$(( (exp-now)/86400 ))
+          if   (( days < 0 ));  then _f "$label  ${fp:0:16}… — EXPIRED $(( -days ))d ago"
+          elif (( days < 30 )); then _w "$label  ${fp:0:16}… — expires in ${days}d"
+          else ok "$label  ${fp:0:16}…  (${days}d to expiry)"; fi
+        else
+          ok "$label  ${fp:0:16}…  (no expiry)"
+        fi
+      else
+        _f "$label  ${fp:0:16}… — NOT in local keyring"
+      fi
+    done < <(rows_under "$section")
+    [[ $any -eq 1 ]] || printf '  (no rows)\n'
+    printf '\n'
+  done
+
+  # Posture: master secret should be ABSENT on a daily machine.
+  # Human format distinguishes this reliably: "sec#" = secret absent
+  # (stub, good); "sec " = secret present (bad). The colon format emits
+  # a "sec:" record in BOTH cases, so it must NOT be used here.
+  printf 'Master key posture:\n'
+  local sec_line
+  sec_line=$(gpg --list-secret-keys "$PERSONAL_MASTER_FP" 2>/dev/null | grep -m1 -E '^sec')
+  if [[ -z "$sec_line" ]]; then
+    if gpg --list-keys "$PERSONAL_MASTER_FP" >/dev/null 2>&1; then
+      ok "personal master present as public only (no secret entry)"
+    else
+      _f "personal master $PERSONAL_MASTER_FP not in keyring at all"
+    fi
+  elif [[ "$sec_line" == sec#* ]]; then
+    ok "personal master secret absent (sec#) — correct for daily use"
+  else
+    _w "personal master SECRET present in $GNUPGHOME_REAL (not sec#) — re-strip after a ceremony."
+  fi
+  printf '\n'
+
+  # Drift: every live [A] subkey of the master should be inventoried.
+  printf 'Drift (live [A] subkeys vs inventory):\n'
+  while IFS= read -r live_fp; do
+    [[ -z "$live_fp" ]] && continue
+    if [[ -n "${inventoried[$live_fp]:-}" ]]; then
+      ok "${live_fp:0:16}… documented"
+    else
+      _f "${live_fp:0:16}… is a live [A] subkey but NOT in the inventory"
+    fi
+  done < <(gpg --with-colons --with-keygrip --list-keys "$PERSONAL_MASTER_FP" 2>/dev/null \
+           | awk -F: '
+               /^sub:/ { isauth = (index($12,"a")>0) }
+               /^fpr:/ && isauth { print $10; isauth=0 }')
+  printf '\n'
+
+  # SSH pinning (ADR-0003): each deploy key needs a public .pub in the
+  # dotfiles tree (deployed to ~/.keys/ssh/deploy/, pinned per-host with
+  # IdentitiesOnly), and that .pub must match the live key.
+  printf 'SSH key pinning (deploy .pub vs live key):\n'
+  local ddir="$DOTFILES/dotfiles/.keys/ssh/deploy" dconf="$DOTFILES/dotfiles/.gnupg/deploy-keys.conf"
+  if [[ -f "$dconf" ]]; then
+    local dname pub live stored
+    while IFS= read -r dname; do
+      [[ -z "$dname" ]] && continue
+      pub="$ddir/$dname.pub"
+      if [[ ! -f "$pub" ]]; then
+        _f "$dname — missing $pub (run: keys deploy pubkey $dname > $pub)"; continue
+      fi
+      live=$("$SELF/manage-deploy-keys.sh" pubkey "$dname" 2>/dev/null | awk '{print $2}')
+      stored=$(awk '{print $2}' "$pub")
+      if [[ -n "$live" && "$live" == "$stored" ]]; then ok "$dname.pub matches live key"
+      else _f "$dname.pub does NOT match the live deploy key — regenerate it"; fi
+    done < <(awk '!/^#/ && NF>=2 {print $2}' "$dconf")
+  else
+    warn "no deploy-keys.conf at $dconf"
+  fi
+  printf '\n'
+
+  printf 'Summary: %d failure(s), %d warning(s)\n' "$fails" "$warns"
+  return "$exit_code"
+}
+
+# ── host-sops: generate a per-host SOPS GPG key (host-side pattern) ─────────────
+# Ported from ivs-infrastructure/scripts/new-host-sops-key.sh.  Generates
+# on the host (private half never leaves), imports the public half locally,
+# and prints the .sops.yaml + inventory rows to paste.  Email domain is
+# parameterised (entelequia personal default; --domain to override).
+cmd_host_sops() {
+  local host="${1:-}" target="${2:-}" domain="${KEYS_SOPS_DOMAIN:-entelequia}"
+  # allow --domain X anywhere
+  local args=() a
+  for a in "$@"; do
+    case "$a" in --domain=*) domain="${a#*=}";; *) args+=("$a");; esac
+  done
+  host="${args[0]:-}"; target="${args[1]:-}"
+  [[ -n "$host" ]] || die "usage: keys host-sops <host> [ssh-target] [--domain=DOMAIN]"
+  target="${target:-root@${host}:2222}"
+
+  local port user_host
+  if [[ "$target" =~ ^([^@]+@)?([^:]+)(:([0-9]+))?$ ]]; then
+    user_host="${BASH_REMATCH[1]:-root@}${BASH_REMATCH[2]}"; port="${BASH_REMATCH[4]:-22}"
+  else die "cannot parse ssh-target: $target"; fi
+
+  local cap="${host^}" low="${host,,}"
+  local uid="${cap} SOPS <${low}-sops@${domain}>" email="${low}-sops@${domain}"
+
+  info "Target host : $user_host (port $port)"
+  info "GPG UID     : $uid"
+
+  if ssh -p "$port" "$user_host" "gpg --list-keys --with-colons '$email'" >/dev/null 2>&1; then
+    die "a GPG key for $email already exists on $host (rotation is a separate procedure)"
+  fi
+
+  info "Generating key on $host ..."
+  local remote
+  remote=$(ssh -p "$port" "$user_host" "bash -s" <<EOF
+set -euo pipefail
+gpg --batch --quick-generate-key "${uid}" ed25519 'sign cert auth' 2y >/dev/null 2>&1
+FP=\$(gpg --list-keys --with-colons "${email}" | awk -F: '\$1=="fpr"{print \$10; exit}')
+[[ -n "\$FP" ]] || { echo "error: no fingerprint after gen" >&2; exit 1; }
+gpg --batch --quick-add-key "\$FP" cv25519 encrypt 2y >/dev/null 2>&1
+printf 'FINGERPRINT=%s\n' "\$FP"
+echo '----BEGIN PUBKEY----'; gpg --armor --export "\$FP"; echo '----END PUBKEY----'
+EOF
+)
+  local fp pubkey
+  fp=$(printf '%s\n' "$remote" | awk -F= '/^FINGERPRINT=/{print $2; exit}')
+  pubkey=$(printf '%s\n' "$remote" | sed -n '/^----BEGIN PUBKEY----$/,/^----END PUBKEY----$/{//!p}')
+  [[ -n "$fp" && -n "$pubkey" ]] || die "could not parse fingerprint/pubkey from remote output:\n$remote"
+
+  info "Generated fingerprint: $fp"
+  info "Importing public key locally ..."
+  printf '%s\n' "$pubkey" | gpg --import 2>&1 | sed 's/^/   /'
+
+  local created; created=$(date +%Y-%m-%d)
+  cat <<MARKER
+
+══════════════════════════════════════════════════════════════════════════
+.sops.yaml — add under keys: and the host's creation_rule
+══════════════════════════════════════════════════════════════════════════
+  - &host_${low} ${fp}
+
+keys-inventory.md — add under ## Host keys
+| ${cap} SOPS <${email}> | ${fp} | ed25519 + cv25519 | ${created} | $(date -d "+2 years" +%Y-%m-%d) | ${low}:/root/.gnupg | (not escrowed — regenerate on host loss) | Recipient on secrets/${low}/* |
+
+keys-inventory.md — add under ## Rotation log
+| ${created} | ${cap} SOPS | created | Initial host SOPS key for ${low} |
+══════════════════════════════════════════════════════════════════════════
+MARKER
+}
+
+# ── manifest: the reproducible identity hash of a key ───────────────────────────
+cmd_manifest() {
+  local identity=personal
+  [[ "${1:-}" == --identity ]] && { identity="$2"; shift 2; }
+  local fp; fp=$(identity_fp "$identity")
+  local m; m=$(keys_manifest "$fp")
+  [[ -n "$m" ]] || die "no key in keyring for: $fp"
+  printf '%s\n' "$m"
+  printf '# identity-sha256: %s\n' "$(printf '%s\n' "$m" | sha256sum | awk '{print $1}')"
+}
+
+# ── backup verify: confirm a secret-key backup is intact ────────────────────────
+# Imports the backup into a tmpfs keyring, asserts the SECRET primary is
+# present, and compares its identity manifest to the expected one
+# (stored <file>.manifest.sha256, or the live keyring's manifest).  Also
+# checks the per-write storage checksum (<file>.sha256) if present.
+cmd_backup() {
+  [[ "${1:-}" == verify ]] || { printf 'usage: keys backup verify --file PATH [--identity X] [--symmetric]\n'; [[ "${1:-}" =~ ^(-h|--help|)$ ]] && return 0 || die "unknown: ${1:-}"; }
+  shift
+  local file="" identity=personal symmetric=0
+  while [[ $# -gt 0 ]]; do case "$1" in
+    --file) file="$2"; shift 2;;
+    --identity) identity="$2"; shift 2;;
+    --symmetric) symmetric=1; shift;;
+    *) die "unknown option: $1";;
+  esac; done
+  [[ -n "$file" && -f "$file" ]] || die "backup file not found: ${file:-<none>} (--file PATH)"
+  local fp; fp=$(identity_fp "$identity")
+  local rc=0
+
+  # 1. storage checksum (detects bit-rot of this specific file)
+  if [[ -f "$file.sha256" ]]; then
+    if (cd "$(dirname "$file")" && sha256sum -c "$(basename "$file").sha256" >/dev/null 2>&1); then
+      ok "storage checksum matches $file.sha256"
+    else
+      fail "storage checksum MISMATCH vs $file.sha256 — file may be corrupt"; rc=1
+    fi
+  else
+    warn "no $file.sha256 (storage checksum) recorded"
+  fi
+
+  # 2. import into tmpfs, assert secret material, compare identity manifest
+  local TMP="/run/user/$(id -u)/keys-verify.$$"
+  mkdir -p "$TMP"; chmod 700 "$TMP"; ceremony_assert_tmpfs "$TMP"
+  trap '[[ -n "${TMP:-}" && -d "$TMP" ]] && { find "$TMP" -type f -exec shred -u {} + 2>/dev/null; rm -rf "$TMP"; }' RETURN
+  if [[ $symmetric -eq 1 || "$file" == *.gpg ]]; then
+    gpg --decrypt "$file" 2>/dev/null | gpg --homedir "$TMP" --import 2>/dev/null || die "could not decrypt/import $file"
+  else
+    gpg --homedir "$TMP" --import "$file" 2>/dev/null || die "could not import $file"
+  fi
+  if gpg --homedir "$TMP" --list-secret-keys "$fp" 2>/dev/null | grep -qE '^sec[[:space:]]'; then
+    ok "backup contains the SECRET primary for ${fp:0:16}…"
+  else
+    fail "backup does NOT contain the secret primary for $fp (sec# or absent)"; rc=1
+  fi
+
+  local got expect
+  got=$(keys_manifest_sha "$fp" "$TMP")
+  if [[ -f "$file.manifest.sha256" ]]; then
+    expect=$(awk '{print $1; exit}' "$file.manifest.sha256")
+    if [[ "$got" == "$expect" ]]; then ok "identity manifest matches recorded $file.manifest.sha256"
+    else fail "identity manifest MISMATCH (recorded $expect, backup $got)"; rc=1; fi
+  elif gpg --list-keys "$fp" >/dev/null 2>&1; then
+    expect=$(keys_manifest_sha "$fp")   # live keyring
+    if [[ "$got" == "$expect" ]]; then ok "identity manifest matches the live keyring"
+    else warn "identity manifest differs from live keyring (backup $got vs live $expect) — expected if subkeys changed since this backup"; fi
+  else
+    warn "no recorded manifest and key not in live keyring — recording backup manifest as: $got"
+  fi
+  return "$rc"
+}
+
+# ── escrow: an encrypted, verifiable backup of a secret key ─────────────────────
+# Exports a secret key (pinentry prompts for its passphrase), encrypts it
+# — asymmetrically to a recipient (default: the personal master, so
+# recovery chains through the offline master) or symmetrically — writes it
+# with both checksums, then verifies via `keys backup verify`. Safe by
+# default (dry-run); --yes performs it.
+cmd_escrow() {
+  local identity="${1:-}"; [[ -n "$identity" && "$identity" != --* ]] && shift || identity=""
+  local to="" method=gpg recip="" yes=0
+  while [[ $# -gt 0 ]]; do case "$1" in
+    --to) to="$2"; shift 2;;
+    --method) method="$2"; shift 2;;
+    --recipient) recip="$2"; shift 2;;
+    --yes) yes=1; shift;;
+    *) die "unknown option: $1";;
+  esac; done
+  [[ -n "$identity" ]] || die "usage: keys escrow <identity> --to PATH.gpg [--method gpg|symmetric] [--recipient FP] [--yes]"
+  [[ -n "$to" ]] || die "escrow requires an explicit --to PATH (placement is deliberate; use a .gpg suffix)"
+  [[ "$method" == gpg || "$method" == symmetric ]] || die "method must be gpg|symmetric"
+  local fp; fp=$(identity_fp "$identity")
+  gpg --list-secret-keys "$fp" >/dev/null 2>&1 || die "no SECRET key for $fp in this keyring — cannot escrow"
+  [[ "$method" == gpg && -z "$recip" ]] && recip="$PERSONAL_MASTER_FP"
+
+  printf '\n— Escrow plan —\n'
+  printf '  identity : %s (%s)\n' "$identity" "$fp"
+  printf '  method   : %s%s\n' "$method" "$([[ $method == gpg ]] && echo "  → recipient $recip")"
+  printf '  output   : %s\n' "$to"
+  printf '  mode     : %s\n\n' "$([[ $yes -eq 1 ]] && echo 'EXECUTE (--yes)' || echo 'DRY-RUN (pass --yes)')"
+  if [[ $yes -ne 1 ]]; then
+    echo "Would: export the secret (pinentry prompts for its passphrase),"
+    echo "${method}-encrypt to $to, write $to.sha256 + $to.manifest(.sha256), then verify."
+    return 0
+  fi
+  [[ "$to" == *.gpg ]] || warn "output does not end in .gpg — 'keys backup verify' auto-detects encryption by that suffix"
+  umask 077; mkdir -p "$(dirname "$to")"
+  info "exporting secret key — enter its passphrase at the pinentry prompt"
+  if [[ "$method" == gpg ]]; then
+    gpg --export-secret-keys "$fp" | gpg --encrypt --trust-model always --recipient "$recip" --output "$to" \
+      || die "export/encrypt failed"
+  else
+    gpg --export-secret-keys "$fp" | gpg --symmetric --cipher-algo AES256 --output "$to" \
+      || die "export/symmetric-encrypt failed"
+  fi
+  ( cd "$(dirname "$to")" && sha256sum "$(basename "$to")" > "$(basename "$to").sha256" )
+  keys_manifest     "$fp" > "$to.manifest"
+  keys_manifest_sha "$fp" > "$to.manifest.sha256"
+  ok "wrote $to (+ .sha256, .manifest, .manifest.sha256)"
+  info "verifying escrow"
+  if [[ "$method" == symmetric ]]; then cmd_backup verify --file "$to" --identity "$identity" --symmetric
+  else cmd_backup verify --file "$to" --identity "$identity"; fi
+  if [[ -f "$INVENTORY" ]]; then
+    printf '| %s | %s | %s | %s |\n' "$(date +%Y-%m-%d)" "$identity" "escrowed" \
+      "encrypted secret-key backup ($method) at ${to/#$HOME/~}" >> "$INVENTORY"
+  fi
+}
+
+# ── paperkey: printable offline backup of a key's secret material ───────────────
+# Pipes the secret export through paperkey (which strips the public,
+# reconstructible part). For the air-gapped master this runs inside an
+# IronKey/tmpfs session; for a key whose secret is local it runs directly.
+cmd_paperkey() {
+  local identity=personal ironkey="" out="" yes=0
+  while [[ $# -gt 0 ]]; do case "$1" in
+    --identity) identity="$2"; shift 2;;
+    --ironkey)  ironkey="$2"; shift 2;;
+    --out)      out="$2"; shift 2;;
+    --yes)      yes=1; shift;;
+    *) die "unknown option: $1";;
+  esac; done
+  local fp; fp=$(identity_fp "$identity")
+  out="${out:-$HOME/${identity}-paperkey.txt}"
+  local pk_run; if command -v paperkey >/dev/null 2>&1; then pk_run=(paperkey)
+  else pk_run=(guix shell paperkey -- paperkey); fi
+  local need_ironkey=1
+  gpg --list-secret-keys "$fp" 2>/dev/null | grep -qE '^sec[[:space:]]' && need_ironkey=0
+
+  printf '\n— Paperkey plan —\n'
+  printf '  identity : %s (%s)\n' "$identity" "$fp"
+  printf '  output   : %s\n' "$out"
+  printf '  source   : %s\n' "$([[ $need_ironkey -eq 1 ]] && echo 'IronKey (master is sec# offline)' || echo 'local keyring (secret present)')"
+  printf '  paperkey : %s\n' "${pk_run[*]}"
+  printf '  mode     : %s\n\n' "$([[ $yes -eq 1 ]] && echo 'EXECUTE (--yes)' || echo 'DRY-RUN (pass --yes)')"
+  if [[ $yes -ne 1 ]]; then
+    echo "Would export the secret and pipe through paperkey to $out."
+    echo "Then: PRINT $out, store in the safe, and 'shred -u $out'. Restore needs the public key + paperkey --pubring."
+    return 0
+  fi
+
+  if [[ $need_ironkey -eq 1 ]]; then
+    local IK; IK=$(ceremony_find_ironkey "$ironkey")
+    local mf=""; [[ -e "$IK/gpg/master-key.asc" ]] && mf="$IK/gpg/master-key.asc"
+    [[ -z "$mf" && -e "$IK/gpg/master-key.asc.gpg" ]] && mf="$IK/gpg/master-key.asc.gpg"
+    [[ -n "$mf" ]] || die "no master key file on IronKey ($IK/gpg/)"
+    local TMP="/run/user/$(id -u)/keys-paperkey.$$"
+    mkdir -p "$TMP"; chmod 700 "$TMP"; ceremony_assert_tmpfs "$TMP"
+    trap '[[ -n "${TMP:-}" && -d "$TMP" ]] && { find "$TMP" -type f -exec shred -u {} + 2>/dev/null; rm -rf "$TMP"; }' RETURN
+    export GNUPGHOME="$TMP"
+    if [[ "$mf" == *.gpg ]]; then gpg --decrypt "$mf" 2>/dev/null | gpg --import || die "import failed"
+    else gpg --import "$mf" || die "import failed"; fi
+  fi
+  umask 077
+  gpg --export-secret-keys "$fp" | "${pk_run[@]}" --output "$out" || die "paperkey failed"
+  ok "wrote $out"
+  echo "Next: PRINT $out and store in the safe, then: shred -u $out"
+}
+
+# ── ceremony: the offline-master IronKey flow ───────────────────────────────────
+# Mount IronKey -> tmpfs GNUPGHOME -> import master -> add/rotate subkey
+# -> write updated master back to IronKey -> export STRIPPED working keyring
+# to the real ~/.gnupg -> wipe tmpfs -> unmount.  Hard rail: the working
+# GNUPGHOME MUST be on a tmpfs/ramfs; refuses otherwise so the master never
+# touches persistent disk.  Safe by default: prints the plan; mutating steps
+# require --yes.  See ADR-0004.
+ceremony_find_ironkey() {
+  local override="${1:-}"
+  if [[ -n "$override" ]]; then
+    [[ -d "$override" ]] || die "IronKey path not found: $override"; printf '%s' "$override"; return
+  fi
+  local c
+  for c in "/run/media/$USER"/* "/media/$USER"/* /media/ironkey; do
+    [[ -e "$c/gpg/master-key.asc" || -e "$c/gpg/master-key.asc.gpg" ]] && { printf '%s' "$c"; return; }
+  done
+  die "no IronKey found (looked in /run/media/$USER, /media/$USER, /media/ironkey). Unlock+mount it, or pass --ironkey PATH"
+}
+
+ceremony_assert_tmpfs() {
+  local dir="$1" fstype
+  fstype=$(stat -f -c %T "$dir" 2>/dev/null || echo unknown)
+  case "$fstype" in
+    tmpfs|ramfs) : ;;
+    *) die "RAIL: ceremony GNUPGHOME '$dir' is on '$fstype', not tmpfs/ramfs — refusing (master must never touch persistent disk)";;
+  esac
+}
+
+cmd_ceremony() {
+  local action="${1:-}"; shift || true
+  case "$action" in list|add-subkey|rotate|expire) : ;; ""|-h|--help)
+    cat <<'EOF'
+usage: keys ceremony <action> [opts]
+  add-subkey   --identity personal|ivs|<fp>  --type sign|encrypt|auth  --expire 2y  [--deploy NAME]
+  rotate       --identity ...  --subkey <FP>  --expire 2y
+  expire       --identity ...  --subkey <FP>  --expire 2y
+  list         --identity ...                 (read-only; no IronKey needed)
+Common opts: --ironkey PATH   --yes (perform mutations; default is dry-run)
+The master stays air-gapped: imported only into a tmpfs GNUPGHOME, wiped after. (ADR-0004)
+EOF
+    return 0;; *) die "unknown ceremony action: $action";; esac
+
+  local identity=personal type=auth expire=2y deploy="" subkey="" ironkey="" yes=0
+  while [[ $# -gt 0 ]]; do case "$1" in
+    --identity) identity="$2"; shift 2;;
+    --type)     type="$2"; shift 2;;
+    --expire)   expire="$2"; shift 2;;
+    --deploy)   deploy="$2"; shift 2;;
+    --subkey)   subkey="$2"; shift 2;;
+    --ironkey)  ironkey="$2"; shift 2;;
+    --yes)      yes=1; shift;;
+    *) die "unknown option: $1";;
+  esac; done
+  local fp; fp=$(identity_fp "$identity")
+
+  # list is read-only against the daily keyring.
+  if [[ "$action" == list ]]; then
+    info "subkeys of $identity ($fp):"
+    gpg --list-keys --with-subkey-fingerprints --keyid-format LONG "$fp" 2>/dev/null \
+      || die "master $fp not in keyring"
+    return 0
+  fi
+
+  local IK="" masterfile=""
+  if IK=$(ceremony_find_ironkey "$ironkey" 2>/dev/null); then
+    [[ -e "$IK/gpg/master-key.asc"     ]] && masterfile="$IK/gpg/master-key.asc"
+    [[ -z "$masterfile" && -e "$IK/gpg/master-key.asc.gpg" ]] && masterfile="$IK/gpg/master-key.asc.gpg"
+  fi
+  if [[ -z "$masterfile" ]]; then
+    if [[ $yes -eq 1 ]]; then
+      die "no IronKey/master found — unlock+mount it or pass --ironkey PATH"
+    fi
+    IK="${IK:-<IRONKEY>}"; masterfile="$IK/gpg/master-key.asc (not detected — dry-run)"
+  fi
+
+  local TMP; TMP="/run/user/$(id -u)/keys-ceremony.$$"
+
+  printf '\n— Ceremony plan —\n'
+  printf '  identity   : %s (%s)\n' "$identity" "$fp"
+  printf '  action     : %s  type=%s expire=%s%s\n' "$action" "$type" "$expire" \
+         "$([[ -n $deploy ]] && echo " deploy=$deploy")$([[ -n $subkey ]] && echo " subkey=$subkey")"
+  printf '  IronKey    : %s  (master: %s)\n' "$IK" "$masterfile"
+  printf '  tmpfs home : %s\n' "$TMP"
+  printf '  mode       : %s\n\n' "$([[ $yes -eq 1 ]] && echo "EXECUTE (--yes)" || echo "DRY-RUN (pass --yes to execute)")"
+
+  if [[ $yes -ne 1 ]]; then
+    cat <<EOF
+Would, in order:
+  1. mkdir tmpfs GNUPGHOME at $TMP (assert tmpfs; chmod 700)
+  2. import the daily public keyring + the master secret from $masterfile into it
+  3. ${action}: gpg --homedir \$TMP --quick-add-key $fp <$type> $expire   (or expire/rotate)
+  4. write the updated master back to $IK/gpg/master-key.asc (offline store; never to local disk)
+     + record master-key.asc.sha256 (storage) and master-key.manifest.sha256 (identity)
+  5. export STRIPPED secret subkeys from \$TMP and import into $GNUPGHOME_REAL
+  6. update the public key in $GNUPGHOME_REAL
+$( [[ -n $deploy ]] && echo "  7. record deploy '$deploy' (deploy-keys.conf, sshcontrol, emit pubkey)" )
+  *. shred-wipe and remove $TMP; remind to unmount the IronKey
+  *. append a rotation-log row to $INVENTORY
+Re-run with --yes to perform these steps.
+EOF
+    return 0
+  fi
+
+  # ---- EXECUTE (mutating) ----
+  trap '[[ -n "${TMP:-}" && -d "$TMP" ]] && { find "$TMP" -type f -exec shred -u {} + 2>/dev/null; rm -rf "$TMP"; }' EXIT
+  mkdir -p "$TMP"; chmod 700 "$TMP"
+  ceremony_assert_tmpfs "$TMP"
+  export GNUPGHOME="$TMP"
+
+  info "importing existing public keyring + master secret into tmpfs"
+  gpg --homedir "$GNUPGHOME_REAL" --export "$fp" 2>/dev/null | gpg --import 2>/dev/null || true
+  if [[ "$masterfile" == *.gpg ]]; then
+    gpg --decrypt "$masterfile" 2>/dev/null | gpg --import || die "failed to import master from $masterfile"
+  else
+    gpg --import "$masterfile" || die "failed to import master from $masterfile"
+  fi
+  gpg --list-secret-keys --with-colons "$fp" | grep -qE '^sec:' \
+    || die "master secret not present in tmpfs after import — aborting before any mutation"
+
+  case "$action" in
+    add-subkey)
+      info "adding $type subkey (expire $expire)"
+      gpg --batch --quick-add-key "$fp" ed25519 "$type" "$expire" \
+        || gpg --quick-add-key "$fp" ed25519 "$type" "$expire" \
+        || die "quick-add-key failed"
+      ;;
+    rotate|expire)
+      [[ -n "$subkey" ]] || die "$action requires --subkey <FP>"
+      info "setting expiry $expire on subkey $subkey (interactive)"
+      gpg --quick-set-expire "$fp" "$expire" "$subkey" || die "quick-set-expire failed"
+      ;;
+  esac
+
+  # newest subkey fpr (creation order)
+  local new_fp
+  new_fp=$(gpg --with-colons --list-keys "$fp" \
+           | awk -F: '/^sub:/{c=1} /^fpr:/ && c {f=$10; c=0} END{print f}')
+  info "new/affected subkey: $new_fp"
+
+  info "writing updated master back to IronKey (offline store)"
+  gpg --armor --export-secret-keys "$fp" > "$IK/gpg/master-key.asc" \
+    || die "failed to write master back to IronKey"
+  # Two checksums, two purposes (see ADR-0004 / 'keys backup verify'):
+  #  - storage: sha256 of the exact bytes just written (bit-rot of THIS file)
+  #  - identity: reproducible manifest hash (right key material, comparable)
+  ( cd "$IK/gpg" && sha256sum "master-key.asc" > "master-key.asc.sha256" )
+  keys_manifest     "$fp" > "$IK/gpg/master-key.manifest"
+  keys_manifest_sha "$fp" > "$IK/gpg/master-key.manifest.sha256"
+  ok "recorded storage (master-key.asc.sha256) + identity (master-key.manifest.sha256) checksums"
+
+  info "exporting STRIPPED working keyring into $GNUPGHOME_REAL"
+  local stripped="$TMP/subkeys-stripped.gpg"
+  gpg --export-secret-subkeys "$fp" > "$stripped"
+  gpg --homedir "$GNUPGHOME_REAL" --import "$stripped"
+  gpg --export "$fp" | gpg --homedir "$GNUPGHOME_REAL" --import 2>/dev/null || true
+
+  if [[ -n "$deploy" && "$type" == auth ]]; then
+    info "recording deploy '$deploy'"
+    GNUPGHOME="$GNUPGHOME_REAL" "$SELF/manage-deploy-keys.sh" list >/dev/null 2>&1 || true
+    # record in DB + sshcontrol via the deploy backend's conventions
+    local db="$DOTFILES/dotfiles/.gnupg/deploy-keys.conf"
+    local sc="$DOTFILES/dotfiles/.gnupg/sshcontrol"
+    local grip
+    grip=$(gpg --homedir "$GNUPGHOME_REAL" --with-colons --with-keygrip --list-keys "$fp" \
+           | awk -F: -v want="$new_fp" '
+               /^sub:/{a=(index($12,"a")>0)} /^fpr:/{f=$10} /^grp:/ && a && f==want {print $10; exit}')
+    if [[ -n "$grip" ]]; then
+      printf '%s %s %s\n' "$grip" "$deploy" "$(date +%Y-%m-%d)" >> "$db"
+      printf '%s\n' "$grip" >> "$sc"
+      gpg-connect-agent reloadagent /bye >/dev/null 2>&1 || true
+      ok "deploy '$deploy' recorded (grip ${grip:0:12}…); SSH pubkey:"
+      gpg --homedir "$GNUPGHOME_REAL" --export-ssh-key "${new_fp}!"
+    else
+      warn "could not resolve keygrip for $new_fp; record deploy manually"
+    fi
+  fi
+
+  # audit-log row
+  if [[ -f "$INVENTORY" ]]; then
+    info "appending rotation-log row to inventory"
+    printf '| %s | %s | %s | %s |\n' "$(date +%Y-%m-%d)" \
+      "${deploy:-$identity} ($type)" "$action" "subkey $new_fp via keys ceremony" \
+      >> "$INVENTORY"
+  fi
+
+  # verify posture in the real keyring
+  if gpg --homedir "$GNUPGHOME_REAL" --list-secret-keys --with-colons "$fp" | grep -qE '^sec:'; then
+    warn "real keyring shows master SECRET present — run 'gpg --delete-secret-keys $fp' then re-import subkeys"
+  else
+    ok "real keyring: master is sec# (stripped); new subkey present"
+  fi
+
+  info "ceremony complete — wiping tmpfs and reminding: UNMOUNT the IronKey now"
+  # EXIT trap wipes $TMP
+}
+
+# ── Dispatch ────────────────────────────────────────────────────────────────────
+usage() {
+  sed -n '2,/^set -euo/p' "$(readlink -f "${BASH_SOURCE[0]}")" | sed '$d; s/^# \?//'
+}
+
+case "${1:-}" in
+  deploy)     shift; cmd_deploy "$@" ;;
+  sync)       shift; cmd_sync "$@" ;;
+  inventory)  shift; cmd_inventory "$@" ;;
+  audit)      shift; cmd_audit "$@" ;;
+  host-sops)  shift; cmd_host_sops "$@" ;;
+  manifest)   shift; cmd_manifest "$@" ;;
+  backup)     shift; cmd_backup "$@" ;;
+  escrow)     shift; cmd_escrow "$@" ;;
+  paperkey)   shift; cmd_paperkey "$@" ;;
+  ceremony)   shift; cmd_ceremony "$@" ;;
+  ""|-h|--help) usage ;;
+  *) printf 'keys: unknown subcommand: %s\n\n' "$1" >&2; usage; exit 1 ;;
+esac
