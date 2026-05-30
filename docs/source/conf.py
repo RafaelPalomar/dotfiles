@@ -20,23 +20,59 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
+    # ReadTheDocs-ready stack, mirroring ~/src/Slicer-Liver (ADR-0017
+    # there) so the cognitive overhead of moving between repos is low:
+    # MyST lets ADRs + the key inventory be authored as Markdown,
+    # sphinxcontrib.mermaid renders the secrets decision tree, and
+    # sphinx_rtd_theme is the published theme.
+    'myst_parser',
+    'sphinx_design',
+    'sphinxcontrib.mermaid',
+    'sphinx_rtd_theme',
 ]
 
 templates_path = ['_templates']
-exclude_patterns = []
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+
+# Author docs in either reStructuredText or Markdown (MyST).  The
+# legacy pages are .rst; new key/secret-management docs and the ADR
+# ledger are .md.
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
+master_doc = 'index'
+
+# -- MyST configuration ------------------------------------------------------
+
+myst_enable_extensions = [
+    'attrs_inline',
+    'colon_fence',
+    'deflist',
+    'linkify',
+]
+# Generate header anchors so cross-document Markdown links can target
+# sub-section headings without manual anchor tags.
+myst_heading_anchors = 6
+# Route bare ```mermaid fenced blocks to the mermaid directive (this is
+# also what GitHub renders natively).
+myst_fence_as_directive = ['mermaid']
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
 html_theme_options = {
-    'description': 'GNU Guix-based declarative dotfiles system',
-    'github_user': 'rafael',
-    'github_repo': 'dotfiles',
-    'fixed_sidebar': True,
+    'navigation_depth': 4,
+    'collapse_navigation': False,
+    'sticky_navigation': True,
+    'titles_only': False,
 }
+
+html_title = f'{project} {release}'
+html_short_title = project
 
 # -- Options for Texinfo output ----------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-texinfo-output

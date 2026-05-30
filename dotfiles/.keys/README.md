@@ -4,7 +4,13 @@ This directory contains the cryptographic infrastructure for entelequia.
 
 ## Documentation
 
-**Primary Documentation:** `/home/rafael/.dotfiles/docs/source/gpg.rst`
+**Canonical (start here):** `docs/source/secrets.rst` — the decision
+tree (what goes where), the identity map, the SSH-pinning rule, and the
+`keys` CLI. Who-holds-what: `docs/source/keys-inventory.md`. Why:
+`docs/source/adr/`.
+
+**Legacy GPG command reference / offline-master architecture:**
+`docs/source/gpg.rst` (superseded as the entry point by `secrets.rst`).
 
 Run `./scripts/build-docs.sh` to generate HTML/Info manuals.
 

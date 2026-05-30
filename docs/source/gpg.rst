@@ -2,6 +2,17 @@
 Cryptographic Key Infrastructure (GPG)
 ======================================
 
+.. attention::
+
+   **Superseded as the entry point.** The canonical key & secret
+   management document is now :doc:`secrets` (the decision tree, the
+   identity map, the SSH-pinning rule, the ``keys`` CLI). Who-holds-what
+   lives in :doc:`keys-inventory`; the *why* lives in :doc:`adr/index`.
+
+   This page is retained for its detailed GnuPG **command reference**
+   and the original offline-master architecture write-up, pending its
+   how-tos being folded into ``keys ... --help``.
+
 This system uses a **maximum security GPG architecture** with an offline master key and online subkeys. This approach provides strong security while maintaining daily usability.
 
 Architecture Overview

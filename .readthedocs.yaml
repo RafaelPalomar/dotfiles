@@ -1,0 +1,32 @@
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+#
+# Mirrors the ~/src/Slicer-Liver configuration (its ADR-0017) — same
+# Python minor, same Sphinx-from-Docs layout, same epub + pdf outputs —
+# so the docs build is familiar across the author's repositories.
+#
+# The Sphinx sources live under docs/source/ (pre-existing entelequia
+# layout); Slicer-Liver keeps them under Docs/, hence the path differs.
+
+version: 2
+
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.12"
+
+sphinx:
+  builder: html
+  configuration: docs/source/conf.py
+  # NOTE: not yet -W clean.  The legacy .rst pages predate the RTD
+  # migration; flip to fail_on_warning once they are touched up (see
+  # docs/source/adr/0000-template.md rollout note).
+  fail_on_warning: false
+
+formats:
+  - epub
+  - pdf
+
+python:
+  install:
+    - requirements: requirements-docs.txt

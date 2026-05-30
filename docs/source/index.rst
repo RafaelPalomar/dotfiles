@@ -25,11 +25,19 @@ Contents
    commands
    packages
    security
-   gpg
-   bitwarden-rofi
    operational-guide
    testing
    troubleshooting
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Key & Secret Management:
+
+   secrets
+   keys-inventory
+   adr/index
+   gpg
+   bitwarden-rofi
 
 Indices and Tables
 ==================
