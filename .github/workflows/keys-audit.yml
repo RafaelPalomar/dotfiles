@@ -1,0 +1,31 @@
+# Static key-inventory lint. A CI runner has no access to the operator's
+# GPG keyring, so this runs `keys audit --static`: it does not touch gpg.
+# It checks the inventory is well-formed and that every .sops.yaml
+# recipient fingerprint is documented in docs/source/keys-inventory.md.
+# (The full keyring-aware audit runs locally via .githooks/pre-commit.)
+name: keys-audit
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'docs/source/keys-inventory.md'
+      - '.sops.yaml'
+      - 'dotfiles/.local/bin/keys'
+      - '.github/workflows/keys-audit.yml'
+  pull_request:
+    paths:
+      - 'docs/source/keys-inventory.md'
+      - '.sops.yaml'
+      - 'dotfiles/.local/bin/keys'
+
+jobs:
+  static-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: keys audit --static
+        run: |
+          chmod +x dotfiles/.local/bin/keys
+          DOTFILES="$PWD" KEYS_INVENTORY="$PWD/docs/source/keys-inventory.md" \
+            dotfiles/.local/bin/keys audit --static

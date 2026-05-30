@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# pre-commit — gate commits that touch key material on `keys audit`.
+#
+# Runs the full keyring-aware audit when this machine has the keyring
+# (curie/einstein); falls back to the keyring-free static lint otherwise
+# (so the hook is harmless on a machine without the keys). Only fires
+# when a key-relevant file is staged.
+#
+# Enable once per clone:   git config core.hooksPath .githooks
+# Bypass (rarely):         git commit --no-verify
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+KEYS="$ROOT/dotfiles/.local/bin/keys"
+RELEVANT='^(docs/source/keys-inventory\.md|dotfiles/\.gnupg/(deploy-keys\.conf|sshcontrol)|\.sops\.yaml|dotfiles/\.local/bin/keys)$'
+
+# Nothing key-related staged → nothing to check.
+git diff --cached --name-only --diff-filter=ACMR | grep -qE "$RELEVANT" || exit 0
+[[ -x "$KEYS" ]] || { echo "pre-commit: $KEYS not executable; skipping keys audit" >&2; exit 0; }
+
+export DOTFILES="$ROOT" KEYS_INVENTORY="$ROOT/docs/source/keys-inventory.md"
+MASTER_FP="${KEYS_PERSONAL_MASTER_FP:-6513C7248D7BECE2EC1BD34B70350DAD507FA72F}"
+
+if command -v gpg >/dev/null 2>&1 && gpg --list-keys "$MASTER_FP" >/dev/null 2>&1; then
+  mode="full"
+  set +e; "$KEYS" audit;          rc=$?; set -e
+else
+  mode="static (no keyring here)"
+  set +e; "$KEYS" audit --static; rc=$?; set -e
+fi
+
+case "$rc" in
+  0) echo "pre-commit: keys audit [$mode] passed." ;;
+  2) echo "pre-commit: keys audit [$mode] passed with WARNINGS (e.g. near expiry) — allowing commit." >&2 ;;
+  *) echo "pre-commit: keys audit [$mode] FAILED (exit $rc) — commit blocked." >&2
+     echo "            Fix the inventory or run 'keys audit'. Bypass: git commit --no-verify" >&2
+     exit 1 ;;
+esac
