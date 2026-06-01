@@ -6,6 +6,7 @@
   #:use-module (entelequia home services github-sync)
   #:use-module (entelequia home services pks)
   #:use-module (entelequia packages polybar-themes)
+  #:use-module (entelequia packages notebooklm-py)
   #:use-module (gnu packages gnupg)
   #:use-module (gnu)
   #:use-module (gnu services)
@@ -144,7 +145,14 @@ unset __sops_oauth_file
                        ("VISUAL"        . "emacsclient")
                        ("EDITOR"        . "emacsclient")
                        ("PATH"          . "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH")
-                       ("XDG_DATA_DIRS" . "/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS"))
+                       ("XDG_DATA_DIRS" . "/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS")
+                       ;; entelequia python-playwright ships no browsers; point
+                       ;; it at the home-profile ungoogled-chromium and disable
+                       ;; its CDN browser download.  Runtime path string (not a
+                       ;; store ref) so this adds no closure to non-chromium
+                       ;; machines.
+                       ("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD" . "1")
+                       ("PLAYWRIGHT_CHROMIUM_EXECUTABLE" . "$HOME/.guix-home/profile/bin/chromium"))
                      (if nvidia?
                          '(("LD_LIBRARY_PATH" . "$HOME/.guix-home/profile/lib:/run/current-system/profile/lib"))
                          '()))))
@@ -157,7 +165,13 @@ unset __sops_oauth_file
                                                    "/share/claude-skills/slicer/SKILL.md"))
                                    `(".claude/commands/guix-systole-dev.md"
                                      ,(file-append guix-systole-dev-skill
-                                                   "/share/claude-skills/guix-systole-dev/SKILL.md")))))
+                                                   "/share/claude-skills/guix-systole-dev/SKILL.md"))
+                                   ;; notebooklm-py ships a proper Agent Skill
+                                   ;; (frontmatter), so link it under skills/,
+                                   ;; not commands/.
+                                   `(".claude/skills/notebooklm/SKILL.md"
+                                     ,(file-append notebooklm-py
+                                                   "/share/claude-skills/notebooklm/SKILL.md")))))
        '())
 
    (if slicer-aliases?

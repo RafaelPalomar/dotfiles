@@ -5,6 +5,7 @@
   #:use-module (entelequia packages gh)
   #:use-module (entelequia packages glab)
   #:use-module (entelequia packages mermaid-cli)
+  #:use-module (entelequia packages notebooklm-py)
   #:use-module (systole packages claude-skills)
   #:export (development-home-packages))
 
@@ -53,5 +54,12 @@
          gh
          glab
          mermaid-cli
+         notebooklm-py
+         ;; python-playwright is intentionally NOT in this profile: it is a
+         ;; library whose python closure (greenlet/pyee → typing-extensions)
+         ;; collides with the guix-hermes channel's vendored python rebuild on
+         ;; hosts that also run hermes-agent (e.g. curie).  Use it on demand:
+         ;;   guix shell python-playwright -- python script.py
+         ;; PLAYWRIGHT_* env vars are still exported globally by desktop-suite.
          slicer-skill
          guix-systole-dev-skill)))
