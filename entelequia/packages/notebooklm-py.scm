@@ -7,7 +7,8 @@
   #:use-module (gnu packages python-build)
   #:use-module (gnu packages python-web)
   #:use-module (gnu packages python-xyz)
-  #:use-module (gnu packages markup))
+  #:use-module (gnu packages markup)
+  #:use-module (entelequia packages python-playwright))
 
 ;;; notebooklm-py — unofficial Python CLI/library + Claude Code skill for
 ;;; Google NotebookLM.
@@ -19,18 +20,25 @@
 ;;; audio / video / slides / mindmaps / data-tables) run over httpx once a
 ;;; Google `storage_state.json' (session cookies) is present.
 ;;;
-;;; AUTH ON GUIX — the upstream `[browser]' extra (Playwright) and `[cookies]'
-;;; extra (rookiepy) are DELIBERATELY OMITTED:
-;;;   * python-playwright is not in Guix and `playwright install chromium'
-;;;     downloads a foreign prebuilt browser binary (impure; won't run on Guix
-;;;     unpatched) — see the Playwright note in docs/ and the development
-;;;     profile commentary.
-;;;   * python-rookiepy is not in Guix (Rust/maturin extension).
-;;; Neither is needed: `notebooklm login --browser-cookies firefox::none'
-;;; (or `firefox::<container>') reads cookies directly from LibreWolf/Firefox's
-;;; UNENCRYPTED `cookies.sqlite' via the stdlib `sqlite3' reader in
-;;; cli/_firefox_containers.py, bypassing both deps.  Do the one-time Google
-;;; sign-in by hand in LibreWolf (human keystroke), then extract.
+;;; AUTH ON GUIX — two paths, neither needing the upstream `[cookies]' extra
+;;; (rookiepy; a Rust/maturin ext not in Guix):
+;;;
+;;;   1. Interactive Playwright login (primary).  We add entelequia's
+;;;      `python-playwright' as a private input (baked into the launcher's
+;;;      GUIX_PYTHONPATH, NOT propagated — so no profile collision) and patch
+;;;      cli/services/playwright_login.py so that when
+;;;      @env{PLAYWRIGHT_CHROMIUM_EXECUTABLE} is set (desktop-suite exports it =
+;;;      ungoogled-chromium) the bundled-chromium path launches THAT browser via
+;;;      executable_path and skips the CDN `playwright install' download.
+;;;      Upstream offers only bundled chromium (download) or a branded `channel'
+;;;      (chrome/edge, hardcoded to /opt/google/chrome — never PATH), so neither
+;;;      finds a Guix browser without this patch.  Then `notebooklm login' opens
+;;;      ungoogled-chromium; the user signs into Google once (human keystroke).
+;;;
+;;;   2. Browser-cookie extraction (fallback, no Playwright):
+;;;      `notebooklm login --browser-cookies firefox::none' reads Firefox's
+;;;      UNENCRYPTED `cookies.sqlite' via the stdlib `sqlite3' reader in
+;;;      cli/_firefox_containers.py.  Needs an actual Firefox profile on disk.
 ;;;
 ;;; The SKILL.md (Claude Code agent skill) ships inside the wheel at
 ;;; notebooklm/data/SKILL.md and is also installed to
@@ -62,6 +70,28 @@
         #:tests? #f
         #:phases
         #~(modify-phases %standard-phases
+            ;; Teach the Playwright login to drive a Guix browser: when
+            ;; PLAYWRIGHT_CHROMIUM_EXECUTABLE is set, launch it via
+            ;; executable_path and skip the CDN `playwright install' download.
+            (add-after 'unpack 'patch-playwright-executable-path
+              (lambda _
+                (let ((f "src/notebooklm/cli/services/playwright_login.py"))
+                  ;; Skip the bundled-chromium download check when we supply
+                  ;; our own browser.
+                  (substitute* f
+                    (("    if browser == \"chromium\":")
+                     (string-append
+                      "    if browser == \"chromium\" and not "
+                      "os.environ.get(\"PLAYWRIGHT_CHROMIUM_EXECUTABLE\"):")))
+                  ;; Inject executable_path for the bundled-chromium path.
+                  (substitute* f
+                    (("            launch_kwargs\\[\"channel\"\\] = browser\n")
+                     (string-append
+                      "            launch_kwargs[\"channel\"] = browser\n"
+                      "        elif os.environ.get"
+                      "(\"PLAYWRIGHT_CHROMIUM_EXECUTABLE\"):\n"
+                      "            launch_kwargs[\"executable_path\"] = "
+                      "os.environ[\"PLAYWRIGHT_CHROMIUM_EXECUTABLE\"]\n"))))))
             ;; Expose the agent skill where the home `claude-skills-files'
             ;; service expects it (share/claude-skills/<name>/SKILL.md).
             (add-after 'install 'install-claude-skill
@@ -69,7 +99,14 @@
                 (let ((dst (string-append #$output
                                           "/share/claude-skills/notebooklm")))
                   (mkdir-p dst)
-                  (copy-file "SKILL.md" (string-append dst "/SKILL.md"))))))))
+                  (copy-file "SKILL.md" (string-append dst "/SKILL.md")))))
+            ;; A stray pip-installed ~/.local/.../playwright (with the broken
+            ;; vendored node) must not shadow the Guix module baked into the
+            ;; launcher's GUIX_PYTHONPATH.
+            (add-after 'wrap 'disable-user-site
+              (lambda _
+                (wrap-program (string-append #$output "/bin/notebooklm")
+                  '("PYTHONNOUSERSITE" = ("1"))))))))
       (native-inputs
        (list python-hatchling
              python-hatch-fancy-pypi-readme))
@@ -88,7 +125,13 @@
              python-filelock
              ;; `[markdown]' extra: cleaner web-source ingestion. Cheap, pure
              ;; Python, already in Guix — kept so `source add' handles HTML well.
-             python-markdownify))
+             python-markdownify
+             ;; `[browser]' extra: enables interactive `notebooklm login' via
+             ;; the patched executable_path path above.  Private input (baked
+             ;; into the launcher, not propagated) so the playwright/node/
+             ;; greenlet/pyee/typing-extensions closure never reaches the
+             ;; profile — same collision-avoidance rationale as the deps above.
+             python-playwright))
       (home-page "https://github.com/teng-lin/notebooklm-py")
       (synopsis "Unofficial Python CLI/library and Claude skill for NotebookLM")
       (description
