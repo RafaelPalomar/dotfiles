@@ -1,13 +1,12 @@
 (define-module (entelequia home machines curie-rafael)
   #:use-module (entelequia home profiles base)
   #:use-module (entelequia home profiles development)
-  #:use-module (entelequia home profiles email)
+  #:use-module (entelequia home profiles role)
   #:use-module (entelequia home profiles documentation)
   #:use-module (entelequia home profiles gaming)
   #:use-module (entelequia home profiles networking)
   #:use-module (entelequia home services desktop-suite)
   #:use-module (entelequia home services chromium)
-  #:use-module (entelequia home services tailscale-work)
   #:use-module (guix-hermes packages hermes)
   #:use-module (guix-hermes services hermes)
   #:use-module (btv tailscale)
@@ -33,7 +32,7 @@
           ;; profile.  Curie keeps wireshark, tcpdump, nmap, autossh,
           ;; winbox; if you need GNS3 here, hop on einstein.
           (networking-home-packages #:gns3? #f)
-          email-home-packages
+          (home-role-packages 'work)
           documentation-home-packages
           (gaming-home-packages)
           (list tailscaled
@@ -44,7 +43,12 @@
    (desktop-home-services)
    (laptop-home-services)
    (chromium-home-services)
-   (list (service home-tailscale-work-service-type)
+   ;; Work role: ~/.config/entelequia/role marker + the userspace work
+   ;; tailscaled (curie-only; #:work-tailnet? #t).  #:manage-mail? stays
+   ;; default-off, so ~/.mbsyncrc still comes from the blanket dotfiles/
+   ;; copy until the coordinated mail cut (ADR-0005, role.scm header).
+   (home-role-services 'work #:work-tailnet? #t)
+   (list
          ;; Hermes Agent gateway as a user shepherd service.  Secrets
          ;; (OPENAI_API_KEY, ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, …)
          ;; live in ~/.hermes/secrets.env — sourced if present, ignored
