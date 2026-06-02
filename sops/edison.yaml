@@ -18,9 +18,13 @@ mattermost:
     admin_password: ENC[AES256_GCM,data:jFZdtOoSe1UUW8xA8eBwX0Fe3XFyl5M8K/cxuA==,iv:iGqMhx25PZDTWGeoGcbdIJA5Y8G0ONcmU+wzRJilYk0=,tag:HyZ7gDzLWVcJyi4U+NiD7g==,type:str]
     env:
         MM_SQLSETTINGS_DATASOURCE: ENC[AES256_GCM,data:vAbzpOnfnut69ZkW1t3jH/hDEqY6HhWEOOolsi9yy5C7hzKaUyuuG/dPeLId9VGCVfmz4j30b/RBhLdHmaRILcIIzVja3mc9xbkIr42jJJoL/Dvkhsttc9B+ox+38CfCfeba8u8qPDTXGqtBTn3+5/Th4rvTgDKOEBWMAPhxLFI7Hao=,iv:r6e7Okou01TDLj/E3Ru5Og1eHIIK5etnyc1qSFZ7F54=,tag:Jc5E4iEqN2yrgDuqLTIgpg==,type:str]
+    userpw_rafael: ENC[AES256_GCM,data:ya+O84LQUK9qqPTwj2hNGolr8xXPEVYrQwqm5g==,iv:uONWSwmnfZvQI++cHQyuW/bntHjbQiGBOHeiYQcfDF8=,tag:7wffLweYENjmuk8Tl8S+/A==,type:str]
+    userpw_maria: ENC[AES256_GCM,data:bMUoDyKhVGV6V2n3N7fcyGU6qM9xveZl9rYZIA==,iv:b4+B56uz92joN4YHKDjBH0pNLErVGVveUNJHtNaiZc8=,tag:Ot3x9IjMzAFBPZEh+SjSRQ==,type:str]
+    userpw_leandro: ENC[AES256_GCM,data:BpKQj2z7ZjibH4ixTCGscCEUrsJmH/TpMighrA==,iv:LoPGVb0VNOwxHdGo1r376rauvABhhlC/0UZigfRQwm8=,tag:eEL85mgW0MTX1eTI9J8VFQ==,type:str]
+    userpw_adrian: ENC[AES256_GCM,data:s56KJ/tN/tKIvqXXo9X99jTCdSmOypt/7WFBNQ==,iv:83YDcsjrIDqiZczcOl9h84Nc6b6MzmPGWmtnW/Rlad8=,tag:8aKyYJ+8HMfyUmY5Elo4mg==,type:str]
 sops:
-    lastmodified: "2026-06-02T15:13:20Z"
-    mac: ENC[AES256_GCM,data:HHMeAnGbqyS99WKd1U9B5rs6LoIzIZrHpJJ6fzsKQwovlV8rx9YOqX98kc1vPoYIjwv+XKeDrMLpZTfDY5CYp1Oqq7mk7qZW4xBnOq5KGGX6tLvjIcbfFq3JDSj670c0qxrpHucChAmATEtqY5ljiDkmBpAuwttasy/GcEUxFAk=,iv:ffXUYr5SEefX5ZtQnzEi7Tpv5/Z4z5A+ECF+fVXsp0g=,tag:IqAOM7FE+vKbmmG6PSwokg==,type:str]
+    lastmodified: "2026-06-02T17:56:50Z"
+    mac: ENC[AES256_GCM,data:O1UyK9pf9RMyPBJUbLXhcXWubojNobafAW5nFUsjsbgtfqAwEZXjq3+aqqJXUBZdvlvsae1pRCPuJ4xchwIyv8X4jybatX8wi2gS6a+4vfs80dontNYQemXIp+YYTFpLs7rftu5zHWo+PLsXtxIMN+2kmjCQylc/li5LuWQsR5o=,iv:tEdXyuCwKIHFpRo6SnpW5BcPNtLD/+8kN6FT4OdN1hY=,tag:iC9Nhd1Nli54bjCSa1W9xg==,type:str]
     pgp:
         - created_at: "2026-04-01T07:52:57Z"
           enc: |-

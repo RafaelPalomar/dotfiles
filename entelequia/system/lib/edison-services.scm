@@ -706,7 +706,19 @@ TMDB_API_KEY: \"\"\n" p)))
                (sops-secret (key '("hermes-ops" "env"))
                             (file %sops-edison)
                             (output-type "dotenv")
-                            (permissions #o444))))))))  ; close secrets/list/config/service/list
+                            (permissions #o444))
+               ;; ── Mattermost family-account SEED passwords ────────────────
+               ;; Read as rafael by mattermost-provision (step 5b) for `mmctl
+               ;; user create --password'.  #o444 like admin_password; seeds,
+               ;; changed by each member on first login.
+               (sops-secret (key '("mattermost" "userpw_rafael"))
+                            (file %sops-edison) (permissions #o444))
+               (sops-secret (key '("mattermost" "userpw_maria"))
+                            (file %sops-edison) (permissions #o444))
+               (sops-secret (key '("mattermost" "userpw_leandro"))
+                            (file %sops-edison) (permissions #o444))
+               (sops-secret (key '("mattermost" "userpw_adrian"))
+                            (file %sops-edison) (permissions #o444))))))))  ; close secrets/list/config/service/list
 
 ;;;
 ;;; OCI container helpers — reuse make-ts-sidecar / make-app-container
@@ -1026,7 +1038,7 @@ TMDB_API_KEY: \"\"\n" p)))
      (base32 "1hm0fjz2w8i4idjgv1mx4f45pz5d3k8ch74d9ir8kn1n2k9y4ihx"))))
 
 (define %mattermost-admin-user  "admin")
-(define %mattermost-admin-email "rafael@palomar.no")
+(define %mattermost-admin-email "admin@palomar.no")  ; hidden sysadmin; rafael@ freed for the human rafael user
 
 (define %mattermost-provision-script
   (program-file
@@ -1066,7 +1078,17 @@ TMDB_API_KEY: \"\"\n" p)))
                  (list
                   (list "hermes-tutor"     "learn"     "Learn"     loopback "arquimedes"   "Arquimedes")
                   (list "hermes-household" "household" "Household" loopback "mary-poppins" "Mary Poppins")
-                  (list "hermes-ops"       "ops"       "Ops"       site-url "mr-robot"     "Mr. Robot"))))
+                  (list "hermes-ops"       "ops"       "Ops"       site-url "mr-robot"     "Mr. Robot")))
+                ;; Human family accounts.  rafael = system-admin; the hidden
+                ;; `admin' stays the provisioning sysadmin.  #ops = rafael ONLY.
+                ;; Seed passwords from sops (/run/secrets/mattermost/userpw_*).
+                ;; (username email system-admin? channels)
+                (family-users
+                 (list
+                  (list "rafael"  "rafael@palomar.no"  #t (list "learn" "household" "ops"))
+                  (list "maria"   "maria@palomar.no"   #f (list "learn" "household"))
+                  (list "leandro" "leandro@palomar.no" #f (list "learn" "household"))
+                  (list "adrian"  "adrian@palomar.no"  #f (list "learn" "household")))))
 
            ;; ── small helpers ──────────────────────────────────────────────
            ;; Run podman exec mattermost mmctl ARGS...  Returns stdout (string).
@@ -1160,6 +1182,17 @@ TMDB_API_KEY: \"\"\n" p)))
                                "mattermost-provision: FATAL admin create failed (rc=~a); see STDERR above (likely MM_PASSWORDSETTINGS_* policy).~%" rc)
                        (exit 1)))))))
 
+           ;; ── (1b) free rafael@palomar.no for the human rafael account ────
+           ;; Move the hidden `admin' account off rafael@palomar.no (an earlier
+           ;; provision created it with that email) so the rafael user below can
+           ;; claim it.  Idempotent: only when admin still holds it.  Fresh
+           ;; deploys create admin as admin@palomar.no, so this is then a no-op.
+           (let* ((aj  (mm-exec "--local" "--json" "user" "search" admin))
+                  (cur (json-field aj "email")))
+             (when (and cur (string=? cur "rafael@palomar.no"))
+               (format #t "mattermost-provision: reassigning admin email -> admin@palomar.no~%")
+               (mm-exec "--local" "user" "edit" "email" admin "admin@palomar.no")))
+
            ;; ── (2) team `family' (idempotent) ─────────────────────────────
            (let ((teams (strip-ws (mm-exec "--local" "--json" "team" "list"))))
              (unless (string-contains teams (string-append "\"name\":\"" team "\""))
@@ -1222,10 +1255,66 @@ TMDB_API_KEY: \"\"\n" p)))
                          (string-append team ":" ch) bot)))
             tiers)
 
+           ;; ── (5b) human family accounts (idempotent) ────────────────────
+           ;; rafael = system-admin (administers from his own name); maria + the
+           ;; boys are regular members.  Seed passwords from sops; each changes
+           ;; theirs on first login.  `user create' works --local (unlike `bot
+           ;; create').  Membership re-applied each run (idempotent).
+           (let ((users (strip-ws (mm-exec "--local" "--json" "user" "list"))))
+             (for-each
+              (lambda (fu)
+                (let ((uname  (list-ref fu 0))
+                      (email  (list-ref fu 1))
+                      (admin? (list-ref fu 2))
+                      (chans  (list-ref fu 3))
+                      (pwfile (string-append "/run/secrets/mattermost/userpw_"
+                                             (list-ref fu 0))))
+                  (unless (string-contains
+                           users (string-append "\"username\":\"" uname "\""))
+                    (if (file-exists? pwfile)
+                        (let ((pw (string-trim-both
+                                   (call-with-input-file pwfile get-string-all))))
+                          (format #t "mattermost-provision: creating user ~a~%" uname)
+                          (call-with-values
+                              (lambda ()
+                                (apply mm-exec/rc
+                                       (append
+                                        (list "--local" "user" "create"
+                                              "--email" email "--username" uname
+                                              "--password" pw "--email-verified")
+                                        (if admin? (list "--system-admin") '()))))
+                            (lambda (out rc)
+                              (unless (zero? rc)
+                                (format (current-error-port)
+                                        "mattermost-provision: WARN user create ~a rc=~a~%"
+                                        uname rc)))))
+                        (format (current-error-port)
+                                "mattermost-provision: WARN no seed pw for ~a (~a)~%"
+                                uname pwfile)))
+                  ;; team + channel membership (idempotent regardless of create)
+                  (mm-exec "--local" "team" "users" "add" team uname)
+                  (for-each
+                   (lambda (ch)
+                     (mm-exec "--local" "channel" "users" "add"
+                              (string-append team ":" ch) uname))
+                   chans)))
+              family-users))
+
            ;; ── (6) tokens + per-tier env fragments (file-now handoff) ─────
            ;; admin user id (for MATTERMOST_ALLOWED_USERS; admin-only initially).
            (let* ((admin-json (mm-exec "--local" "--json" "user" "search" admin))
-                  (admin-id   (json-field admin-json "id")))
+                  (admin-id   (json-field admin-json "id"))
+                  ;; (channels . user-id) per human family member, so each tier's
+                  ;; MATTERMOST_ALLOWED_USERS = admin + the members whose channel
+                  ;; list includes that tier's channel (#ops = admin + rafael).
+                  (family-ids
+                   (map (lambda (fu)
+                          (cons (list-ref fu 3)
+                                (json-field
+                                 (mm-exec "--local" "--json" "user" "search"
+                                          (list-ref fu 0))
+                                 "id")))
+                        family-users)))
              (for-each
               (lambda (t)
                 (let* ((tier     (car t))           ; infra id -> fragment filename
@@ -1263,7 +1352,15 @@ TMDB_API_KEY: \"\"\n" p)))
                         (format p "MATTERMOST_URL=~a~%" tier-url)
                         (format p "MATTERMOST_TOKEN=~a~%" tok)
                         (format p "MATTERMOST_ALLOWED_CHANNELS=~a~%" (or ch-id ""))
-                        (format p "MATTERMOST_ALLOWED_USERS=~a~%" (or admin-id ""))))
+                        (format p "MATTERMOST_ALLOWED_USERS=~a~%"
+                                (string-join
+                                 (filter (lambda (s) (and s (> (string-length s) 0)))
+                                         (cons admin-id
+                                               (filter-map
+                                                (lambda (ci)
+                                                  (and (member ch (car ci)) (cdr ci)))
+                                                family-ids)))
+                                 ","))))
                     (chown envfile uid gid)
                     (chmod envfile #o600))))
               tiers))
