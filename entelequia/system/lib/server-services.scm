@@ -1083,7 +1083,12 @@ image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
             ("ts-rss-bridge"   . ("rss-bridge"))
             ("ts-searxng"      . ("searxng"))
             ("ts-searxng-kids" . ("searxng-kids"))
-            ("ts-grafana"      . ("grafana"))))
+            ("ts-grafana"      . ("grafana"))
+            ;; edison Mattermost stack: MM + DB + the two shared-netns hermes
+            ;; tiers all ride the ts-mattermost sidecar's netns.  hermes-ops is
+            ;; NOT here — it is a host-net guix container, not in this netns.
+            ("ts-mattermost"   . ("mattermost" "mattermost-db"
+                                  "hermes-tutor" "hermes-household"))))
 
         (define rafael-pw  (getpwnam "rafael"))
         (define rafael-uid (passwd:uid rafael-pw))

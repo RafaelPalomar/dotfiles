@@ -2,18 +2,28 @@ tailscale:
     jellyfin_authkey: ENC[AES256_GCM,data:ULVtQMyWJi1y05iyEmPFXlC8rr7jjZqJMhEtVrzvJtbNuPEKDDDgCfaXhANCCv82clAowEjZgY+b1hyT5BM=,iv:yLTTqXLhgq/yTknn2pCwUp3MWCfBFGr0Iiskwa2fct4=,tag:SvwGYubJWvUAKt7pMSVT6A==,type:str]
     navidrome_authkey: ENC[AES256_GCM,data:Hbq6QuFIG3edGEGMmicpZV2hZ70yLfXMz35sg4I0mum7wWppPA+GCuEW6uTWRQIRo9GQYrmyer2LiX2OiQ==,iv:gR4wwT/PUkAuGtbn5Sb5QjFMGYW7BHjohj0uYCvGvYk=,tag:68faKNPFk0f09ZRN1NsvHQ==,type:str]
     arm_authkey: ENC[AES256_GCM,data:usNLE8W/o+YdE7TR9PLHCcVotNHmadTLrpkSt2OaVFcNMd6618b3uzFgwXcwF6HbVhnhOms3O9J6ij/3AJw=,iv:DLSAla5eHoBp70gs+RfZJ3gxq66XoYRKuM2VsjQhUcE=,tag:tUqKhCU8goZJBZ0W4QaKhQ==,type:str]
+    mattermost_authkey: ENC[AES256_GCM,data:3IUyDaTlYr5xxGKPutzpON8/Fy9trlvH4aOgH0hpYEy8MO/ZP3ovMOwMqY942DNFhJx3MgjHHW9FO5p1zg4=,iv:DKU5pT8UDaSN0zORtgtuL8hCE5sXpZz4LROpEEc6pvk=,tag:dfEtGYkkGj+rDxkY0bSqfw==,type:str]
 makemkv:
     license_key: ENC[AES256_GCM,data:d+Hs72s5WXopk6tyll2p1pCGhoPJPilebz1IiG8tXjI2YKxRFpanCD++86c7eE5hBBiYSEzzBWliex9qOx+HnhA4+kk=,iv:dkp5UAcoA36hRnj6JlHbgc2SXS8va9EhyFkKG8s5VVs=,tag:Yj2Aq8ru+kMKsb9Ij7lYcA==,type:str]
 tmdb:
     api_key: ENC[AES256_GCM,data:sZ/793MM9Cs7AQxFZh44DXRQ9v6NT31tYs3ziBj3ztU=,iv:NlbSxppnZPsR5sT8S7Vo3pBK/2M6fb9jt2aKP7Bt23U=,tag:f58N4m15vFqm/7A7dPHE+w==,type:str]
+hermes-tutor:
+    env:
+        OPENROUTER_API_KEY: ENC[AES256_GCM,data:fOu0MyOtuz81Cks5lNx0uRjicD57NswZBZ8FNLYt7nyFB+7iaHFmL/fRotbUfLbyiBulAPZBHPpUrP4Yj1xBUIvNMzYHT2/4SQ==,iv:dEVM8L3dHTBne6wHU9T+oQ3sQbN0yfdnbRfTmz2/FSw=,tag:fHgiXB39V4B8AqVgFn1NVw==,type:str]
+hermes-household:
+    env:
+        OPENROUTER_API_KEY: ENC[AES256_GCM,data:0jhJ6uwP5tPdtIK12pbHvxwcSO8AHiGAuXhRiEXvlmSM1u3fvv+RkTs9XA9ozA03qZDnpKx7In/RE45v2wG5ogvPZNvv6A1aSA==,iv:inZe6U/Nkije79MDsTD5hM1XciOTwcwPzmv6CrBK0Ow=,tag:hCQIPbbQqMA5HSDEx2nToQ==,type:str]
+hermes-ops:
+    env:
+        OPENROUTER_API_KEY: ENC[AES256_GCM,data:7ASh2dKtcrHeDSw/cqr2ZDycgJXaFeNSYbDWmO0ddQtx44qIC6v4FQjaJjB/ydziwcPDpCALLtp9/gYp0Xc0xgN9tWn5tilhew==,iv:gxAyl9esz/H/t0glQ2SFYMnIf0A45wQOiVjrQHIkZUg=,tag:7zIdHnddsoDriCXW0YtPVA==,type:str]
+mattermost:
+    db_password: ENC[AES256_GCM,data:1HS/5ISHxD8+NlXzrN99mo9J+YuzY1pEdbh6fuxr1xd+q8DNkVfcxutmxWOu8/jt,iv:aqgCyo5LPH131lqygD3d2yzOP3iDjZRTI1XoU5Pw2AI=,tag:EuBAw4WyMEOrcDVKf2eryA==,type:str]
+    admin_password: ENC[AES256_GCM,data:jFZdtOoSe1UUW8xA8eBwX0Fe3XFyl5M8K/cxuA==,iv:iGqMhx25PZDTWGeoGcbdIJA5Y8G0ONcmU+wzRJilYk0=,tag:HyZ7gDzLWVcJyi4U+NiD7g==,type:str]
+    env:
+        MM_SQLSETTINGS_DATASOURCE: ENC[AES256_GCM,data:vAbzpOnfnut69ZkW1t3jH/hDEqY6HhWEOOolsi9yy5C7hzKaUyuuG/dPeLId9VGCVfmz4j30b/RBhLdHmaRILcIIzVja3mc9xbkIr42jJJoL/Dvkhsttc9B+ox+38CfCfeba8u8qPDTXGqtBTn3+5/Th4rvTgDKOEBWMAPhxLFI7Hao=,iv:r6e7Okou01TDLj/E3Ru5Og1eHIIK5etnyc1qSFZ7F54=,tag:Jc5E4iEqN2yrgDuqLTIgpg==,type:str]
 sops:
-    kms: []
-    gcp_kms: []
-    azure_kv: []
-    hc_vault: []
-    age: []
-    lastmodified: "2026-04-02T21:46:14Z"
-    mac: ENC[AES256_GCM,data:z4jDgON2Iaa1dsDWUztx9VXymNKgZo622FlFI2lKT42h/6JcCflu4C2knYAbNF/igxpdmO9jtTbKiNIKNOXE/8+dfxi8DkNM4oBqnZTkMS5Sg8D2SCPeE3HzrGWixkcSS0iS5WuuBTY26v3JjoRxa6nRb6/01Md8VnvFK7FNwZU=,iv:4hyZ5ks1SqXiPOseP/Tdtp1LLZFd7HgfI7gS/blXVQM=,tag:FlSAN9852oal8t/r7upUYw==,type:str]
+    lastmodified: "2026-06-01T23:50:49Z"
+    mac: ENC[AES256_GCM,data:NocwVNwAA3fdEB6izI8Lwja1EMR6nL4ydQDyQDr27PNw3MbVKY+AuvVOHzIfKDezBhw/D1QGS1eXS7TD176SmsK7qLqlLFCgAnav7UKiYS1zkpcn0Q6hFTXJgLH3e4aLoIuvWRlyO36nXGrSpYdeEcppkPBWOv+f7T0Mum4YjaU=,iv:aLIsGaYRVHZU46E0kS3PsFWpECVYJnkIaXo0mGiLpf8=,tag:9hgVsyEpuXTbgUpoT7v1AQ==,type:str]
     pgp:
         - created_at: "2026-04-01T07:52:57Z"
           enc: |-

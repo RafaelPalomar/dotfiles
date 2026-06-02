@@ -80,6 +80,8 @@
    edison-nfs-media-service
    ;; Create /data subdirectories at activation time
    edison-data-dir-service
+   ;; Hermes + Mattermost data dirs and per-tier config/SOUL seeding
+   edison-hermes-data-service
    ;; Remove stale containers from previous boot before OCI services start
    podman-prune-service
    ;; NVIDIA device nodes — trigger udev rules at boot to create /dev/nvidia*
@@ -97,8 +99,10 @@
    edison-arm-config-patch-service
    ;; MPD music daemon (port 6600 MPD protocol, port 8000 HTTP stream)
    edison-mpd-service
-   ;; OCI containers: Jellyfin, Navidrome, ARM
+   ;; OCI containers: Jellyfin, Navidrome, ARM, Mattermost, Hermes tutor/household
    edison-container-services
+   ;; Hermes ops gateway — guix container (full store + daemon shared, OPS-ONLY)
+   edison-hermes-ops-service
    ;; Luanti (Mineclonia) game server — moved from lovelace.
    ;; Lovelace's Opteron X3421 APU was too weak; edison's Xeon E5-1620 is ~2-3x
    ;; faster single-thread, which is what Luanti's main loop needs.
@@ -127,6 +131,12 @@
                8080   ; ARM web UI (LAN fallback)
                6600   ; MPD protocol
                8000)  ; MPD HTTP stream
+             ;; NOTE: NO 8065 here.  Mattermost is tailnet-only (tailscale serve
+             ;; HTTPS → 127.0.0.1:8065 inside the ts-mattermost netns); the hermes
+             ;; tutor/household tiers reach MM over loopback in that shared netns,
+             ;; and hermes-ops reaches it over the tailnet URL.  Leaving 8065 OFF
+             ;; the firewall is the LAN-close: a `guix deploy' converges the live
+             ;; ruleset and drops any manually-opened 8065 rule.
              #:firewall-extra-udp-ports
              '(30000)))  ; Luanti (Mineclonia)
 
