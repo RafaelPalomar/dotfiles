@@ -1294,6 +1294,19 @@ model:
 delegation:
   provider: openrouter
   model: openai/gpt-5.4-nano
+  # Cost + safety bounds (KID tier = tightest).  Hermes has NO hard token/cost
+  # cap, so the HARD ceiling must be an OpenRouter key SPEND LIMIT (provider-side).
+  max_iterations: 12            # per-subagent tool-call budget (default 50)
+  max_concurrent_children: 1
+  child_timeout_seconds: 120
+  max_spawn_depth: 1            # flat: tutor -> leaf, no grandchildren
+  orchestrator_enabled: false
+  subagent_auto_approve: false  # auto-DENY dangerous commands in subagent threads
+  inherit_mcp_toolsets: false   # don't leak the GitHub MCP into subagents
+agent:
+  max_turns: 30                 # parent tool-call budget (default 90)
+goals:
+  max_turns: 8                  # Ralph-loop continuation cap (default 20)
 # provider_routing (top-level): default Western no-train path for the tutor.
 # data_collection:deny → only providers that do not train on prompts.  The
 # MiniMax booster below relaxes `only' for the low-stakes anonymized path.
@@ -1512,6 +1525,17 @@ model:
 delegation:
   provider: openrouter
   model: mistralai/mistral-medium-3-5
+  # Cost + safety bounds (no hard token cap in Hermes; set an OpenRouter key
+  # spend limit for the true ceiling).
+  max_iterations: 25
+  max_concurrent_children: 2
+  child_timeout_seconds: 300
+  max_spawn_depth: 1
+  subagent_auto_approve: false
+agent:
+  max_turns: 60
+goals:
+  max_turns: 12
 # provider_routing (top-level): Western no-train only.
 provider_routing:
   data_collection: deny
@@ -1553,6 +1577,18 @@ model:
 delegation:
   provider: openrouter
   model: anthropic/claude-haiku-4.5
+  # Cost + safety bounds (no hard token cap; set an OpenRouter key spend limit).
+  # subagent_auto_approve:false → subagents auto-DENY dangerous commands; host
+  # mutations go through the PARENT's manual approval + the in-channel button.
+  max_iterations: 25
+  max_concurrent_children: 2
+  child_timeout_seconds: 600
+  max_spawn_depth: 1
+  subagent_auto_approve: false
+agent:
+  max_turns: 60
+goals:
+  max_turns: 15
 # provider_routing (top-level): Western no-train, highest bar.  Add
 # 'Amazon Bedrock' to `only' (and pin an EU region) if EU data-residency is
 # later required — same Anthropic models behind an EU endpoint.
