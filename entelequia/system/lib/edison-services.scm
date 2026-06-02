@@ -1333,6 +1333,13 @@ security:
 moderation:
   enabled: true
   model: omni-moderation-latest
+# Speech-to-text: transcribe inbound kid voice memos via Groq Whisper
+# (whisper-large-v3-turbo; multilingual incl. nb-NO).  GROQ_API_KEY in the
+# hermes-tutor env-file (sops/edison.yaml, from `pass api/groq`).  Enable Zero
+# Data Retention in the Groq console — this is KIDS' voice.
+stt:
+  enabled: true
+  provider: groq
 terminal:
   backend: local
 mattermost:
@@ -1549,6 +1556,13 @@ approvals:
 security:
   allow_private_urls: false
   allow_lazy_installs: false
+# Speech-to-text: auto-transcribe inbound voice memos via Groq Whisper
+# (whisper-large-v3-turbo; multilingual incl. nb-NO).  Needs GROQ_API_KEY in the
+# hermes-household env-file (sops/edison.yaml, copied from `pass api/groq`).
+# Enable Zero Data Retention in the Groq console before family voice flows.
+stt:
+  enabled: true
+  provider: groq
 terminal:
   backend: local
 mattermost:
@@ -1603,6 +1617,12 @@ approvals:
 security:
   allow_private_urls: true
   allow_lazy_installs: false
+# Speech-to-text: transcribe inbound voice memos via Groq Whisper
+# (whisper-large-v3-turbo).  GROQ_API_KEY in the hermes-ops env-file
+# (sops/edison.yaml, from `pass api/groq`); ZDR enabled in the Groq console.
+stt:
+  enabled: true
+  provider: groq
 terminal:
   backend: local
 mattermost:
