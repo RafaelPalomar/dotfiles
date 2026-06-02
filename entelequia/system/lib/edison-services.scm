@@ -15,6 +15,8 @@
   #:use-module (guix-hermes packages hermes)       ; hermes-agent
   #:use-module (entelequia system lib server-services)
   #:use-module (guix gexp)
+  #:use-module (guix packages)              ; origin — pinned MM plugin tarball
+  #:use-module (guix download)              ; url-fetch
   #:use-module (sops packages sops)
   #:use-module (sops secrets)
   #:use-module (sops services sops)
@@ -952,6 +954,11 @@ TMDB_API_KEY: \"\"\n" p)))
           "MM_PASSWORDSETTINGS_NUMBER=true"
           "MM_PASSWORDSETTINGS_SYMBOL=true"
           "MM_SERVICESETTINGS_MAXIMUMLOGINATTEMPTS=5"
+          ;; ── Plugins: keep the plugin system on and allow uploads so the
+          ;; provisioner's `mmctl plugin add' (voice plugin, step 7) succeeds.
+          ;; Closed family server, admin-only → upload surface is acceptable.
+          "MM_PLUGINSETTINGS_ENABLE=true"
+          "MM_PLUGINSETTINGS_ENABLEUPLOADS=true"
           "TZ=Europe/Oslo")
     ;; The official image is DISTROLESS (no /bin/sh at any path).  Use the
     ;; image's own entrypoint and feed the password-bearing
@@ -1002,6 +1009,21 @@ TMDB_API_KEY: \"\"\n" p)))
 ;;; Tier → channel:  tutor→learn, household→household, ops→ops.
 ;;; Tier MATTERMOST_URL:  tutor/household = http://127.0.0.1:8065 (shared
 ;;; ts-mattermost netns); ops = the tailnet HTTPS URL (host-net guix container).
+
+;; Voice Messaging plugin (streamer45/mattermost-plugin-voice) — pinned release
+;; tarball, fetched + sha256-verified at build time, installed idempotently by
+;; the provisioner (step 7) via `mmctl plugin add'.  Adds the message-box mic /
+;; `/voice' command so a kid's voice memo posts as an audio attachment that
+;; hermes-tutor (Arquimedes) transcribes via Groq STT.  Bundle = server+webapp;
+;; min server 6.3.0 (edison runs 11.7).  NOT in this MM's marketplace, hence a
+;; pinned GitHub release rather than `plugin marketplace install'.
+(define %mm-voice-plugin
+  (origin
+    (method url-fetch)
+    (uri (string-append "https://github.com/streamer45/mattermost-plugin-voice"
+                        "/releases/download/v0.3.0/com.mattermost.voice-0.3.0.tar.gz"))
+    (sha256
+     (base32 "1hm0fjz2w8i4idjgv1mx4f45pz5d3k8ch74d9ir8kn1n2k9y4ihx"))))
 
 (define %mattermost-admin-user  "admin")
 (define %mattermost-admin-email "rafael@palomar.no")
@@ -1239,6 +1261,39 @@ TMDB_API_KEY: \"\"\n" p)))
                     (chown envfile uid gid)
                     (chmod envfile #o600))))
               tiers))
+
+           ;; ── (7) voice-message plugin (idempotent) ──────────────────────
+           ;; Pinned tarball -> podman cp into the container -> mmctl add+enable.
+           ;; Gives the in-box mic / `/voice'; the resulting audio attachments are
+           ;; transcribed by hermes-tutor (Groq STT).  Skip when already present.
+           ;; Non-fatal: a plugin hiccup must not fail the (load-bearing) bot/
+           ;; token provisioning above.
+           (let ((vid     "com.mattermost.voice")
+                 (plugins (strip-ws (mm-exec "--local" "plugin" "list"))))
+             (if (string-contains plugins vid)
+                 (format #t "mattermost-provision: voice plugin already installed~%")
+                 (let ((tmp "/tmp/com.mattermost.voice.tar.gz"))
+                   (format #t "mattermost-provision: installing voice plugin~%")
+                   (if (zero? (status:exit-val
+                               (system* podman "cp" #$%mm-voice-plugin
+                                        (string-append "mattermost:" tmp))))
+                       (call-with-values
+                           (lambda () (mm-exec/rc "--local" "plugin" "add" tmp))
+                         (lambda (out rc)
+                           (if (zero? rc)
+                               (call-with-values
+                                   (lambda ()
+                                     (mm-exec/rc "--local" "plugin" "enable" vid))
+                                 (lambda (o2 rc2)
+                                   (unless (zero? rc2)
+                                     (format (current-error-port)
+                                             "mattermost-provision: WARN voice enable rc=~a out=~s~%"
+                                             rc2 o2))))
+                               (format (current-error-port)
+                                       "mattermost-provision: WARN voice add rc=~a out=~s~%"
+                                       rc out))))
+                       (format (current-error-port)
+                               "mattermost-provision: WARN podman cp voice tarball failed~%")))))
 
            (format #t "mattermost-provision: done~%"))))))
 
