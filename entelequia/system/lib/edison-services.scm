@@ -1582,13 +1582,13 @@ the parents only. English only — no small talk.
 (define %hermes-household-config
   (plain-file "hermes-household-config.yaml"
     "# Hermes — household tier (parents + kids).  Planning / economy persona.
-# Brain: Gemini 3 Pro via OpenRouter (mid tier; cheapest frontier brain, Western
+# Brain: Gemini 3.1 Pro (preview) via OpenRouter — frontier pro brain, Western
 # no-train).  Executor: Mistral Medium 3.5 (EU).  All metered through the single
 # OPENROUTER_API_KEY.  Western + no-train posture enforced in provider_routing;
 # no hard contractual ZDR (enable account/per-request zdr for that).
 model:
   provider: openrouter
-  default: google/gemini-3-pro-preview
+  default: google/gemini-3.1-pro-preview
   api_mode: chat_completions
 delegation:
   provider: openrouter
@@ -1608,7 +1608,7 @@ goals:
 provider_routing:
   data_collection: deny
   only:
-    - Google        # Gemini 3 Pro brain
+    - Google        # Gemini 3.1 Pro brain
     - Mistral       # Mistral Medium 3.5 executor
   sort: price
 approvals:
