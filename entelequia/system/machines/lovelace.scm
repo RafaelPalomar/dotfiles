@@ -95,6 +95,28 @@
                (sops-secret (key '("tailscale" "nextcloud_authkey"))
                             (file %sops-lovelace)
                             (permissions #o444))
+               ;; ── NextCloud family-account SEED passwords (nextcloud-provision) ──
+               ;; DELIBERATELY LEFT COMMENTED OUT.  These three #o400 root-only
+               ;; secrets feed the nextcloud-provision one-shot (OC_PASS at
+               ;; user:add) for the accounts it CREATES (Adrian + the two agents).
+               ;; ACTIVATION (operator, atomic — do all three together):
+               ;;   1. Add the 3 values to sops/lovelace.yaml under `nextcloud:`
+               ;;        userpw_Adrian, userpw_mary-poppins, userpw_arquimedes
+               ;;      (sops edit; human / pinentry — the agent is deny-listed).
+               ;;   2. Uncomment the three decls below.
+               ;;   3. Deploy lovelace.
+               ;; WHY COMMENTED: shipping these decls WITHOUT the matching yaml
+               ;; values makes each sops-secret service hard-exit on decrypt, which
+               ;; wedges the `sops-secrets` umbrella and thus EVERY sops-dependent
+               ;; lovelace service (nextcloud/freshrss/wallabag/pihole/grafana/…)
+               ;; — a box-wide outage.  Until activated, nextcloud-provision simply
+               ;; stays inert (unmet requirement); deploying now is safe.
+               ;; (sops-secret (key '("nextcloud" "userpw_Adrian"))
+               ;;              (file %sops-lovelace) (permissions #o400))
+               ;; (sops-secret (key '("nextcloud" "userpw_mary-poppins"))
+               ;;              (file %sops-lovelace) (permissions #o400))
+               ;; (sops-secret (key '("nextcloud" "userpw_arquimedes"))
+               ;;              (file %sops-lovelace) (permissions #o400))
                (sops-secret (key '("tailscale" "wallabag_authkey"))
                             (file %sops-lovelace)
                             (permissions #o444))
@@ -174,7 +196,8 @@
               smartd-lovelace-service
               borgmatic-lovelace-service
               lovelace-container-services
-              (list ts-netns-watchdog-service))
+              (list nextcloud-provision-service
+                    ts-netns-watchdog-service))
              #:ssh-authorized-keys
              `(("root"   ,(plain-file "lovelace-deploy.pub"
                                       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJd+gIEzNyO8gp3FnZnvMI/OhKm0/Hkr0UaDKXx38h7V openpgp:0x96CFC574"))

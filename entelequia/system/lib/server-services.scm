@@ -27,6 +27,7 @@
             borgmatic-lovelace-service
             lovelace-data-dir-service
             nextcloud-proxy-config-service
+            nextcloud-provision-service
             lovelace-container-services
             lovelace-nfs-service
             podman-prune-service
@@ -169,6 +170,292 @@
                              (display ");\n" port)))
                          (chown conf-file abc-uid abc-gid)
                          (chmod conf-file #o644))))))
+
+;;;
+;;; nextcloud-provision: idempotent one-shot that provisions FAMILY content
+;;; INSIDE the already-running `nextcloud` container — it does NOT install or
+;;; replace NextCloud.  Runs occ via `podman exec --user abc nextcloud php
+;;; /app/www/public/occ ...` (occ lives at /app/www/public/occ in the lsio
+;;; image; the container user `abc` = host uid 232071).
+;;;
+;;; RECONCILED with the live instance (inspected 2026-06-02): users Maria,
+;;; Leandro, rafael and ncadmin ALREADY exist.  This service NEVER recreates
+;;; them — it only (a) enables apps, (b) creates the missing accounts (Adrian +
+;;; the two agents), (c) creates groups + group folders, (d) re-asserts group
+;;; membership.  All idempotent and non-destructive: no existing data is touched.
+;;;
+;;; Photos (ADR-0008): enables `memories` (NextCloud-native photos, fed by the
+;;; mobile app's auto-upload).  `recognize` (face/object ML) is DEFERRED —
+;;; enable by hand later, off-peak (RAM-heavy on lovelace's 7.5 GB).
+;;;
+;;; ACTIVATION (operator): the 3 seed-password sops decls in lovelace.scm are
+;;; shipped COMMENTED OUT, so this service stays INERT (unmet requirement) and
+;;; deploying before activation is SAFE.  To activate, do these together: add the
+;;; 3 values under `nextcloud:` in sops/lovelace.yaml (userpw_Adrian,
+;;; userpw_mary-poppins, userpw_arquimedes) AND uncomment the matching decls in
+;;; lovelace.scm, then deploy.  The seeds are read once, as root, BEFORE
+;;; privileges drop, so they stay #o400 root-only, are never mounted into the
+;;; container, and OC_PASS is forwarded into the container BY NAME (not value) so
+;;; it never appears in the host argv / process table.
+(define %nextcloud-provision-script
+  (program-file
+   "nextcloud-provision"
+   #~(begin
+       (use-modules (ice-9 popen) (ice-9 rdelim) (ice-9 textual-ports)
+                    (srfi srfi-1) (srfi srfi-13))
+       ;; seed-password plumbing for the to-be-created accounts.
+       (define %seed-ids '("Adrian" "mary-poppins" "arquimedes"))
+       (define (seed-path id)
+         (string-append "/run/secrets/nextcloud/userpw_" id))
+       (define (read-seed id)
+         (string-trim-both (call-with-input-file (seed-path id) get-string-all)))
+       ;; INERT UNTIL ACTIVATED: while the seed decls in lovelace.scm are still
+       ;; commented out, /run/secrets/nextcloud/userpw_* don't exist -> exit 0
+       ;; cleanly (no error, no sops cascade).  Activation (operator) adds the
+       ;; yaml values + uncomments the decls; then the seeds appear and this runs.
+       (unless (every (lambda (id) (file-exists? (seed-path id))) %seed-ids)
+         (format #t "nextcloud-provision: seed passwords absent (not activated); skipping~%")
+         (exit 0))
+       ;; (as root) slurp the seeds BEFORE dropping privileges, so the sops files
+       ;; can stay #o400 root-only; then drop to rafael (rootless-podman owner).
+       (let* ((seed-pw (map (lambda (id) (cons id (read-seed id))) %seed-ids))
+              (pw   (getpwnam "rafael"))
+              (uid  (passwd:uid pw))
+              (gid  (passwd:gid pw))
+              (ruid (string-append "/run/user/" (number->string uid)))
+              (provdir "/var/lib/nextcloud-provision"))
+         ;; Create the handoff dir as ROOT (rafael can't mkdir under root-owned
+         ;; /var/lib), owned by rafael, 0700 so token files aren't listable.
+         (unless (file-exists? provdir) (mkdir provdir))
+         (chown provdir uid gid)
+         (chmod provdir #o700)
+         (setenv "XDG_RUNTIME_DIR" ruid)
+         (setenv "HOME" (passwd:dir pw))
+         (setenv "PATH" "/run/setuid-programs:/run/current-system/profile/bin")
+         (setgid gid)
+         (setuid uid)
+         (let* ((podman  #$(file-append podman "/bin/podman"))
+                (occbin  "/app/www/public/occ")
+                ;; (id display-name . groups).  Maria/rafael/Leandro already
+                ;; exist (group-only); Adrian + the two agents get created.
+                (users
+                 (list (list "Maria"        "Maria"        "family" "parents")
+                       (list "rafael"       "Rafael"       "family" "parents")
+                       (list "Leandro"      "Leandro"      "family" "kids")
+                       (list "Adrian"       "Adrian"       "family" "kids")
+                       (list "mary-poppins" "Mary Poppins" "family" "agents")
+                       (list "arquimedes"   "Arquimedes"   "kids"   "agents")))
+                (agents '("mary-poppins" "arquimedes")))
+
+           ;; podman exec --user abc nextcloud php occ -n ARGS... -> stdout string
+           ;; (-n/--no-interaction: never block on a prompt under non-TTY exec.)
+           (define (occ . args)
+             (let* ((cmd  (append (list podman "exec" "--user" "abc"
+                                        "nextcloud" "php" occbin "-n") args))
+                    (port (apply open-pipe* OPEN_READ cmd))
+                    (out  (read-string port)))
+               (close-pipe port)
+               (if (eof-object? out) "" out)))
+           ;; ...with extra ENV + exit code.  env-pairs are "KEY=VALUE": we set
+           ;; them in OUR env and forward by NAME (-e KEY), so a secret value
+           ;; (OC_PASS) NEVER lands in the host argv / process table.
+           (define (occ-env/rc env-pairs . args)
+             (for-each (lambda (kv)
+                         (let ((i (string-index kv #\=)))
+                           (setenv (substring kv 0 i) (substring kv (1+ i)))))
+                       env-pairs)
+             (let* ((envargs (append-map
+                              (lambda (kv)
+                                (list "-e" (substring kv 0 (string-index kv #\=))))
+                              env-pairs))
+                    (cmd  (append (list podman "exec") envargs
+                                  (list "--user" "abc" "nextcloud" "php" occbin "-n")
+                                  args))
+                    (port (apply open-pipe* OPEN_READ cmd))
+                    (out  (read-string port))
+                    (rc   (status:exit-val (close-pipe port))))
+               (for-each (lambda (kv)
+                           (unsetenv (substring kv 0 (string-index kv #\=))))
+                         env-pairs)
+               (values (if (eof-object? out) "" out) rc)))
+           ;; create a group folder keyed on a group, idempotent by mountPoint.
+           ;; Probe the real "mountPoint":"<mount>" field; on create require rc=0
+           ;; AND a bare-numeric id before binding the group (a failed create
+           ;; otherwise emits an <error> sentence we must not treat as an id).
+           (define (ensure-groupfolder mount group)
+             (let ((gf (occ "groupfolders:list" "--output=json")))
+               (unless (string-contains
+                        gf (string-append "\"mountPoint\":\"" mount "\""))
+                 (call-with-values
+                     (lambda () (occ-env/rc '() "groupfolders:create" mount))
+                   (lambda (out rc)
+                     (let ((id (string-trim-both out)))
+                       (if (and (zero? rc) (> (string-length id) 0)
+                                (string-every char-numeric? id))
+                           (occ "groupfolders:group" id group
+                                "--write" "--share" "--delete")
+                           (format (current-error-port)
+                                   "nextcloud-provision: WARN groupfolders:create ~a rc=~a out=~s~%"
+                                   mount rc id))))))))
+
+           ;; (0) wait until NextCloud reports installed:true (compact json)
+           (let loop ((deadline (+ (current-time) 300)))
+             (let ((s (occ "status" "--output=json")))
+               (cond
+                ((string-contains s "\"installed\":true")
+                 (format #t "nextcloud-provision: NextCloud ready~%"))
+                ((> (current-time) deadline)
+                 (format (current-error-port)
+                         "nextcloud-provision: NextCloud not ready within 300s~%")
+                 (exit 1))
+                (else (sleep 3) (loop deadline)))))
+
+           ;; (1) enable apps (app:enable is a no-op if already on).  Check rc:
+           ;; groupfolders is FATAL if it won't enable (step 4 depends on it);
+           ;; deck/memories only warn.
+           (for-each
+            (lambda (a)
+              (call-with-values (lambda () (occ-env/rc '() "app:enable" a))
+                (lambda (out rc)
+                  (unless (zero? rc)
+                    (if (string=? a "groupfolders")
+                        (begin
+                          (format (current-error-port)
+                                  "nextcloud-provision: FATAL app:enable groupfolders rc=~a~%" rc)
+                          (exit 1))
+                        (format (current-error-port)
+                                "nextcloud-provision: WARN app:enable ~a rc=~a~%" a rc))))))
+            '("deck" "groupfolders" "memories"))
+
+           ;; (2) groups (group:add errors on dup -> probe group:list first)
+           (let ((groups (occ "group:list" "--output=json")))
+             (for-each
+              (lambda (g)
+                (unless (string-contains groups (string-append "\"" g "\":"))
+                  (occ "group:add" g)))
+              '("family" "parents" "kids" "agents")))
+
+           ;; (3) users — create only the absent ones (Adrian + agents); existing
+           ;; Maria/rafael/Leandro are skipped.  Group membership re-asserted for
+           ;; everyone (group:adduser is idempotent).  OC_PASS from the sops seed.
+           (let ((existing (occ "user:list" "--output=json")))
+             (for-each
+              (lambda (u)
+                (let* ((id   (car u))
+                       (disp (cadr u))
+                       (grps (cddr u)))
+                  (unless (string-contains existing (string-append "\"" id "\":"))
+                    (let ((pwval
+                           (cond ((assoc id seed-pw) => cdr)
+                                 (else
+                                  (format (current-error-port)
+                                          "nextcloud-provision: FATAL no seed for ~a~%" id)
+                                  (exit 1)))))
+                      (call-with-values
+                          (lambda ()
+                            (apply occ-env/rc
+                                   (list (string-append "OC_PASS=" pwval))
+                                   "user:add" id "--display-name" disp
+                                   "--password-from-env"
+                                   (append-map (lambda (g) (list "--group" g)) grps)))
+                        (lambda (out rc)
+                          (unless (zero? rc)
+                            (format (current-error-port)
+                                    "nextcloud-provision: FATAL user:add ~a rc=~a~%"
+                                    id rc)
+                            (exit 1))
+                          (format #t "nextcloud-provision: created user ~a~%" id)))))
+                  (for-each
+                   (lambda (g)
+                     (call-with-values (lambda () (occ-env/rc '() "group:adduser" g id))
+                       (lambda (out rc)
+                         (unless (zero? rc)
+                           (format (current-error-port)
+                                   "nextcloud-provision: WARN group:adduser ~a ~a rc=~a~%"
+                                   g id rc)))))
+                   grps)))
+              users))
+
+           ;; (4) group folders — keyed on group membership (mary-poppins, in
+           ;; `family`, sees Family; arquimedes, in `kids` only, sees Kids).
+           (ensure-groupfolder "Family" "family")
+           (ensure-groupfolder "Kids"   "kids")
+
+           ;; (5) shared family calendar + addressbook on rafael (best-effort:
+           ;; dav:create-* errors on dup; rc ignored).
+           (occ "dav:create-calendar"    "rafael" "family")
+           (occ "dav:create-addressbook" "rafael" "family-contacts")
+
+           ;; (6) index anything seeded on disk
+           (occ "files:scan" "--all")
+
+           ;; (7) agent app-passwords — print-once -> file-now handoff (0600,
+           ;; owner rafael).  Mint FULL-capability tokens (OC_PASS via the seed,
+           ;; forwarded by name) with the canonical verb; rc-check + validate the
+           ;; token shape before writing, so a stray stdout word can't poison the
+           ;; idempotency gate (a bad parse leaves the gate empty -> re-run retries).
+           (for-each
+            (lambda (agent)
+              (let ((apf  (string-append provdir "/" agent ".app-password"))
+                    (seed (assoc agent seed-pw)))
+                (when (and seed
+                           (not (and (file-exists? apf)
+                                     (> (stat:size (stat apf)) 0))))
+                  (call-with-values
+                      (lambda ()
+                        (occ-env/rc (list (string-append "OC_PASS=" (cdr seed)))
+                                    "user:auth-tokens:add" agent "--password-from-env"))
+                    (lambda (out rc)
+                      (let* ((ws  (string-tokenize out))
+                             (tok (and (pair? ws) (last ws))))
+                        (if (and (zero? rc) tok (>= (string-length tok) 20)
+                                 (string-every
+                                  (lambda (c) (or (char-alphabetic? c)
+                                                  (char-numeric? c))) tok))
+                            (begin
+                              (call-with-output-file apf
+                                (lambda (p) (display tok p)))
+                              (chown apf uid gid)
+                              (chmod apf #o600)
+                              (format #t "nextcloud-provision: wrote ~a~%" apf))
+                            (format (current-error-port)
+                                    "nextcloud-provision: WARN app-password ~a rc=~a (not written; will retry)~%"
+                                    agent rc))))))))
+            agents)
+
+           ;; (8) TODO (follow-up): Deck boards (Chores/Errands/Shopping) have no
+           ;; occ verb — create via the Deck REST API with mary-poppins' app-pw
+           ;; (now on file), GET-guarded:
+           ;;   podman exec --user abc nextcloud curl -u mary-poppins:<tok> \
+           ;;     -H "OCS-APIRequest: true" -X POST \
+           ;;     http://127.0.0.1:80/index.php/apps/deck/api/v1.0/boards \
+           ;;     -d '{"title":"Chores","color":"0082c9"}'
+           ;; Deferred from this first cut; boards can also be made in the UI.
+
+           (format #t "nextcloud-provision: done~%"))))))
+
+(define nextcloud-provision-service
+  (simple-service
+   'nextcloud-provision
+   shepherd-root-service-type
+   (list
+    (shepherd-service
+     (provision '(nextcloud-provision))
+     ;; Require only the umbrella `sops-secrets` (which itself waits for every
+     ;; per-secret decrypt) + the running nextcloud container.  We do NOT name
+     ;; the userpw_* secret services: their decls ship COMMENTED OUT in
+     ;; lovelace.scm for deploy-safety, and naming a non-existent service makes
+     ;; `guix system build` fail (it validates the shepherd requirement graph).
+     ;; Pre-activation the script sees the seeds absent and exits 0 (see guard).
+     (requirement '(nextcloud sops-secrets))
+     (one-shot? #t)
+     (respawn? #f)
+     (start #~(make-forkexec-constructor
+               (list #$%nextcloud-provision-script)
+               #:log-file "/var/log/nextcloud-provision.log"))
+     (stop #~(make-kill-destructor))
+     (documentation
+      "Idempotently provision family content in the running NextCloud: deck/groupfolders/memories apps, missing users (Adrian + agents), groups, group folders, calendar/contacts, agent app-passwords.")))))
 
 ;;;
 ;;; PostgreSQL — shared database for FreshRSS, Nextcloud, Wallabag
