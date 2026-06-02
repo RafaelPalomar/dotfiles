@@ -34,8 +34,6 @@
             make-ts-sidecar
             make-ts-ready-service
             make-app-container
-            %habitica-commit
-            habitica-rs-init-service
             ts-netns-watchdog-service))
 
 ;;; Server services for lovelace
@@ -102,7 +100,6 @@
                           "/data/tailscale/qbt"
                           "/data/tailscale/prometheus"
                           "/data/tailscale/grafana"
-                          "/data/tailscale/habitica"
                           "/data/freshrss"
                           "/data/nextcloud"
                           "/data/wallabag"
@@ -115,8 +112,6 @@
                           "/data/gluetun-qbt"
                           "/data/prometheus"
                           "/data/grafana"
-                          "/data/habitica"
-                          "/data/habitica/db"
                           ;; /data/nextcloud/config: non-recursive chown to rafael so
                           ;; container root (= host rafael in rootless Podman) can write.
                           ;; Subdirs are owned by container abc (host uid 232071); do NOT
@@ -957,75 +952,6 @@ image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
    #:command command))
 
 ;;;
-;;; Habitica image pin
-;;;
-;;; Upstream HabitRPG/habitica has no published OCI image; we build locally on
-;;; lovelace via scripts/build-habitica-image.sh, tagging with this commit SHA.
-;;; Bump the pin → re-run the build script on lovelace → guix deploy.
-(define %habitica-commit "a92999fc11a0fcfe24d74ddc952219ece5d73101")
-
-;;;
-;;; habitica-rs-init: one-shot that calls rs.initiate(...) on the mongo
-;;; container after first start. Idempotent — rs.status() succeeds on
-;;; subsequent boots and the script becomes a no-op. Required because
-;;; Habitica's server uses MongoDB change-streams, which only work when
-;;; the database is configured as a replica set.
-;;;
-(define habitica-rs-init-service
-  (simple-service
-   'habitica-rs-init
-   shepherd-root-service-type
-   (list
-    (shepherd-service
-     (provision '(habitica-rs-init))
-     (requirement '(habitica-mongo))
-     (one-shot? #t)
-     (start
-      #~(make-forkexec-constructor
-         (list
-          #$(program-file
-             "habitica-rs-init"
-             #~(begin
-                 (use-modules (ice-9 popen)
-                              (ice-9 rdelim))
-                 (let* ((pw   (getpwnam "rafael"))
-                        (uid  (passwd:uid pw))
-                        (gid  (passwd:gid pw))
-                        (ruid (string-append "/run/user/"
-                                             (number->string uid))))
-                   (setenv "XDG_RUNTIME_DIR" ruid)
-                   (setenv "HOME" (passwd:dir pw))
-                   (setenv "PATH"
-                           (string-append "/run/setuid-programs:"
-                                          (or (getenv "PATH") "")))
-                   (setgid gid)
-                   (setuid uid)
-                   (let ((podman   #$(file-append podman "/bin/podman"))
-                         (deadline (+ (current-time) 120))
-                         (script   "try { rs.status() } catch (e) { rs.initiate({_id:'rs', members:[{_id:0, host:'127.0.0.1:27017'}]}) }"))
-                     (let loop ()
-                       (let* ((port (open-pipe* OPEN_READ podman
-                                                "exec" "habitica-mongo"
-                                                "mongosh" "--quiet"
-                                                "--eval" script))
-                              (out  (read-string port))
-                              (rc   (status:exit-val (close-pipe port))))
-                         (cond
-                          ((zero? rc)
-                           (format #t "habitica-rs-init: ~a~%" out)
-                           #t)
-                          ((> (current-time) deadline)
-                           (format (current-error-port)
-                                   "habitica-rs-init: mongosh did not succeed within 120s~%")
-                           (exit 1))
-                          (else
-                           (sleep 2)
-                           (loop))))))))))
-         #:log-file "/var/log/habitica-rs-init.log"))
-     (documentation
-      "Initialize MongoDB replica set 'rs' for the Habitica server (idempotent).")))))
-
-;;;
 ;;; ts-netns-watchdog: keep shared-netns app containers aligned with their
 ;;; ts-X tailscale sidecars, and clean up leaked `podman run --replace`
 ;;; processes that pile up under churn.
@@ -1076,8 +1002,7 @@ image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
         ;; (ts-X . (dependent-shepherd-services...)).
         ;; Keep in sync with %app-containers below.
         (define topology
-          '(("ts-habitica"     . ("habitica" "habitica-mongo"))
-            ("ts-nextcloud"    . ("nextcloud"))
+          '(("ts-nextcloud"    . ("nextcloud"))
             ("ts-freshrss"     . ("freshrss"))
             ("ts-wallabag"     . ("wallabag"))
             ("ts-rss-bridge"   . ("rss-bridge"))
@@ -1371,60 +1296,7 @@ image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
    (make-ts-sidecar "searxng" #:serve-port 8090
                     #:backend-host "host.containers.internal")
    (make-ts-sidecar "searxng-kids" #:serve-port 8091 #:secret-name "searxng"
-                    #:backend-host "host.containers.internal")
-
-   ;; ── Habitica ──────────────────────────────────────────────────────────
-   ;; Three-container stack sharing one Tailscale netns:
-   ;;   ts-habitica   — tailnet TLS termination, proxies :443 → :3000
-   ;;   habitica-mongo — mongo:7.0, --replSet rs, binds 127.0.0.1:27017
-   ;;   habitica       — locally built image (see scripts/build-habitica-image.sh),
-   ;;                    serves API + built SPA on :3000
-   ;; A separate one-shot (habitica-rs-init) calls rs.initiate(...) once after
-   ;; mongo first comes up; see habitica-rs-init-service below.
-   ;; The image tag is pinned to %habitica-commit so deploys are reproducible:
-   ;; bumping the pin requires re-running build-habitica-image.sh on lovelace.
-   (make-ts-sidecar "habitica" #:serve-port 3000)
-   (make-app-container
-    "habitica-mongo" "docker.io/library/mongo:7.0"
-    #:ts-name "habitica"
-    #:volumes (list "/data/habitica/db:/data/db")
-    ;; --bind_ip 127.0.0.1: mongo only reachable inside the shared netns
-    ;; (i.e. by the habitica server container), never on the tailnet.
-    ;; --replSet rs: required by the Habitica server (uses change-streams).
-    #:command (list "--replSet" "rs" "--bind_ip" "127.0.0.1"))
-   (make-app-container
-    "habitica" (string-append "localhost/habitica:" %habitica-commit)
-    #:ts-name "habitica"
-    #:requirement '(habitica-rs-init)
-    #:volumes
-    (list "/run/secrets/habitica/session_secret:/run/secrets/session_secret:ro"
-          "/run/secrets/habitica/session_secret_key:/run/secrets/session_secret_key:ro")
-    #:environment
-    (list "NODE_ENV=production"
-          "PORT=3000"
-          "BASE_URL=https://habitica.drake-karat.ts.net"
-          "TRUSTED_DOMAINS=https://habitica.drake-karat.ts.net"
-          "ADMIN_EMAIL=rafpal@ous-hf.no"
-          ;; directConnection=true: single-node replica set; skip topology probe.
-          (string-append "NODE_DB_URI=mongodb://127.0.0.1:27017/habitrpg"
-                         "?replicaSet=rs&directConnection=true"))
-    ;; Read session secrets from sops-mounted files at boot. WORKDIR in
-    ;; Dockerfile-Dev is /usr/src/habitica; `npm start` runs gulp's prod server.
-    ;; The sed below is a runtime patch: upstream index.js gates @babel/register
-    ;; on NODE_ENV != production, expecting a pre-transpiled tree.  We run npm
-    ;; start against the source, so under Node 20 ESM-detect setupNconf.js
-    ;; loads as a real ES module and crashes on `__dirname`.  Forcing the
-    ;; babel runtime hook unconditionally avoids that without a 2.4 GB image
-    ;; rebuild.  Same patch is also applied at build time in
-    ;; scripts/build-habitica-image.sh; this keeps existing images working.
-    #:entrypoint "/bin/sh"
-    #:command (list "-c"
-                    (string-append
-                     "export SESSION_SECRET=$(cat /run/secrets/session_secret); "
-                     "export SESSION_SECRET_KEY=$(cat /run/secrets/session_secret_key); "
-                     "cd /usr/src/habitica && "
-                     "sed -i \"s/^if (process.env.NODE_ENV !== 'production') {/if (true) {/\" website/server/index.js && "
-                     "exec npm start")))))
+                    #:backend-host "host.containers.internal")))
 
 ;;;
 ;;; VPN-routed containers (Pi-hole + qBittorrent via Gluetun/Mullvad)
@@ -1637,7 +1509,7 @@ datasources:
    ;; against their sidecar's `podman run` and fail with "no container found".
    (map make-ts-ready-service
         '("freshrss" "nextcloud" "wallabag" "rss-bridge" "searxng"
-          "searxng-kids" "grafana" "habitica"))
+          "searxng-kids" "grafana"))
    ;; All shepherd-services (containers + sidecars) registered in one batch.
    (list
     (simple-service 'lovelace-podman-containers

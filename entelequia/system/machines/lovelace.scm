@@ -116,17 +116,6 @@
                (sops-secret (key '("tailscale" "grafana_authkey"))
                             (file %sops-lovelace)
                             (permissions #o444))
-               (sops-secret (key '("tailscale" "habitica_authkey"))
-                            (file %sops-lovelace)
-                            (permissions #o444))
-               ;; Habitica server secrets — read by the wrapper entrypoint and
-               ;; re-exported as SESSION_SECRET / SESSION_SECRET_KEY env vars.
-               (sops-secret (key '("habitica" "session_secret"))
-                            (file %sops-lovelace)
-                            (permissions #o444))
-               (sops-secret (key '("habitica" "session_secret_key"))
-                            (file %sops-lovelace)
-                            (permissions #o444))
                ;; Mullvad VPN keys — group=users so rootless containers (rafael) can read
                (sops-secret (key '("mullvad" "pihole_wg_private_key"))
                             (file %sops-lovelace)
@@ -185,8 +174,7 @@
               smartd-lovelace-service
               borgmatic-lovelace-service
               lovelace-container-services
-              (list habitica-rs-init-service
-                    ts-netns-watchdog-service))
+              (list ts-netns-watchdog-service))
              #:ssh-authorized-keys
              `(("root"   ,(plain-file "lovelace-deploy.pub"
                                       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJd+gIEzNyO8gp3FnZnvMI/OhKm0/Hkr0UaDKXx38h7V openpgp:0x96CFC574"))
