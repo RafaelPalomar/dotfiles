@@ -21,7 +21,7 @@ ADRs follow [`0000-template.md`](0000-template.md).
 0005-home-work-separation-by-role
 0006-family-assistant-agent-identities
 0007-ops-deploy-approval-gate
-0008-personal-nextcloud-immich-work-onedrive
+0008-personal-nextcloud-work-onedrive
 ```
 
 ## Ledger
@@ -35,4 +35,4 @@ ADRs follow [`0000-template.md`](0000-template.md).
 | 0005 | Separate home from work by per-machine role | Accepted |
 | 0006 | Family-assistant agent identities | Accepted |
 | 0007 | Ops-deploy approval gate (scoped deviation) | Accepted |
-| 0008 | Storage split: NextCloud+Immich (personal) / OneDrive (work) | Accepted |
+| 0008 | Storage split: NextCloud native photos (personal) / OneDrive (work) | Accepted |
