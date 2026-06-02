@@ -1,7 +1,7 @@
 (define-module (entelequia home machines einstein-rafael)
   #:use-module (entelequia home profiles base)
   #:use-module (entelequia home profiles development)
-  #:use-module (entelequia home profiles email)
+  #:use-module (entelequia home profiles role)
   #:use-module (entelequia home profiles documentation)
   #:use-module (entelequia home profiles networking)
   #:use-module (entelequia home services desktop-suite)
@@ -22,13 +22,16 @@
   (append (base-home-packages)
           (development-home-packages)
           (networking-home-packages)
-          email-home-packages
+          (home-role-packages 'work)
           documentation-home-packages))
  (services
   (append
    (common-home-services #:nvidia? #t)
    (desktop-home-services)
    (chromium-home-services)
+   ;; Work role: ~/.config/entelequia/role marker only (no work tailnet —
+   ;; curie-only; no #:manage-mail? — blanket .mbsyncrc still serves it).
+   (home-role-services 'work)
    (list (service home-dotfiles-service-type
                   (home-dotfiles-configuration
                    (directories '("../../../dotfiles"))))))))

@@ -23,16 +23,19 @@
 ;;; Both roles drop a ~/.config/entelequia/role marker so userspace tooling
 ;;; (mail-draft, pks helpers) can branch on the domain.
 ;;;
-;;; The work ~/.mbsyncrc is installed here from mail/mbsyncrc.work, which is
-;;; kept OUT of the blanket dotfiles/ copy (home-dotfiles-service-type) — that
-;;; copy pushed the work mbsyncrc onto EVERY machine, which was the real
-;;; home/work leak (the email *profile* was a red herring).  A 'work machine
-;;; gets it via role; a 'home machine never does.
+;;; The work ~/.mbsyncrc is available here from mail/mbsyncrc.work (kept OUT of
+;;; the blanket dotfiles/ copy, which pushed the work mbsyncrc onto EVERY machine
+;;; — including the kids' boxes — the real home/work leak; the email *profile*
+;;; was a red herring).  It is installed only under #:manage-mail?, which must
+;;; wait until every mail machine is tagged and the blanket dotfiles/.mbsyncrc is
+;;; removed in ONE coordinated step (else the role file and the blanket file both
+;;; target ~/.mbsyncrc and collide).
 ;;;
-;;; PHASE 0 status: this module is DEFINED but not yet imported by any machine,
-;;; so it is behaviour-neutral.  WIRING it into curie/einstein (role 'work) and
-;;; baroja (role 'home) — and removing the now-redundant dotfiles/.mbsyncrc from
-;;; the blanket copy at the same time — is Phase 1+3.
+;;; Status: PHASE 1 wires curie+einstein as 'work (role packages + marker; curie
+;;; #:work-tailnet? #t) with #:manage-mail? OFF, so the blanket .mbsyncrc still
+;;; serves all 7 machines and the change is behaviour-neutral bar the new marker.
+;;; The mail cut (#:manage-mail? on everywhere + drop the blanket) and baroja's
+;;; flip to 'home are a later coordinated phase.
 
 (define (home-role-marker role)
   "A ~/.config/entelequia/role marker file holding the role name."
@@ -57,14 +60,21 @@
     ((home) '())
     (else (error "home-role-packages: unknown role (want 'work or 'home)" role))))
 
-(define (home-role-services role)
-  "Role-conditional home services: the role marker always, plus — for 'work —
-the work userspace tailscaled and the work ~/.mbsyncrc."
+(define* (home-role-services role #:key (work-tailnet? #f) (manage-mail? #f))
+  "Role-conditional home services.  The ~/.config/entelequia/role marker is
+always installed.  For 'work, two capabilities are OPT-IN (not every work box
+wants them, and the mail cut is a coordinated multi-machine step):
+
+  #:work-tailnet?  add the userspace work tailscaled (curie only today).
+  #:manage-mail?   install the work ~/.mbsyncrc from role instead of the blanket
+                   dotfiles/ copy.  Leave #f until ALL mail machines are tagged
+                   and dotfiles/.mbsyncrc is removed, else the role file and the
+                   blanket file both target ~/.mbsyncrc and collide."
   (case role
     ((work)
-     (list (home-role-marker 'work)
-           (service home-tailscale-work-service-type)
-           (work-mail-dotfiles)))
+     (append (list (home-role-marker 'work))
+             (if work-tailnet? (list (service home-tailscale-work-service-type)) '())
+             (if manage-mail?  (list (work-mail-dotfiles)) '())))
     ((home)
      (list (home-role-marker 'home)))
     (else (error "home-role-services: unknown role (want 'work or 'home)" role))))
