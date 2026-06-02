@@ -17,6 +17,9 @@
 ;;;   - they-are-billions: graphic content
 ;;;   - caves-of-qud-native: Mesa 25.2.3 + Unity 2021 black-screen on Intel
 ;;;     UHD 620 (same bug as curie's gfx1150).  Wine variant works.
+;;;   - no-mans-sky: tried but unplayable on UHD 620 (well below the iGPU
+;;;     minimum); switched adrian to starbound, which the chassis handles
+;;;     comfortably.  Game files + wine prefix wiped from disk too.
 
 (home-environment
  (packages
@@ -24,7 +27,8 @@
           (python-learning-home-packages)
           (gaming-home-packages
            #:exclude '("they-are-billions"
-                       "caves-of-qud-native"))))
+                       "caves-of-qud-native"
+                       "no-mans-sky"))))
  (services
   (append
    (common-home-services)

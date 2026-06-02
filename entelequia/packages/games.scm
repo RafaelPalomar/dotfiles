@@ -33,6 +33,7 @@
             ;; GOG games
             gog-crypt-of-the-necrodancer
             gog-terraria
+            gog-starbound
             gog-wizard-of-legend
             gog-slay-the-spire
             gog-death-road-to-canada
@@ -408,12 +409,19 @@ with WINEPREFIX set to ~/PREFIX-SUBDIR, running ~/PREFIX-SUBDIR/drive_c/EXE-RELP
 
 (define proton-fhs-channels
   (plain-file "proton-fhs-channels.scm"
+              ;; NOTE: keep the guix commit pin recent enough to bundle Guile
+              ;; >= 3.0.10.  The earlier pin 6a483ed7… still bundled Guile 3.0.9
+              ;; while its own guix/status.scm already used
+              ;; `make-custom-binary-output-port' (a 3.0.10+ symbol), making the
+              ;; inferior internally inconsistent on hosts that had to rebuild it
+              ;; fresh (curie had cached pre-bumped store paths, kid hosts did
+              ;; not).  Bumped 2026-05-31 to match channels-lock.scm.
               "(use-modules (guix channels))
 (list (channel
         (name 'guix)
         (url \"https://codeberg.org/guix/guix.git\")
         (branch \"master\")
-        (commit \"6a483ed7c607b01003edb9cb118c9f89c9d457e9\")
+        (commit \"21898c0a1aae913fe732ad81f01328e34acb5721\")
         (introduction
           (make-channel-introduction
             \"9edb3f66fd807b096b48283debdcddccfea34bad\"
@@ -423,7 +431,7 @@ with WINEPREFIX set to ~/PREFIX-SUBDIR, running ~/PREFIX-SUBDIR/drive_c/EXE-RELP
         (name 'nonguix)
         (url \"https://gitlab.com/nonguix/nonguix\")
         (branch \"master\")
-        (commit \"f5338f63fce69622ce06f93fe02524967e1f30d4\")
+        (commit \"a8326a5b325400f25c0520c8ef9127fff6d4796d\")
         (introduction
           (make-channel-introduction
             \"897c1a470da759236cc11798f4e0a5f7d4d59fbc\"
@@ -512,7 +520,10 @@ expect.")
                                        (desktop-name launcher-name)
                                        (desktop-icon "applications-games")
                                        (extra-env '())
-                                       (extra-args '()))
+                                       (extra-args '())
+                                       (winefsync 0)
+                                       (wineesync 0)
+                                       (gpu-boost? #f))
   "Return a package that installs a wrapper under bin/LAUNCHER-NAME
 which runs ~/GAME-SUBDIR/EXE-RELPATH under Proton-GE inside a
 guix-shell FHS container.
@@ -562,10 +573,28 @@ inside the container."
                (format port "  exit 1~%")
                (format port "fi~%")
                (format port "mkdir -p \"${COMPAT}\" \"${HOME}/.steam/steam\"~%")
-               ,@(map (lambda (pair)
-                        `(format port "export ~a=\"~a\"~%"
-                                 ,(car pair) ,(cdr pair)))
-                      extra-env)
+               ;; Optional GPU boost (#:gpu-boost? #t): write "high" to
+               ;; /sys/class/drm/card0/device/power_dpm_force_performance_level
+               ;; before launching the game, and revert to "auto" on
+               ;; EXIT/INT/TERM (or game crash).  Requires the boot-time
+               ;; perms service to have made the file group-writable to
+               ;; the user (see curie.scm 'amd-gpu-perf-perms').
+               ;;
+               ;; Safer than `power_dpm_force_performance_level=high` baked
+               ;; into a kernel arg or boot service: GPU only runs at max
+               ;; clock for the duration of the game, then returns to auto.
+               ;; Mirrors feral-interactive's gamemoded behaviour.
+               ,@(if gpu-boost?
+                     '((format port "GPU_PERF_FILE=/sys/class/drm/card0/device/power_dpm_force_performance_level~%")
+                       (format port "if [ -w \"$GPU_PERF_FILE\" ]; then~%")
+                       (format port "  GPU_PERF_PREV=$(cat \"$GPU_PERF_FILE\")~%")
+                       (format port "  trap 'echo \"$GPU_PERF_PREV\" > \"$GPU_PERF_FILE\" 2>/dev/null || true' EXIT INT TERM HUP~%")
+                       (format port "  echo high > \"$GPU_PERF_FILE\"~%")
+                       (format port "  echo \"[gpu-boost] $GPU_PERF_FILE: $GPU_PERF_PREV -> high (will revert on exit)\" >&2~%")
+                       (format port "else~%")
+                       (format port "  echo \"[gpu-boost] $GPU_PERF_FILE not writable; skipping boost\" >&2~%")
+                       (format port "fi~%"))
+                     '())
                ;; NVIDIA passthrough via baked manifest + time-machine.
                ;; nvidia-driver lives in nonguix; system guix doesn't
                ;; carry that channel.  We ship a 2-channel
@@ -613,8 +642,16 @@ inside the container."
                (format port "      export STEAM_COMPAT_CLIENT_INSTALL_PATH=\"$HOME/.steam/steam\";\\\n")
                (format port "      export STEAM_COMPAT_DATA_PATH=\"$HOME/~a\";\\\n"
                        ,compat-subdir)
-               (format port "      export WINEFSYNC=0;\\\n")
-               (format port "      export WINEESYNC=0;\\\n")
+               (format port "      export WINEFSYNC=~a;\\\n" ,winefsync)
+               (format port "      export WINEESYNC=~a;\\\n" ,wineesync)
+               ;; Per-game extra env vars (RADV_PERFTEST, DXVK_ASYNC,
+               ;; mesa_glthread, etc.).  Exported INSIDE the FHS
+               ;; container's sh -c body so they survive the `guix shell
+               ;; --container` namespace transition.
+               ,@(map (lambda (pair)
+                        `(format port "      export ~a=~s;\\\n"
+                                 ,(car pair) ,(cdr pair)))
+                      extra-env)
                ;; Disable Xalia (Proton's accessibility/SDL helper) — its
                ;; SDL_VideoInit fails inside the Guix FHS container with
                ;; "Video driver  not supported" and aborts the launch.
@@ -732,6 +769,35 @@ inside the container."
    #:extra-env '(("MONO_IOMAP" . "all"))
    #:desktop-name "Terraria"
    #:desktop-icon "~/GOG Games/Terraria/support/icon.png"))
+
+;;; Starbound — Tier 1 (native Linux)
+;;;
+;;; Native Linux GOG build (1.4.4).  Binary is at game/linux/starbound;
+;;; bundled libsteam_api.so lives in that same dir so we add it to
+;;; LD_LIBRARY_PATH via extra-lib-dirs.  External deps: SDL2 (window/input),
+;;; mesa (libGL.so.1), glu (libGLU.so.1), gcc:lib (libstdc++/libgcc_s).
+;;;
+;;; Install:
+;;;   binwalk shows the .sh contains a ZIP at offset 0x9D7A1 (645025).
+;;;   dd if=starbound_1_4_4_34261.sh of=payload.zip bs=1M iflag=skip_bytes \
+;;;     skip=645025
+;;;   unzip payload.zip -d /tmp/sb && mv /tmp/sb/data/noarch ~/GOG\ Games/Starbound
+;;;   patchelf --set-interpreter \
+;;;     $(readlink -f /run/current-system/profile/lib/ld-linux-x86-64.so.2) \
+;;;     ~/GOG\ Games/Starbound/game/linux/starbound
+
+(define-public gog-starbound
+  (make-game-launcher
+   "starbound"
+   "GOG Games/Starbound/game/linux"
+   "starbound"
+   (list sdl2
+         mesa
+         glu
+         `(,gcc "lib"))
+   #:extra-lib-dirs '("${GAMEDIR}")
+   #:desktop-name "Starbound"
+   #:desktop-icon "~/GOG Games/Starbound/support/icon.png"))
 
 ;;; Wizard of Legend — Tier 1
 ;;;
@@ -1017,6 +1083,61 @@ inside the container."
    #:desktop-name "He is Coming"
    #:desktop-icon "applications-games"))
 
+;;; No Man's Sky — Tier 6 (Proton-GE)
+;;;
+;;; Hello Games's procedural-universe explorer.  Windows-only on GOG
+;;; (the early native Linux build was dropped).  DirectX 11 / Vulkan;
+;;; Proton-GE handles both via dxvk + vkd3d.  Bundles GOG Galaxy SDK
+;;; (Galaxy.dll / Galaxy64.dll), same .NET-on-wine-mono surface that
+;;; TAB / 9 Kings / He is Coming hit — Proton-GE has the patched
+;;; wine-mono + protonfix database we already rely on for those.
+;;;
+;;; Hardware target: curie (AMD Strix iGPU, Radeon 880M/890M, 30 G
+;;; RAM) — comfortably above NMS's GTX 1060 recommendation.  Should
+;;; also run on alucard (GTX 1650, Tier 6 NVIDIA path proven).
+;;;
+;;; Setup (one-time, before first launch):
+;;;   mkdir -p ~/Games/NoMansSky
+;;;   innoextract -d ~/Games/NoMansSky \
+;;;     "~/Games/gog-installers/no_mans_sky/setup_no_mans_sky_6.40_theswarm_*.exe"
+;;;
+;;; The extracted tree has Binaries/NMS.exe.  PEGI 7.
+
+(define-public gog-no-mans-sky
+  (make-proton-game-launcher
+   "no-mans-sky"
+   "Games/NoMansSky"
+   "Binaries/NMS.exe"
+   #:desktop-name "No Man's Sky"
+   #:desktop-icon "applications-games"
+   ;; NMS is graphics + draw-call heavy on Strix iGPU; wine's sync
+   ;; primitives matter a lot.  TAB's reason for disabling fsync/esync
+   ;; (GOG Galaxy SDK shm/memfd quirks) doesn't apply to NMS — it
+   ;; doesn't ship Galaxy.dll on the GOG offline build.
+   #:winefsync 1
+   #:wineesync 1
+   ;; #:gpu-boost? — DISABLED 2026-05-30 on curie (Strix Halo gfx1150).
+   ;; Both "permanently force high" and "per-game force high + revert on
+   ;; exit" via /sys/.../power_dpm_force_performance_level cause a hard
+   ;; power-off on this silicon under NMS workload.  Not a kernel panic
+   ;; — full SoC power cut, suggesting VRM trip rather than driver hang.
+   ;; Mesa 25.2.3 + kernel 6.18 are still maturing for gfx1150 power
+   ;; management; revisit after a Mesa bump.  The boot-time perms
+   ;; service in curie.scm is harmless to leave in place; it just makes
+   ;; the sysfs file writable so manual `echo profile_standard > ...'
+   ;; tests don't need sudo.
+   ;; #:gpu-boost? #t
+   ;; AMD-specific tuning, validated by NMS community on RADV:
+   ;;   RADV_PERFTEST=gpl   — Vulkan Graphics Pipeline Library; cuts
+   ;;                         shader-compile stutter dramatically
+   ;;   DXVK_ASYNC=1        — async shader compile
+   ;;   DXVK_HUD            — left empty by default; set on the command
+   ;;                         line for diagnostics (=fps,gpuload)
+   ;;   mesa_glthread=true  — multi-threaded GL where DXVK falls back
+   #:extra-env '(("RADV_PERFTEST" . "gpl")
+                 ("DXVK_ASYNC"    . "1")
+                 ("mesa_glthread" . "true"))))
+
 ;;; ── Direct-download games ────────────────────────────────────────────────
 
 ;;; Caves of Qud — Tier 5 (Wine) on curie
@@ -1221,7 +1342,107 @@ that runs it with the Guix-managed openjdk JRE.")
            (lambda _
              (substitute* (list "goblins.lua" "behaviors.lua")
                (("self\\.time_of_day") "(self.time_of_day or core.get_timeofday())"))))
-         (add-after 'nilsafe-time-of-day 'repopulate-existing-lairs
+         (add-after 'nilsafe-time-of-day 'register-modern-spawners
+           ;; Upstream goblins registers natural spawning through
+           ;; `mcl_mobs.spawn_setup({...})` in mc2_compat.lua.  In
+           ;; mineclonia 0.120+ that function is a noop stub that just
+           ;; emits a "will not spawn naturally" warning per goblin
+           ;; type.  Result: lairs spawn goblins (via the entelequia
+           ;; `spawn-goblins-at-lair-gen' patch above), but biome /
+           ;; cave-based natural spawning is dead.
+           ;;
+           ;; Fix: add a side file that calls the modern
+           ;; `mcl_mobs.register_spawner(...)' API for each goblin
+           ;; type, modeled on mineclonia's own monster spawners
+           ;; (mobs_mc.monster_spawner base).  Append `dofile' at the
+           ;; end of init.lua so it runs after all goblin mob types
+           ;; are registered.
+           (lambda _
+             (call-with-output-file "goblin_spawn_fix.lua"
+               (lambda (port)
+                 (display "-- entelequia patch: register modern mcl_mobs spawners for goblin
+-- types.  Workaround for upstream goblins mod which still uses the
+-- deprecated mcl_mobs.spawn_setup() API (a noop stub in mineclonia
+-- 0.120+).  Modeled on mineclonia's mobs_mc:spider spawner.
+--
+-- Faithfully preserves the per-type constraints in upstream's
+-- goblins_spawning_mc2.lua:
+--   * max_light: matches upstream's max_light per goblin variant.
+--   * max_height: matches upstream's depth ceiling per variant
+--     (digger/cobble/snuffer/fungiler/coal at <= -16; copper -32;
+--     iron -35; gold/hoarder at overworld_min+64; diamond at
+--     overworld_min+32 — i.e. the deepest tier).
+--   * weight: derived from upstream 'chance' (lower chance = more
+--     common in old API; here translated to a relative weight, with
+--     mobs_mc:spider weight=100 as the common-monster benchmark).
+--
+-- *Not preserved*: upstream restricts snuffer/fungiler/coal/iron/
+-- copper/gold/diamond/hoarder to nodes adjacent to mcl_core:mossycobble
+-- (or specific ore nodes).  Modern register_spawner has no cheap
+-- way to express \"near node X\".  We compensate by giving those
+-- types lower weights so they remain rare encounters outside lairs,
+-- while still letting players find them in dim caves.
+
+if not (mcl_mobs and mcl_mobs.register_spawner and mobs_mc and mobs_mc.monster_spawner) then
+  core.log('warning', '[goblin_spawn_fix] required mcl_mobs/mobs_mc APIs missing; skipping')
+  return
+end
+
+local OWMIN = (mcl_vars and mcl_vars.mg_overworld_min) or -128
+
+local function gob_spawner(def)
+  return table.merge(mobs_mc.monster_spawner, {
+    name = def.name,
+    spawn_category = 'monster',
+    biomes = mobs_mc.monster_biomes,
+    weight = def.weight,
+    pack_min = 1,
+    pack_max = def.pack_max or 1,
+    max_light = def.max_light,
+    min_height = OWMIN,
+    max_height = def.max_height,
+  })
+end
+
+-- Per-type config drawn from upstream's db_spawning table.
+-- Old (chance, max_light, max_height) -> new (weight, max_light, max_height).
+local SPAWNERS = {
+  -- Common cave goblins: any stone, anywhere underground.
+  { name = 'goblins:goblin_digger',    weight = 30, max_light = 12, max_height = -16, pack_max = 2 },
+  { name = 'goblins:goblin_cobble',    weight = 30, max_light = 12, max_height = -16, pack_max = 2 },
+  -- Mossy-cobble-tied (upstream); approximated as rare cave dwellers.
+  { name = 'goblins:goblin_snuffer',   weight = 15, max_light = 14, max_height = -16, pack_max = 1 },
+  { name = 'goblins:goblin_fungiler',  weight = 10, max_light = 10, max_height = -16, pack_max = 1 },
+  -- Ore-tied tiers: progressively rarer + deeper.
+  { name = 'goblins:goblin_coal',      weight = 15, max_light = 10, max_height = -16, pack_max = 2 },
+  { name = 'goblins:goblin_copper',    weight = 15, max_light = 10, max_height = -32, pack_max = 2 },
+  { name = 'goblins:goblin_iron',      weight = 15, max_light = 10, max_height = -35, pack_max = 2 },
+  -- Deep-tier (bottom 32-64 blocks of overworld).
+  { name = 'goblins:goblin_gold',      weight =  8, max_light = 10, max_height = OWMIN + 64, pack_max = 1 },
+  { name = 'goblins:goblin_diamond',   weight =  8, max_light = 10, max_height = OWMIN + 32, pack_max = 1 },
+  { name = 'goblins:goblin_hoarder',   weight =  5, max_light = 10, max_height = OWMIN + 64, pack_max = 1 },
+}
+
+local n = 0
+for _, s in ipairs(SPAWNERS) do
+  local ok, err = pcall(function()
+    mcl_mobs.register_spawner(gob_spawner(s))
+  end)
+  if ok then
+    n = n + 1
+    core.log('action', string.format(
+      '[goblin_spawn_fix] %s weight=%d max_light=%d max_height=%d',
+      s.name, s.weight, s.max_light, s.max_height))
+  else
+    core.log('error', '[goblin_spawn_fix] ' .. s.name .. ': ' .. tostring(err))
+  end
+end
+core.log('action', '[goblin_spawn_fix] registered ' .. n .. '/' .. #SPAWNERS .. ' goblin spawners')
+" port)))
+             (let ((out (open-file "init.lua" "a")))
+               (display "\n-- entelequia patch: modern mcl_mobs spawner registration.\ndofile(path .. \"/goblin_spawn_fix.lua\")\n" out)
+               (close-port out))))
+         (add-after 'register-modern-spawners 'repopulate-existing-lairs
            ;; Retroactively populate lairs already in the world (chunks
            ;; generated before the lair-gen spawn patch).  Append an LBM
            ;; (Loading Block Modifier) that fires when chunks containing

@@ -14,6 +14,8 @@
   #:use-module (gnu services base)     ; guix-extension, guix-service-type
   #:use-module (gnu services xorg)
   #:use-module (gnu services containers)
+  #:use-module (gnu services shepherd)   ; shepherd-service, shepherd-root-service-type
+  #:use-module (guix gexp)               ; #~ for shepherd start gexps
   #:use-module (gnu system accounts)
   #:use-module (xlibre))
 
@@ -142,7 +144,47 @@
     (simple-service 'guix-daemon-slicer-ccache
                     guix-service-type
                     (guix-extension
-                     (chroot-directories '("/var/cache/slicer-ccache")))))))
+                     (chroot-directories '("/var/cache/slicer-ccache"))))
+
+    ;; AMD GPU performance-level toggle for gaming.
+    ;;
+    ;; Strix Halo gfx1150 on Mesa 25.2 + kernel 6.18 doesn't ramp the
+    ;; iGPU sclk under load — stays at 600 MHz / 2799 MHz max even at
+    ;; 100% GPU busy + platform_profile=performance + AC connected.
+    ;; The workaround is to write "high" to
+    ;; /sys/class/drm/card0/device/power_dpm_force_performance_level,
+    ;; but that file is root-only by default.
+    ;;
+    ;; Grant the `video' group write access at boot so that game
+    ;; launchers (entelequia/packages/games.scm `make-proton-game-launcher'
+    ;; with #:gpu-boost? #t) can toggle "high" before exec and revert
+    ;; to "auto" on game exit — same pattern as feral-interactive's
+    ;; gamemoded.  rafael is in `video', so no setuid helper or sudo.
+    ;;
+    ;; Brief sustained max clock during a game is safe; permanently
+    ;; pinning high stresses the driver and has caused full-system
+    ;; crashes on this silicon — hence the per-game toggle rather than
+    ;; a kernel-arg or boot-time `echo high`.
+    ;;
+    ;; Implementation: one-shot shepherd service.  sysfs perms reset on
+    ;; every boot, so activation-service-type isn't enough — must run
+    ;; after the amdgpu driver has populated the file (i.e., post-boot).
+    (simple-service 'amd-gpu-perf-perms
+                    shepherd-root-service-type
+                    (list
+                     (shepherd-service
+                      (documentation "Grant `video' group write access to AMD GPU power_dpm_force_performance_level so game launchers can toggle high/auto without sudo.")
+                      (provision '(amd-gpu-perf-perms))
+                      (requirement '(file-systems))
+                      (one-shot? #t)
+                      (start
+                       #~(lambda ()
+                           (let ((f "/sys/class/drm/card0/device/power_dpm_force_performance_level"))
+                             (when (file-exists? f)
+                               (chmod f #o664)
+                               (let ((video-gid (vector-ref (getgrnam "video") 2)))
+                                 (chown f 0 video-gid))))
+                           #t))))))))
 
 (define curie-system
   (operating-system
@@ -165,11 +207,26 @@
    ;; resume=UUID=<fs-uuid>, and the swap partition (3.7 GiB) is too small to
    ;; hold a hibernation image of 30 GiB RAM anyway.  When we set up a proper
    ;; swapfile, add resume=UUID=<root-uuid> resume_offset=<file-offset> here.
+   ;; amdgpu.cwsr_enable=0 — workaround for a Strix Halo gfx1150 / Radeon
+   ;; 890M kernel bug.  Under sustained GPU load (proven by NMS under
+   ;; Proton-GE with DXVK) the MES (Microengine Scheduler) wedges on
+   ;; Ring 13; amdgpu's automatic reset then triggers a hard SoC
+   ;; power-off (faster than disk flush, hence no kernel logs of the
+   ;; event).  Reported on the AMD-GFX list for kernel 6.18 and the same
+   ;; symptom continues in 6.19-rc3.  Disabling Compute Wave Store and
+   ;; Resume (cwsr) prevents the MES path from being exercised in a
+   ;; way that triggers the wedge.  Revisit when curie's kernel moves
+   ;; past the upstream fix (track gfx1150 MES patches on amd-gfx).
+   ;;
+   ;; Mailing list refs:
+   ;;   https://lists.freedesktop.org/archives/amd-gfx/2025-December/135310.html
+   ;;   https://lists.freedesktop.org/archives/amd-gfx/2025-December/136016.html
    (kernel-arguments (gpu-kernel-arguments 'amd
                                            #:extra-args
                                            '("net.ifnames=0"
                                              "biosdevname=0"
-                                             "acpi.ec_no_wakeup=1")))
+                                             "acpi.ec_no_wakeup=1"
+                                             "amdgpu.cwsr_enable=0")))
 
    ;; User configuration (add cgroup to supplementary groups for containers)
    ;; Note: cgroup group now defined in base.scm

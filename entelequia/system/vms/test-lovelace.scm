@@ -31,7 +31,7 @@
              #:extra-services
              (append
               smartd-lovelace-service
-              luanti-lovelace-service)))
+              luanti-game-service)))
 
    ;; VM bootloader (not EFI)
    (bootloader (bootloader-configuration

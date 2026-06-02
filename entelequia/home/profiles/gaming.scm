@@ -42,12 +42,14 @@ profiles that shouldn't ship age-inappropriate titles)."
          gog-duskers
          gog-papers-please
          gog-terraria
+         gog-starbound
          gog-wizard-of-legend
          gog-slay-the-spire
          gog-torchlight-2
          gog-they-are-billions
          gog-9-kings
          gog-he-is-coming
+         gog-no-mans-sky
          gog-gobliiins
          gog-gobliins-2
          gog-goblins-quest-3
