@@ -234,6 +234,7 @@
          (setenv "PATH" "/run/setuid-programs:/run/current-system/profile/bin")
          (setgid gid)
          (setuid uid)
+         (chdir provdir)   ; rafael-owned; avoids "cannot chdir to /root" popen noise
          (let* ((podman  #$(file-append podman "/bin/podman"))
                 (occbin  "/app/www/public/occ")
                 ;; (id display-name . groups).  Maria/rafael/Leandro already
@@ -292,8 +293,10 @@
                      (let ((id (string-trim-both out)))
                        (if (and (zero? rc) (> (string-length id) 0)
                                 (string-every char-numeric? id))
+                           ;; groupfolders 21 takes positional permission WORDS
+                           ;; (read write create delete share), NOT --flags.
                            (occ "groupfolders:group" id group
-                                "--write" "--share" "--delete")
+                                "read" "write" "delete")
                            (format (current-error-port)
                                    "nextcloud-provision: WARN groupfolders:create ~a rc=~a out=~s~%"
                                    mount rc id))))))))
@@ -386,8 +389,9 @@
            (occ "dav:create-calendar"    "rafael" "family")
            (occ "dav:create-addressbook" "rafael" "family-contacts")
 
-           ;; (6) index anything seeded on disk
-           (occ "files:scan" "--all")
+           ;; (6) files:scan intentionally OMITTED — group folders are created via
+           ;; occ (which indexes them) and no host dirs are seeded; `files:scan
+           ;; --all` is slow on a large instance (169 GB here) and unnecessary.
 
            ;; (7) agent app-passwords — print-once -> file-now handoff (0600,
            ;; owner rafael).  Mint FULL-capability tokens (OC_PASS via the seed,
