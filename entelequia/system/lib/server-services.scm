@@ -330,6 +330,17 @@
                                 "nextcloud-provision: WARN app:enable ~a rc=~a~%" a rc))))))
             '("deck" "groupfolders" "memories"))
 
+           ;; (1b) Calendar app (NOT bundled) — install (downloads + enables) if
+           ;; absent.  Required for CalDAV calendar SHARING (the sabre sharing
+           ;; plugin lives in this app) + the family-calendar share in step 8.
+           ;; Idempotent: guard on app:list (app:install errors if already there).
+           (unless (string-contains (occ "app:list" "--output=json") "\"calendar\"")
+             (call-with-values (lambda () (occ-env/rc '() "app:install" "calendar"))
+               (lambda (out rc)
+                 (unless (zero? rc)
+                   (format (current-error-port)
+                           "nextcloud-provision: WARN app:install calendar rc=~a~%" rc)))))
+
            ;; (2) groups (group:add errors on dup -> probe group:list first)
            (let ((groups (occ "group:list" "--output=json")))
              (for-each
@@ -427,7 +438,35 @@
                                     agent rc))))))))
             agents)
 
-           ;; (8) TODO (follow-up): Deck boards (Chores/Errands/Shopping) have no
+           ;; (8) Mary Poppins's shared family calendar — she OWNS it (writes via
+           ;; the cbcoutinho NextCloud MCP sidecar) and it is SHARED to the `family`
+           ;; group so everyone sees it.  NextCloud has NO occ verb to create a
+           ;; calendar share, and sabre only accepts the owncloud-ns oc:share POST
+           ;; (cs:/JSON bodies return 501) — so POST it as mary-poppins with her
+           ;; app-pw.  Idempotent: create errors on dup (ignored, like rafael's);
+           ;; the share is guarded by dav:list-calendar-shares.
+           (let ((mp-tok (string-append provdir "/mary-poppins.app-password")))
+             (when (and (file-exists? mp-tok) (> (stat:size (stat mp-tok)) 0))
+               (occ "dav:create-calendar" "mary-poppins" "family")
+               (unless (string-contains
+                        (occ "dav:list-calendar-shares" "mary-poppins")
+                        "principals/groups/family")
+                 (let* ((tok (string-trim-both
+                              (call-with-input-file mp-tok get-string-all)))
+                        (rc  (status:exit-val
+                              (system* podman "exec" "nextcloud" "curl"
+                                       "-sS" "-f" "-o" "/dev/null"
+                                       "-u" (string-append "mary-poppins:" tok)
+                                       "-X" "POST"
+                                       "http://127.0.0.1:80/remote.php/dav/calendars/mary-poppins/family"
+                                       "-H" "Content-Type: application/xml; charset=utf-8"
+                                       "--data" "<?xml version=\"1.0\"?><oc:share xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\"><oc:set><d:href>principal:principals/groups/family</d:href><oc:read-write/></oc:set></oc:share>"))))
+                   (if (zero? rc)
+                       (format #t "nextcloud-provision: shared mary-poppins/family calendar -> family group~%")
+                       (format (current-error-port)
+                               "nextcloud-provision: WARN calendar share rc=~a~%" rc))))))
+
+           ;; (9) TODO (follow-up): Deck boards (Chores/Errands/Shopping) have no
            ;; occ verb — create via the Deck REST API with mary-poppins' app-pw
            ;; (now on file), GET-guarded:
            ;;   podman exec --user abc nextcloud curl -u mary-poppins:<tok> \
