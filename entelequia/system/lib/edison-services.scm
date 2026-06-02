@@ -707,6 +707,13 @@ TMDB_API_KEY: \"\"\n" p)))
                             (file %sops-edison)
                             (output-type "dotenv")
                             (permissions #o444))
+               ;; ── NextCloud MCP server credential (cbcoutinho sidecar) ─────
+               ;; NEXTCLOUD_PASSWORD (mary-poppins app-password) only; HOST +
+               ;; USERNAME are non-secret, set in the container #:environment.
+               (sops-secret (key '("nextcloud-mcp" "env"))
+                            (file %sops-edison)
+                            (output-type "dotenv")
+                            (permissions #o444))
                ;; ── Mattermost family-account SEED passwords ────────────────
                ;; Read as rafael by mattermost-provision (step 5b) for `mmctl
                ;; user create --password'.  #o444 like admin_password; seeds,
@@ -738,6 +745,17 @@ TMDB_API_KEY: \"\"\n" p)))
 ;;; → guix deploy.
 (define %hermes-commit "b03cee484037a3d0e581ba43deacfda63d682104")
 (define %hermes-image (string-append "localhost/hermes:" %hermes-commit))
+
+;; NextCloud MCP server (cbcoutinho/nextcloud-mcp-server, AGPL-3.0) — Mary
+;; Poppins's NextCloud hands (Files/WebDAV + Deck + Calendar + Contacts).
+;; Ready-made image, pinned by digest.  Run as a sidecar in the ts-mattermost
+;; netns (reaches NextCloud on lovelace over the tailnet) bound to LOOPBACK
+;; (entrypoint override; the image default is --host 0.0.0.0) so the
+;; unauthenticated /mcp is reachable only by same-netns containers.  Re-resolve
+;; on bump: skopeo inspect docker://ghcr.io/cbcoutinho/nextcloud-mcp-server:<tag>.
+(define %nextcloud-mcp-image
+  (string-append "ghcr.io/cbcoutinho/nextcloud-mcp-server@sha256:"
+                 "f4e55285d36ef4357181a9232b801a72dbee38a14e939d5359119d4d90c0195b"))  ; 0.93.0 (amd64)
 
 ;;;
 ;;; Jellyfin — media server with NVIDIA hardware transcoding
@@ -1623,18 +1641,25 @@ and Leandro (10) and Adrian (8).
 - Respond in the family member's language — **Norwegian, Spanish, or English** —
   and code-switch naturally.
 
-## What you help with
+## What you help with — and you ACT, you don't just suggest
 - Planning, chores, shopping lists, budgeting, scheduling, the family calendar,
-  task boards, and the family wiki. Be concise, warm, and practical.
+  task boards (Deck), and the family knowledge base (PKS) — all in the family's
+  shared NextCloud space, which you can read AND write through your NextCloud
+  tools (files, Deck boards/cards, calendar).
+- When a family member asks for something in your lane, **do it** — create the
+  Deck card, add the calendar event, write or tidy the note — then tell them what
+  you did, briefly. You are a capable assistant, not a suggestion box.
 
-## Hard guardrail — never auto-commit a write
-- You may DRAFT changes (a calendar event, a task/Deck card, a shopping item, a
-  wiki edit) but you must **never commit a write on your own**.
-- Instead, **stage a pending artefact** tagged with the target family member and
-  the id of the message that triggered it, and ask a human to confirm. A human
-  commits; you never do.
-- Until an integration is actually connected, do not claim access to accounts,
-  calendars, or files you do not yet have.
+## How you act — capable, but careful
+- Just do the ordinary, additive things (add a card, a note, an event, a shopping
+  item). Confirm first ONLY when it is genuinely destructive or ambiguous —
+  deleting, overwriting someone's note, or a vague request you'd be guessing at.
+  A quick \"done — added X\" or \"shall I delete Y?\" beats a wall of drafts.
+- Stay in the **shared family space** (the Family NextCloud folder + its PKS, the
+  shared calendar, the family Deck boards). Do not reach into one member's private
+  space on behalf of another without an explicit, per-request go-ahead.
+- If a NextCloud tool errors or you genuinely lack access to something, say so
+  plainly — never pretend an action happened.
 
 ## Never
 - Browse private/internal URLs, run shell commands, or install tools.
@@ -1723,6 +1748,13 @@ stt:
   provider: groq
 terminal:
   backend: local
+# NextCloud capability (Files/WebDAV + Deck + Calendar) via the local cbcoutinho
+# MCP sidecar over loopback in the shared ts-mattermost netns.  The MCP url
+# transport is NOT gated by allow_private_urls.  ONLY this (household) tier
+# carries this block; the kids' tutor tier does not, so it has no NextCloud tools.
+mcp_servers:
+  nextcloud:
+    url: \"http://127.0.0.1:8000/mcp\"
 mattermost:
   channel_prompts:
     \"REPLACE_HOUSEHOLD_CHANNEL_ID\": |
@@ -1873,7 +1905,25 @@ mattermost:
     #:extra-arguments (list "--env-file" "/run/secrets/hermes-household/env"
                             "--env-file" "/var/lib/mattermost-provision/hermes-household.env")
     #:entrypoint #f
-    #:command (list "gateway" "run"))))
+    #:command (list "gateway" "run"))
+
+   ;; ── nextcloud-mcp — Mary Poppins's NextCloud hands (Files + Deck + Calendar) ─
+   ;; cbcoutinho/nextcloud-mcp-server, pinned by digest.  Joins the ts-mattermost
+   ;; netns (reaches NextCloud on lovelace over the tailnet) and binds LOOPBACK
+   ;; 127.0.0.1:8000 (entrypoint override; the image default is --host 0.0.0.0)
+   ;; so only same-netns containers reach the unauthenticated /mcp.  ONLY the
+   ;; household tier's config points here; the kids' tutor has no such MCP entry.
+   ;; Creds: NEXTCLOUD_PASSWORD from sops nextcloud-mcp/env; HOST + USERNAME here.
+   (make-app-container
+    "nextcloud-mcp" %nextcloud-mcp-image
+    #:share-ts-netns? #t
+    #:ts-name "mattermost"
+    #:environment (list "NEXTCLOUD_HOST=https://nextcloud.drake-karat.ts.net"
+                        "NEXTCLOUD_USERNAME=mary-poppins")
+    #:extra-arguments (list "--env-file" "/run/secrets/nextcloud-mcp/env")
+    #:entrypoint "/app/.venv/bin/nextcloud-mcp-server"
+    #:command (list "run" "--host" "127.0.0.1" "--port" "8000"
+                    "--transport" "streamable-http"))))
 
 ;;;
 ;;; hermes-ops — Hermes Agent gateway inside a guix container
@@ -2184,7 +2234,9 @@ mattermost:
     ;; Hermes Podman gateways (standalone netns, outbound-only).
     ;; hermes-ops is a guix container, NOT podman — watch it separately if
     ;; desired (the watchdog uses `herd status`, which works for any service).
-    "hermes-tutor" "hermes-household" "hermes-ops"))
+    "hermes-tutor" "hermes-household" "hermes-ops"
+    ;; NextCloud MCP sidecar (cbcoutinho) — shares the ts-mattermost netns.
+    "nextcloud-mcp"))
 
 (define %edison-container-watchdog-script
   (program-file
