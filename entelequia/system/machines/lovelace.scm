@@ -96,27 +96,17 @@
                             (file %sops-lovelace)
                             (permissions #o444))
                ;; ── NextCloud family-account SEED passwords (nextcloud-provision) ──
-               ;; DELIBERATELY LEFT COMMENTED OUT.  These three #o400 root-only
-               ;; secrets feed the nextcloud-provision one-shot (OC_PASS at
-               ;; user:add) for the accounts it CREATES (Adrian + the two agents).
-               ;; ACTIVATION (operator, atomic — do all three together):
-               ;;   1. Add the 3 values to sops/lovelace.yaml under `nextcloud:`
-               ;;        userpw_Adrian, userpw_mary-poppins, userpw_arquimedes
-               ;;      (sops edit; human / pinentry — the agent is deny-listed).
-               ;;   2. Uncomment the three decls below.
-               ;;   3. Deploy lovelace.
-               ;; WHY COMMENTED: shipping these decls WITHOUT the matching yaml
-               ;; values makes each sops-secret service hard-exit on decrypt, which
-               ;; wedges the `sops-secrets` umbrella and thus EVERY sops-dependent
-               ;; lovelace service (nextcloud/freshrss/wallabag/pihole/grafana/…)
-               ;; — a box-wide outage.  Until activated, nextcloud-provision simply
-               ;; stays inert (unmet requirement); deploying now is safe.
-               ;; (sops-secret (key '("nextcloud" "userpw_Adrian"))
-               ;;              (file %sops-lovelace) (permissions #o400))
-               ;; (sops-secret (key '("nextcloud" "userpw_mary-poppins"))
-               ;;              (file %sops-lovelace) (permissions #o400))
-               ;; (sops-secret (key '("nextcloud" "userpw_arquimedes"))
-               ;;              (file %sops-lovelace) (permissions #o400))
+               ;; ACTIVATED 2026-06-02: values now present in sops/lovelace.yaml
+               ;; under `nextcloud:` (userpw_*).  #o400 root-only; read once (as
+               ;; root, before the privilege drop) by the nextcloud-provision
+               ;; one-shot as OC_PASS at user:add for the accounts it CREATES
+               ;; (Adrian + the two agents); never mounted into a container.
+               (sops-secret (key '("nextcloud" "userpw_Adrian"))
+                            (file %sops-lovelace) (permissions #o400))
+               (sops-secret (key '("nextcloud" "userpw_mary-poppins"))
+                            (file %sops-lovelace) (permissions #o400))
+               (sops-secret (key '("nextcloud" "userpw_arquimedes"))
+                            (file %sops-lovelace) (permissions #o400))
                (sops-secret (key '("tailscale" "wallabag_authkey"))
                             (file %sops-lovelace)
                             (permissions #o444))

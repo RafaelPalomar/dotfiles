@@ -40,14 +40,13 @@ borg:
 habitica:
     session_secret: ENC[AES256_GCM,data:lYKSuq8aDe3L8v96ugMGkGbGDDy+J15ThLMUq65yu8KGoEGrTPmkJRLpWB8AKHz7X4ZwZiYeQli408fa0iaQGWXxtgBh/FZF12+UnT7Q+/oSynkXa7b2v07wM02ML8gq6ZIAHlCZ1R2sKvhO7J3FA+aDoytE8Tk6lgK+PgkqKbg=,iv:/+7XW5NEtATLeiiFrq1cxrsob/IOgH9IjjlwUmtfZKs=,tag:EFXkBJRXQ2DXqylCp0iX1Q==,type:str]
     session_secret_key: ENC[AES256_GCM,data:32ZcYMJmlrQFppomik4nSnTbefLZefPxc4DB8k2Y0fnlrB5xn0ZJUGmyFpdANEpizSiwGA7wTiidEFrSf4jcAw==,iv:NYNkfEXmGQZp6s4eaTNrgOJGqUeL3huOnQO73QbiLR8=,tag:OFSl1PInE/TrugSlSnCprQ==,type:str]
+nextcloud:
+    userpw_Adrian: ENC[AES256_GCM,data:a7VVkn12Dw29+NMIl+ZnDXmrLyq6UKrRAEGq5slUubs=,iv:0U8vz8H7eGU3rAiA35af6hi/WTs4n+IIFt5qxDweXNI=,tag:CcxqfHZX2VexRtgfx80WqQ==,type:str]
+    userpw_mary-poppins: ENC[AES256_GCM,data:MgrXaJWgIuy7RYaPrSExIU4k7c3lUIDMSPEQiDdUW8Y=,iv:BUcPZk9FoXmzuqcMsT2Ttl4vefquO4FrKUkjoaajuqs=,tag:ExpBIDZIMpRgvgyTRQG23A==,type:str]
+    userpw_arquimedes: ENC[AES256_GCM,data:JRmoDirwuMYvSyzXrNgl7fnyIlcsEbvDw3bygCddtcM=,iv:2bcARiSvji+V8KpFJBFVSfwDgFIcRI/uM5ePNv+bhKI=,tag:+FN0oXrhr/dezgmP4KjNSw==,type:str]
 sops:
-    kms: []
-    gcp_kms: []
-    azure_kv: []
-    hc_vault: []
-    age: []
-    lastmodified: "2026-05-01T13:16:52Z"
-    mac: ENC[AES256_GCM,data:IVal4dNYUQ/zk8q8BGgLxSqIn7v4BPPXPDwNJQRkUt0odLL7PuHwRzfQKej+SIZIPxgCgxk+WAQe6oCoIi8INdRg5vFZCSS6qMI/lJBJ7ux+AA9i56kjlXSzqwxj/GenjS33soNp1hfZBtmIfpWiQzHAp9b0EjrLRSwOw1gl7wU=,iv:0CoETC2J0OLTX6tJuOpbsk/rRmqLP2a7xExHuHb1+N4=,tag:5usqla+WppGvGzcBBQ8xNA==,type:str]
+    lastmodified: "2026-06-02T14:30:39Z"
+    mac: ENC[AES256_GCM,data:FM/h1zF+kTE2zkDLoi2RO7iQOlbUglqH/q4wNd/uQs1mknZHROD4xrHdPszOA/p87Hmzcs3ZgXRtep6u8UNyBGrQ8RIZ2Lzm2Rp03mqZEAKu22QpJJT9lF2FuhXYEKTJ6eu4d34eGEOIgFQ+4bGhnlNaBCYKSXOs589O7YyTzOI=,iv:hOgUeFwDMqG2lyC+YmhZZzqKqSiGmRoHhYAKgwsj7SQ=,tag:E/UmtXyUM4KWe+ynoCracw==,type:str]
     pgp:
         - created_at: "2026-03-20T12:38:18Z"
           enc: |-
