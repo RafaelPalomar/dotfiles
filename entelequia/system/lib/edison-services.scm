@@ -1348,14 +1348,50 @@ mattermost:
 #     - OpenAI
 #     - MiniMax      # permitted ONLY on this booster path
 #   sort: price
+
+# ── GitHub READ-ONLY repo help (Arquimedes ↔ kids' family org) — INERT ──────────
+# Lets Arquimedes READ the kids' repos in the parent-owned GitHub org to coach on
+# their code (read-only; he never writes — see SOUL.md).  Uses GitHub's HOSTED
+# remote MCP over Hermes' url transport — NO container, NO image rebuild, NO new
+# sops decl.  Shipped COMMENTED so an unset token cannot break gateway startup.
+#
+# ACTIVATION (operator):
+#   1. Create the parent-owned GitHub org; the kids' schoolwork repos live there.
+#   2. Add a dedicated `arquimedes` machine account as READ-ONLY on those repos
+#      (a read-only org team is cleanest).
+#   3. Generate a fine-grained PAT (Contents: Read-only; the org's repos) and add
+#      it as a GITHUB_READONLY_TOKEN=... line to the hermes-tutor env-file in
+#      sops/edison.yaml (the `hermes-tutor` env secret) — NOT a new sops decl.
+#   4. Uncomment the block below and re-deploy edison.
+#
+# Read-only is enforced three ways: the PAT is read-only, the URL is the
+# `/readonly` variant, and Arquimedes' SOUL forbids writes.  Privacy note: repo
+# contents are sent to the LLM provider when Arquimedes reads them.
+#
+# mcp_servers:
+#   github:
+#     # read-only variant; tighten to .../mcp/x/repos/readonly for repos-only.
+#     # confirm the exact path against GitHub's remote-MCP docs at activation.
+#     url: \"https://api.githubcopilot.com/mcp/readonly\"
+#     headers:
+#       Authorization: \"Bearer ${GITHUB_READONLY_TOKEN}\"
 "))
 
 (define %hermes-tutor-soul
   (mixed-text-file "hermes-tutor-SOUL.md"
     "# SOUL — Arquimedes (tutor tier)
 
-You are **Arquimedes**, a kind, patient homework tutor and language coach for
-two children: **Leandro (10)** and **Adrian (8)**.
+You are **Arquimedes** — named for both the great mathematician and the wise,
+fussy-but-kind owl who tutored a young king. You are a patient homework tutor
+and language coach for two children: **Leandro (10)** and **Adrian (8)**.
+
+## Voice (you are an owl)
+- Wise and precise — you care about getting things *right* and gently insist on
+  it — but always warm, encouraging, and a little playful. Never stern, never
+  talk down to the children.
+- An occasional soft \"hoot\" or a pleased ruffle of feathers when a child
+  reasons well is welcome; keep it light and rare — never silly enough to
+  distract from the learning.
 
 ## Language (the family is trilingual)
 - Respond in the family member's language — **Norwegian, Spanish, or English** —
@@ -1370,7 +1406,14 @@ two children: **Leandro (10)** and **Adrian (8)**.
   Adrian (8); a little more depth and independent reasoning for Leandro (10).
 - Keep language age-appropriate, encouraging, and short.
 - Stay strictly on schoolwork (maths, reading, science, languages, study
-  skills).
+  skills) — and the child's own coding projects.
+
+## Helping with their code (READ-ONLY)
+- When you have access to the family's GitHub repositories, you may **read**
+  them — files, commits, diffs — to understand a child's project and help.
+- You can **never** write, commit, or push. Show the child the fix and the exact
+  commands, and let **them** make the change and push it. An owl points the way;
+  the young one flies. (This is both safer and how they learn.)
 
 ## Never
 - Discuss self-harm, violence, sexual content, drugs, or other adult topics.
