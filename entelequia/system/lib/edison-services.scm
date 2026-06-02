@@ -1057,11 +1057,16 @@ TMDB_API_KEY: \"\"\n" p)))
                 (site-url  #$%mattermost-site-url)
                 (loopback  "http://127.0.0.1:8065")
                 ;; (tier channel display tier-url) per the locked decisions.
+                ;; (tier-name channel channel-display tier-url bot-username bot-display)
+                ;; tier-name = internal infra id (container, /data/hermes-<t>,
+                ;; sops hermes-<t>/env, /var/lib/mattermost-provision/<t>.{token,env}
+                ;; fragments) — UNCHANGED.  bot-username + bot-display are the
+                ;; Mattermost-facing persona identity (decision B).
                 (tiers
                  (list
-                  (list "hermes-tutor"     "learn"     "Learn"     loopback)
-                  (list "hermes-household" "household" "Household" loopback)
-                  (list "hermes-ops"       "ops"       "Ops"       site-url))))
+                  (list "hermes-tutor"     "learn"     "Learn"     loopback "arquimedes"   "Arquimedes")
+                  (list "hermes-household" "household" "Household" loopback "mary-poppins" "Mary Poppins")
+                  (list "hermes-ops"       "ops"       "Ops"       site-url "mr-robot"     "Mr. Robot"))))
 
            ;; ── small helpers ──────────────────────────────────────────────
            ;; Run podman exec mattermost mmctl ARGS...  Returns stdout (string).
@@ -1182,7 +1187,7 @@ TMDB_API_KEY: \"\"\n" p)))
            (let ((bots (strip-ws (mm-exec "--local" "--json" "bot" "list"))))
              (when (any (lambda (t)
                           (not (string-contains
-                                bots (string-append "\"username\":\"" (car t) "\""))))
+                                bots (string-append "\"username\":\"" (list-ref t 4) "\""))))
                         tiers)
                (format #t "mattermost-provision: authenticating for bot create~%")
                (call-with-values
@@ -1199,7 +1204,7 @@ TMDB_API_KEY: \"\"\n" p)))
                      (exit 1))))
                (for-each
                 (lambda (t)
-                  (let ((bot (car t)) (disp (caddr t)))
+                  (let ((bot (list-ref t 4)) (disp (list-ref t 5)))
                     (unless (string-contains
                              bots (string-append "\"username\":\"" bot "\""))
                       (format #t "mattermost-provision: creating bot ~a~%" bot)
@@ -1211,7 +1216,7 @@ TMDB_API_KEY: \"\"\n" p)))
            ;; ── (5) team + channel membership (idempotent) ─────────────────
            (for-each
             (lambda (t)
-              (let ((bot (car t)) (ch (cadr t)))
+              (let ((bot (list-ref t 4)) (ch (cadr t)))
                 (mm-exec "--local" "team" "users" "add" team bot)
                 (mm-exec "--local" "channel" "users" "add"
                          (string-append team ":" ch) bot)))
@@ -1223,11 +1228,12 @@ TMDB_API_KEY: \"\"\n" p)))
                   (admin-id   (json-field admin-json "id")))
              (for-each
               (lambda (t)
-                (let* ((bot      (car t))
+                (let* ((tier     (car t))           ; infra id -> fragment filename
+                       (bot      (list-ref t 4))    ; MM bot username (persona)
                        (ch       (cadr t))
                        (tier-url (cadddr t))
-                       (tokfile  (string-append provdir "/" bot ".token"))
-                       (envfile  (string-append provdir "/" bot ".env"))
+                       (tokfile  (string-append provdir "/" tier ".token"))
+                       (envfile  (string-append provdir "/" tier ".env"))
                        (ch-json  (mm-exec "--local" "--json" "channel" "search"
                                           "--team" team ch))
                        (ch-id    (json-field ch-json "id")))
