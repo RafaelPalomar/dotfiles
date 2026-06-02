@@ -722,7 +722,7 @@ TMDB_API_KEY: \"\"\n" p)))
 ;;; implicit default).  No /bin/sh in the image: per-tier secrets are injected
 ;;; with `podman --env-file', NOT a shell shim.  Bump the pin → rebuild the pack
 ;;; → guix deploy.
-(define %hermes-commit "0a60d605fd163f2b9c71a747a490832f06b71447")
+(define %hermes-commit "b03cee484037a3d0e581ba43deacfda63d682104")
 (define %hermes-image (string-append "localhost/hermes:" %hermes-commit))
 
 ;;;
