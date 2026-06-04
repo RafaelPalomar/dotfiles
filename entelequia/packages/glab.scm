@@ -9,7 +9,7 @@
 (define-public glab
   (package
     (name "glab")
-    (version "1.99.0")
+    (version "1.101.0")
     (source
      (origin
        (method url-fetch)
@@ -18,7 +18,7 @@
              "/packages/generic/glab/" version
              "/glab_" version "_linux_amd64.tar.gz"))
        (sha256
-        (base32 "1p2g668nql4w12prklfbgpzsqhr39pks1l0qdl19d0ggbsrm9k45"))))
+        (base32 "0qgwyf1fxn1k5mplc8yh1h3h0y5fkd88anj5k9v6nh92lq4h7x7q"))))
     (build-system binary-build-system)
     (arguments
      (list
