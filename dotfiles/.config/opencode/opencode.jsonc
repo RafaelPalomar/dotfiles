@@ -1,0 +1,73 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // ── Instructions ──────────────────────────────────────────────────
+  // Single source of truth: point at the dotfiles-managed CLAUDE.md
+  // files instead of forking them. opencode also auto-reads any
+  // AGENTS.md in the project root / cwd.
+  "instructions": [
+    "/home/rafael/.claude/CLAUDE.md",
+    "/home/rafael/Nextcloud/PKS/CLAUDE.md",
+    "/home/rafael/.config/opencode/guix-host.md"
+  ],
+
+  // ── Permissions ───────────────────────────────────────────────────
+  // Translated from ~/.claude/settings.json. NOTE: opencode has no
+  // read-path permission, so the Claude `Read(~/.password-store/**)`
+  // etc. denies become best-effort bash denies on common readers.
+  // Structural protection still holds: the agent's notmuch DB
+  // physically excludes the Sensitive folder.
+  "permission": {
+    "edit": "allow",
+    "webfetch": "allow",
+    "bash": {
+      // hard send / auth / sync denies (mail)
+      "msmtp*": "deny",
+      "sendmail*": "deny",
+      "mutt_oauth2*": "deny",
+      "auth-email-*": "deny",
+      "notmuch": "deny",
+      "notmuch *": "deny",
+      "mbsync*": "deny",
+      "sync-mail": "deny",
+      "sync-mail *": "deny",
+      "sync-mail-agent-index*": "deny",
+
+      // GOG: login is human-only
+      "lgogdownloader --login*": "deny",
+      "lgogdownloader --gui-login*": "deny",
+      "lgogdownloader --browser-login*": "deny",
+
+      // VPN bring-up needs human 2FA
+      "ntnu-vpn-up*": "deny",
+
+      // secret reads (best-effort — globs on common readers)
+      "pass show email/*": "deny",
+      "*password-store*": "deny",
+      "*.dotfiles/sops*": "deny",
+      "*.local/share/mail*": "deny",
+      "*.local/share/mail-agent*": "deny",
+      "*notmuch-config*": "deny",
+
+      // allowed mail / pks / gog entry points
+      "notmuch-agent*": "allow",
+      "mail-draft*": "allow",
+      "mail-calendar*": "allow",
+      "pks-meeting-from-mid*": "allow",
+      "pks-meeting-sync*": "allow",
+      "denotecli*": "allow",
+      "paper-search*": "allow",
+      "paper-fetch*": "allow",
+      "lgogdownloader --check-login-status": "allow",
+      "lgogdownloader --list*": "allow",
+      "lgogdownloader --download*": "allow",
+      "lgogdownloader --update-check*": "allow",
+      "lgogdownloader --repair*": "allow",
+      "gog-install*": "allow",
+      "guix*": "allow",
+
+      // default: matches Claude Code's "auto" posture
+      "*": "allow"
+    }
+  }
+}
