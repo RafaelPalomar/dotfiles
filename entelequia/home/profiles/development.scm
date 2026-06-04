@@ -6,6 +6,7 @@
   #:use-module (entelequia packages glab)
   #:use-module (entelequia packages mermaid-cli)
   #:use-module (entelequia packages notebooklm-py)
+  #:use-module (entelequia packages opencode)
   #:use-module (systole packages claude-skills)
   #:export (development-home-packages))
 
@@ -55,6 +56,7 @@
          glab
          mermaid-cli
          notebooklm-py
+         opencode
          ;; python-playwright is intentionally NOT in this profile: it is a
          ;; library whose python closure (greenlet/pyee → typing-extensions)
          ;; collides with the guix-hermes channel's vendored python rebuild on
