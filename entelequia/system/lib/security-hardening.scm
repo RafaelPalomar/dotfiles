@@ -337,7 +337,13 @@ MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,h
 KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256
 
 # Connection limits
-MaxAuthTries 3
+# Key-only auth (password/keyboard-interactive disabled), so this does not
+# gate brute force -- it only caps how many keys an agent may offer per
+# connection.  gpg-agent presents the whole deploy keyring (7+ keys), so a
+# tight value made sshd drop the connection (too many auth failures) before
+# the right key was reached.  20 gives margin for the full keyring;
+# fail2ban handles actual abuse.
+MaxAuthTries 20
 MaxSessions 5
 LoginGraceTime 30
 

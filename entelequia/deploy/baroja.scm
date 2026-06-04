@@ -29,7 +29,7 @@
 ;;; B577F43131AC4072CBF107FDBB00413F9A2EE9D7), managed via
 ;;; manage-deploy-keys.sh.  If the agent refuses to sign non-interactively,
 ;;; unlock once via an interactive `ssh' (pinentry-rofi, 8h cache).  Pin the
-;;; key to dodge MaxAuthTries=3:
+;;; key to dodge a low MaxAuthTries (now 20 fleet-wide, was 3):
 ;;;   SSH_AUTH_SOCK=... with IdentitiesOnly + IdentityFile systole-deploy-baroja.pub
 
 (define baroja-deployment
