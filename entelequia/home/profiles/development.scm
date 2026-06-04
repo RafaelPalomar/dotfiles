@@ -7,6 +7,7 @@
   #:use-module (entelequia packages mermaid-cli)
   #:use-module (entelequia packages notebooklm-py)
   #:use-module (entelequia packages opencode)
+  #:use-module (guix-openclaw packages node-openclaw-deps)
   #:use-module (systole packages claude-skills)
   #:export (development-home-packages))
 
@@ -57,6 +58,11 @@
          mermaid-cli
          notebooklm-py
          opencode
+         ;; `pi' coding-agent CLI (@earendil-works/pi-coding-agent, formerly
+         ;; @mariozechner/pi-coding-agent), from the guix-openclaw channel's
+         ;; generated npm dep set.  Library `pi_agent' (PyPI pi_agent_core) is
+         ;; unrelated and ships no binary.
+         node-earendil-works-pi-coding-agent-0.78.0
          ;; python-playwright is intentionally NOT in this profile: it is a
          ;; library whose python closure (greenlet/pyee → typing-extensions)
          ;; collides with the guix-hermes channel's vendored python rebuild on

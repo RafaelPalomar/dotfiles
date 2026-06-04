@@ -41,6 +41,10 @@
         (url "https://github.com/OUH-MESHLab/guix-hermes")
         (branch "main"))
       (channel
+        (name 'guix-openclaw)
+        (url "https://github.com/OUH-MESHLab/guix-openclaw")
+        (branch "main"))
+      (channel
         (name 'sops-guix)
         (url "https://github.com/fishinthecalculator/sops-guix.git")
         (branch "main")
