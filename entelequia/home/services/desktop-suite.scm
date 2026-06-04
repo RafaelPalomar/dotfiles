@@ -7,6 +7,7 @@
   #:use-module (entelequia home services pks)
   #:use-module (entelequia packages polybar-themes)
   #:use-module (entelequia packages notebooklm-py)
+  #:use-module (entelequia packages claude-code)
   #:use-module (gnu packages gnupg)
   #:use-module (gnu)
   #:use-module (gnu services)
@@ -171,7 +172,30 @@ unset __sops_oauth_file
                                    ;; not commands/.
                                    `(".claude/skills/notebooklm/SKILL.md"
                                      ,(file-append notebooklm-py
-                                                   "/share/claude-skills/notebooklm/SKILL.md")))))
+                                                   "/share/claude-skills/notebooklm/SKILL.md"))))
+             ;; Claude Code's native-install health check (installMethod
+             ;; "native" in ~/.claude.json) expects its binary at
+             ;; ~/.local/bin/claude and warns "run claude install to repair"
+             ;; when it is absent.  We install via Guix into /gnu/store and the
+             ;; wrapper disables the autoupdater, so nothing ever lands there.
+             ;; Satisfy the check with a symlink to the packaged binary; with
+             ;; "autoUpdates": false Claude never tries to overwrite it.  The
+             ;; symlink is refreshed on every reconfigure (store path changes on
+             ;; upgrade), and ~/.local/bin is ahead of the profile on PATH.
+             (simple-service 'claude-code-local-bin
+                             home-activation-service-type
+                             #~(let* ((localbin (string-append
+                                                 (getenv "HOME") "/.local/bin"))
+                                      (link (string-append localbin "/claude"))
+                                      (target (string-append
+                                               #$claude-code "/bin/claude")))
+                                 (mkdir-p localbin)
+                                 ;; Drop any prior file/symlink (incl. a dangling
+                                 ;; one) before relinking; ignore "not found".
+                                 (catch #t
+                                   (lambda () (delete-file link))
+                                   (lambda _ #f))
+                                 (symlink target link))))
        '())
 
    (if slicer-aliases?
