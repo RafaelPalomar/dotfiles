@@ -39,7 +39,11 @@
    (timezone "Europe/Oslo")
    (keyboard (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
    (gpu-type 'intel)
-   (machine-type 'laptop)))
+   (machine-type 'laptop)
+   ;; Sandy Bridge X220 with aging cooling runs hot at idle under the default
+   ;; 'performance AC profile (turbo + performance EPP).  'cool caps frequency
+   ;; on AC to keep temps in check; repaste/declog is the durable hardware fix.
+   (cpu-ac-profile 'cool)))
 
 ;;; Intel xorg configuration
 ;;;

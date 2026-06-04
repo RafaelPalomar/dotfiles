@@ -9,7 +9,8 @@
             machine-config-timezone
             machine-config-keyboard
             machine-config-gpu-type
-            machine-config-machine-type))
+            machine-config-machine-type
+            machine-config-cpu-ac-profile))
 
 ;;; Configuration record for parameterized system definitions
 ;;;
@@ -36,4 +37,11 @@
   (gpu-type     machine-config-gpu-type               ; 'nvidia, 'amd, 'intel, or #f
                 (default 'intel))
   (machine-type machine-config-machine-type           ; 'desktop, 'laptop, 'server
-                (default 'desktop)))
+                (default 'desktop))
+
+  ;; CPU power/thermal profile on AC (laptops).  'performance keeps turbo +
+  ;; performance EPP (good on modern, well-cooled CPUs like curie's AMD).
+  ;; 'cool disables turbo on AC, biases EPP to power, powersave governor and
+  ;; caps max perf -- for old / thermally-limited machines (e.g. the X220).
+  (cpu-ac-profile machine-config-cpu-ac-profile        ; 'performance or 'cool
+                  (default 'performance)))

@@ -279,13 +279,27 @@
               ;; "performance" on AC for desktop snappiness; keep "power" on
               ;; battery to preserve runtime.  Same EPP interface works for
               ;; intel_pstate.
+              ;; The 'performance AC profile above suits well-cooled modern
+              ;; CPUs (curie's AMD).  Thermally-limited machines opt into
+              ;; 'cool via (cpu-ac-profile 'cool): no turbo on AC, powersave
+              ;; governor, capped max perf and power EPP -- caps the frequency
+              ;; that otherwise pins an aging Intel laptop (e.g. the X220) near
+              ;; its thermal limit at idle.
               (if (eq? (machine-config-machine-type config) 'laptop)
                   (list (service tlp-service-type
-                                 (tlp-configuration
-                                  (cpu-boost-on-ac? #t)
-                                  (wifi-pwr-on-bat? #t)
-                                  (energy-perf-policy-on-ac "performance")
-                                  (energy-perf-policy-on-bat "power"))))
+                                 (if (eq? (machine-config-cpu-ac-profile config) 'cool)
+                                     (tlp-configuration
+                                      (cpu-boost-on-ac? #f)
+                                      (cpu-scaling-governor-on-ac (list "powersave"))
+                                      (cpu-max-perf-on-ac 60)
+                                      (wifi-pwr-on-bat? #t)
+                                      (energy-perf-policy-on-ac "power")
+                                      (energy-perf-policy-on-bat "power"))
+                                     (tlp-configuration
+                                      (cpu-boost-on-ac? #t)
+                                      (wifi-pwr-on-bat? #t)
+                                      (energy-perf-policy-on-ac "performance")
+                                      (energy-perf-policy-on-bat "power")))))
                   '())))
 
    ;; Allow resolution of '.local' host names with mDNS
