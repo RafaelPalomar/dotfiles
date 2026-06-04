@@ -202,7 +202,7 @@
    "nextcloud-provision"
    #~(begin
        (use-modules (ice-9 popen) (ice-9 rdelim) (ice-9 textual-ports)
-                    (srfi srfi-1) (srfi srfi-13))
+                    (ice-9 regex) (srfi srfi-1) (srfi srfi-13))
        ;; seed-password plumbing for the to-be-created accounts.
        (define %seed-ids '("Adrian" "mary-poppins" "arquimedes"))
        (define (seed-path id)
@@ -466,14 +466,58 @@
                        (format (current-error-port)
                                "nextcloud-provision: WARN calendar share rc=~a~%" rc))))))
 
-           ;; (9) TODO (follow-up): Deck boards (Chores/Errands/Shopping) have no
-           ;; occ verb — create via the Deck REST API with mary-poppins' app-pw
-           ;; (now on file), GET-guarded:
-           ;;   podman exec --user abc nextcloud curl -u mary-poppins:<tok> \
-           ;;     -H "OCS-APIRequest: true" -X POST \
-           ;;     http://127.0.0.1:80/index.php/apps/deck/api/v1.0/boards \
-           ;;     -d '{"title":"Chores","color":"0082c9"}'
-           ;; Deferred from this first cut; boards can also be made in the UI.
+           ;; (9) Mary Poppins's shared family Deck board — she OWNS it (writes via
+           ;; the cbcoutinho MCP) and it is SHARED to the `family` group with EDIT,
+           ;; mirroring step (8) for the calendar.  Deck has no occ verb, so create
+           ;; + ACL go through the Deck REST API as mary-poppins.  Idempotent AND
+           ;; non-invasive: if a board titled "Family" is already visible to her
+           ;; (e.g. a human-owned board shared to her), leave its sharing to the
+           ;; human and do nothing; only on a fresh instance do we create the board
+           ;; and grant the `family` group edit.  ACL participant type 1 = group.
+           (let ((mp-tok (string-append provdir "/mary-poppins.app-password")))
+             (when (and (file-exists? mp-tok) (> (stat:size (stat mp-tok)) 0))
+               (let* ((tok  (string-trim-both
+                             (call-with-input-file mp-tok get-string-all)))
+                      (base "http://127.0.0.1:80/index.php/apps/deck/api/v1.0")
+                      ;; capture curl stdout (run inside the container as mary-poppins)
+                      (deck-curl
+                       (lambda args
+                         (let* ((cmd  (append
+                                       (list podman "exec" "nextcloud" "curl" "-sS"
+                                             "-u" (string-append "mary-poppins:" tok)
+                                             "-H" "OCS-APIRequest: true")
+                                       args))
+                                (port (apply open-pipe* OPEN_READ cmd))
+                                (out  (get-string-all port)))
+                           (close-pipe port)
+                           (if (eof-object? out) "" out)))))
+                 (let ((boards (deck-curl "-X" "GET"
+                                          (string-append base "/boards"))))
+                   (if (string-contains boards "\"title\":\"Family\"")
+                       (format #t "nextcloud-provision: Family Deck board already present; leaving sharing to the human~%")
+                       (let* ((created (deck-curl
+                                        "-X" "POST"
+                                        "-H" "Content-Type: application/json"
+                                        "--data" "{\"title\":\"Family\",\"color\":\"0082c9\"}"
+                                        (string-append base "/boards")))
+                              (m   (string-match "\"id\":([0-9]+)" created))
+                              (bid (and m (match:substring m 1))))
+                         (if (not bid)
+                             (format (current-error-port)
+                                     "nextcloud-provision: WARN Deck board create failed: ~s~%" created)
+                             (let ((rc (status:exit-val
+                                        (system* podman "exec" "nextcloud" "curl"
+                                                 "-sS" "-f" "-o" "/dev/null"
+                                                 "-u" (string-append "mary-poppins:" tok)
+                                                 "-H" "OCS-APIRequest: true"
+                                                 "-H" "Content-Type: application/json"
+                                                 "-X" "POST"
+                                                 "--data" "{\"type\":1,\"participant\":\"family\",\"permissionEdit\":true,\"permissionShare\":false,\"permissionManage\":false}"
+                                                 (string-append base "/boards/" bid "/acl")))))
+                               (if (zero? rc)
+                                   (format #t "nextcloud-provision: created+shared Family Deck board ~a -> family (edit)~%" bid)
+                                   (format (current-error-port)
+                                           "nextcloud-provision: WARN Deck ACL rc=~a~%" rc))))))))))
 
            (format #t "nextcloud-provision: done~%"))))))
 

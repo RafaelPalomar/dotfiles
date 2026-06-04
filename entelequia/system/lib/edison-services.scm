@@ -743,7 +743,7 @@ TMDB_API_KEY: \"\"\n" p)))
 ;;; implicit default).  No /bin/sh in the image: per-tier secrets are injected
 ;;; with `podman --env-file', NOT a shell shim.  Bump the pin → rebuild the pack
 ;;; → guix deploy.
-(define %hermes-commit "b03cee484037a3d0e581ba43deacfda63d682104")
+(define %hermes-commit "082bed56557c9e3e07245762c25e3eaa0d7f0066")
 (define %hermes-image (string-append "localhost/hermes:" %hermes-commit))
 
 ;; NextCloud MCP server (cbcoutinho/nextcloud-mcp-server, AGPL-3.0) — Mary
@@ -1095,7 +1095,7 @@ TMDB_API_KEY: \"\"\n" p)))
                 (tiers
                  (list
                   (list "hermes-tutor"     "learn"     "Learn"     loopback "arquimedes"   "Arquimedes")
-                  (list "hermes-household" "household" "Household" loopback "mary-poppins" "Mary Poppins")
+                  (list "hermes-household" "household" "Household" loopback "ms-poppins" "Ms. Poppins")
                   (list "hermes-ops"       "ops"       "Ops"       site-url "mr-robot"     "Mr. Robot")))
                 ;; Human family accounts.  rafael = system-admin; the hidden
                 ;; `admin' stays the provisioning sysadmin.  #ops = rafael ONLY.
@@ -1625,13 +1625,13 @@ and language coach for two children: **Leandro (10)** and **Adrian (8)**.
 
 (define %hermes-household-soul
   (mixed-text-file "hermes-household-SOUL.md"
-    "# SOUL — Mary Poppins (household tier)
+    "# SOUL — Ms. Poppins (household tier)
 
-You are **Mary Poppins** — the practically-perfect, brisk-but-magical family
+You are **Ms. Poppins** — the practically-perfect, brisk-but-magical family
 nanny — the warm, capable household assistant for Maria and Rafael (parents)
 and Leandro (10) and Adrian (8).
 
-## Voice (you are Mary Poppins)
+## Voice (you are Ms. Poppins)
 - Practically perfect: calm, tidy, and unflappably warm. You make chores, plans,
   and schedules feel manageable — a spoonful of sugar, never a lecture.
 - Brisk and efficient, with a twinkle; gently firm with the children when needed,
@@ -1658,10 +1658,16 @@ and Leandro (10) and Adrian (8).
 - Stay in the **shared family space** (the Family NextCloud folder + its PKS, the
   shared calendar, the family Deck boards). Do not reach into one member's private
   space on behalf of another without an explicit, per-request go-ahead.
+- Use the **existing shared \"Family\" Deck board** for every card and list. NEVER
+  create a new board, and never put cards on a board you created yourself — that
+  board is invisible to the family. If you can't find the shared board, or a write
+  is refused, say so plainly and ask — do not improvise a private board as a
+  workaround.
 - If a NextCloud tool errors or you genuinely lack access to something, say so
   plainly — never pretend an action happened.
 
 ## Never
+- Create a new Deck board, or work in any board other than the shared \"Family\" board.
 - Browse private/internal URLs, run shell commands, or install tools.
 - Act in one family member's private space on behalf of another without an
   explicit, per-request human go-ahead.
@@ -1704,17 +1710,17 @@ the parents only. English only — no small talk.
 (define %hermes-household-config
   (plain-file "hermes-household-config.yaml"
     "# Hermes — household tier (parents + kids).  Planning / economy persona.
-# Brain: Gemini 3.1 Pro (preview) via OpenRouter — frontier pro brain, Western
-# no-train).  Executor: Mistral Medium 3.5 (EU).  All metered through the single
+# Brain: Gemini 3.1 Flash-Lite via OpenRouter (cost-optimised vs 3.1 Pro; Western
+# no-train).  Executor: Mistral Medium 3.1 (EU).  All metered through the single
 # OPENROUTER_API_KEY.  Western + no-train posture enforced in provider_routing;
 # no hard contractual ZDR (enable account/per-request zdr for that).
 model:
   provider: openrouter
-  default: google/gemini-3.1-pro-preview
+  default: google/gemini-3.1-flash-lite
   api_mode: chat_completions
 delegation:
   provider: openrouter
-  model: mistralai/mistral-medium-3-5
+  model: mistralai/mistral-medium-3.1
   # Cost + safety bounds (no hard token cap in Hermes; set an OpenRouter key
   # spend limit for the true ceiling).
   max_iterations: 25
@@ -1907,7 +1913,7 @@ mattermost:
     #:entrypoint #f
     #:command (list "gateway" "run"))
 
-   ;; ── nextcloud-mcp — Mary Poppins's NextCloud hands (Files + Deck + Calendar) ─
+   ;; ── nextcloud-mcp — Ms. Poppins's NextCloud hands (Files + Deck + Calendar) ─
    ;; cbcoutinho/nextcloud-mcp-server, pinned by digest.  Joins the ts-mattermost
    ;; netns (reaches NextCloud on lovelace over the tailnet) and binds LOOPBACK
    ;; 127.0.0.1:8000 (entrypoint override; the image default is --host 0.0.0.0)
@@ -2098,7 +2104,7 @@ mattermost:
                                 #$%hermes-household-config
                                 #$%hermes-ops-config))
                          ;; Seed each tier's SOUL.md persona (overwrite on
-                         ;; deploy): Arquimedes (tutor), Mary Poppins
+                         ;; deploy): Arquimedes (tutor), Ms. Poppins
                          ;; (household), Mr. Robot (ops).
                          (for-each
                           (lambda (dir src)

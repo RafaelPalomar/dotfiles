@@ -42,7 +42,7 @@
        (name 'guix-hermes)
        (url "https://github.com/OUH-MESHLab/guix-hermes")
        (branch "main")
-       (commit "b03cee484037a3d0e581ba43deacfda63d682104"))
+       (commit "082bed56557c9e3e07245762c25e3eaa0d7f0066"))
       (channel
        (name 'sops-guix)
        (url "https://github.com/fishinthecalculator/sops-guix.git")
