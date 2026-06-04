@@ -2,10 +2,9 @@
 killall -q polybar
 while pgrep -x polybar >/dev/null; do sleep 0.2; done
 
-mon="$(bspc query -M --names | head -n1)"
-# top_padding + window_gap (12) = effective gap from screen top.
-# Bar height 56 + 4 breathing → window starts at y=60 → top_padding 48.
-bspc config -m "$mon" top_padding 48
+# top_padding is set per-monitor in the launch loop below, since it depends
+# on which bar (masthead 56 / compact 28) that monitor gets.
+# Relation: top_padding = bar_height + 4 breathing − window_gap (12).
 
 # ── Per-machine polybar parameters ────────────────────────────────────────
 # Polybar's INI substitution reliably resolves cross-section refs like
@@ -46,8 +45,24 @@ EOF
     ;;
 esac
 
-for m in $(polybar -m | cut -d: -f1); do
-  MONITOR="$m" polybar -r -c "$HOME/.config/polybar.local/config.ini" mymain &
+# Per-monitor bar choice by vertical resolution: small/low-res panels
+# (≤800px tall, e.g. baroja's 1366×768) get the compact bar; everything
+# else keeps the full masthead.  `polybar -m` lines look like
+# "eDP-1: 1920x1200+0+0 (primary)" — name before the colon, then the first
+# WxH+X+Y token; pull H from it.  Read line-by-line (the geometry line has
+# spaces, so word-splitting $(...) would mangle it).
+polybar -m | while IFS= read -r line; do
+  m="${line%%:*}"
+  geom="${line#*:}"; geom="${geom# }"   # strip name + leading space
+  res="${geom%% *}"                     # first token: WxH+X+Y
+  h="${res#*x}"; h="${h%%+*}"           # vertical resolution
+  if [ "${h:-9999}" -le 800 ]; then
+    bar=mycompact; top_pad=20    # 28 + 4 − 12
+  else
+    bar=mymain;    top_pad=48    # 56 + 4 − 12
+  fi
+  bspc config -m "$m" top_padding "$top_pad"
+  MONITOR="$m" polybar -r -c "$HOME/.config/polybar.local/config.ini" "$bar" &
 done
 
 # Restart tray clients so they re-register with the (new) tray host.
