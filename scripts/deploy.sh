@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Deployment script for entelequia system configurations
 #
-# Usage: ./scripts/deploy.sh [einstein|curie|alucard|lovelace|edison|hopper] [--dry-run]
+# Usage: ./scripts/deploy.sh [einstein|curie|alucard|lovelace|edison|hopper|baroja] [--dry-run]
 #
 # einstein/curie         : local guix system reconfigure
-# alucard|lovelace|edison|hopper : remote guix deploy
+# alucard|lovelace|edison|hopper|baroja : remote guix deploy
 #
 # Before deploying a remote target for the first time, fill in the host-key in
 # entelequia/deploy/<target>.scm (see instructions in that file).
@@ -17,10 +17,10 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 case "$MACHINE" in
     einstein|curie) ;;
-    alucard|lovelace|edison|hopper) ;;
+    alucard|lovelace|edison|hopper|baroja) ;;
     *)
         echo "Error: Unknown machine '$MACHINE'"
-        echo "Usage: $0 [einstein|curie|alucard|lovelace|edison|hopper] [--dry-run]"
+        echo "Usage: $0 [einstein|curie|alucard|lovelace|edison|hopper|baroja] [--dry-run]"
         exit 1
         ;;
 esac
@@ -101,6 +101,22 @@ if [[ "$MACHINE" == "hopper" ]]; then
 
     if [[ "$DRY_RUN" != "--dry-run" ]]; then
         echo "WARNING: This will reconfigure hopper!"
+        echo "Press Ctrl+C to cancel, or Enter to continue..."
+        read
+    fi
+
+    "${CMD[@]}"
+fi
+
+# ── Remote deployment (baroja via guix deploy) ────────────────────────────────
+
+if [[ "$MACHINE" == "baroja" ]]; then
+    CMD=(guix time-machine -C channels-lock.scm --
+         deploy -L "$(realpath .)" entelequia/deploy/baroja.scm)
+    [[ "$DRY_RUN" == "--dry-run" ]] && CMD+=(--dry-run)
+
+    if [[ "$DRY_RUN" != "--dry-run" ]]; then
+        echo "WARNING: This will reconfigure baroja (192.168.88.117)!"
         echo "Press Ctrl+C to cancel, or Enter to continue..."
         read
     fi
