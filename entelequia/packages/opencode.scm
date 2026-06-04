@@ -50,6 +50,7 @@
                    ;; Stop opencode self-updating into a writable cache dir
                    ;; that would shadow this declaratively-managed package.
                    (format port "export OPENCODE_DISABLE_AUTOUPDATE=1~%")
+                   (format port "export OPENCODE_ENABLE_EXA=1~%")
                    (format port "exec ~a \"$@\"~%" real)))
                (chmod wrapper #o755)))))))
     (inputs (list glibc))
