@@ -25,7 +25,8 @@
             zram-service
             networkmanager-polkit-service
             gnutls-tls-config-service
-            ntnu-vpn-connection-service))
+            ntnu-vpn-connection-service
+            bolt-service-type))
 
 ;;; Common service definitions shared between desktop systems
 ;;;
@@ -322,3 +323,55 @@ method=auto
                                        "/dev/zram0")
                                #f))
                      (respawn? #f))))))
+
+;;; Thunderbolt device manager (bolt / boltd)
+;;;
+;;; Guix upstream has no `bolt' service, so we wire one ourselves.  This
+;;; integrates the four pieces boltd needs:
+;;;
+;;;   - shepherd : run libexec/boltd as a long-lived daemon so it watches
+;;;                Thunderbolt uevents and re-authorizes *enrolled* devices
+;;;                automatically on every connect/boot.
+;;;   - dbus     : boltd owns org.freedesktop.bolt on the system bus.
+;;;   - polkit   : lets a wheel user run `boltctl enroll' without sudo.
+;;;   - udev     : installs 90-bolt.rules (device tagging).
+;;;
+;;; The kernel default Thunderbolt security level is `user', meaning every
+;;; new device must be explicitly authorized.  boltd persists per-UUID
+;;; enrollment in /var/lib/boltd, so once the dock is enrolled it comes up
+;;; on its own — without auto-authorizing arbitrary (potentially hostile)
+;;; Thunderbolt hardware, unlike a blanket auto-authorize udev rule.
+;;;
+;;; One-time enrollment after this service is live (wheel user, no sudo):
+;;;   boltctl enroll <uuid>     # uuid from `boltctl list'
+;;; The dock is then authorized automatically on every subsequent plug.
+
+(define bolt-shepherd-service
+  (shepherd-service
+   (documentation "Thunderbolt device manager (boltd).")
+   (provision '(bolt))
+   (requirement '(dbus-system udev))
+   (start #~(make-forkexec-constructor
+             (list #$(file-append bolt "/libexec/boltd"))))
+   (stop #~(make-kill-destructor))
+   (respawn? #t)))
+
+(define bolt-service-type
+  (service-type
+   (name 'bolt)
+   (extensions
+    (list (service-extension shepherd-root-service-type
+                             (const (list bolt-shepherd-service)))
+          (service-extension dbus-root-service-type
+                             (const (list bolt)))
+          (service-extension polkit-service-type
+                             (const (list bolt)))
+          (service-extension udev-service-type
+                             (const (list bolt)))
+          (service-extension profile-service-type
+                             (const (list bolt)))))
+   (default-value #f)
+   (description "Run @command{boltd}, the Thunderbolt device manager, and
+install its udev rules, D-Bus configuration and polkit policy.  Enrolled
+Thunderbolt devices (e.g. a docking station) are re-authorized
+automatically on connect.")))

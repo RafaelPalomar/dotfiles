@@ -48,13 +48,38 @@
 (define amd-xlibre-config
   (xlibre-configuration
    (modules (list xlibre-input-libinput))  ; Removed xlibre-video-amdgpu module
-   (drivers '("modesetting"))               ; Use modesetting driver only
+   ;; NOTE on `drivers': Guix ALWAYS emits a default `device-modesetting' +
+   ;; `screen-modesetting' pair (whether `drivers' is '() or
+   ;; '("modesetting")).  That auto pair would shadow the custom "AMD
+   ;; Graphics" Device below — which is why TearFree/SWcursor never applied
+   ;; before.  We cannot inject options into the auto device, so instead we
+   ;; declare an explicit ServerLayout -> Screen -> "AMD Graphics" Device in
+   ;; extra-config.  X uses the explicit ServerLayout and leaves the auto
+   ;; sections unreferenced, so our Device (with its options) is the one that
+   ;; actually binds.
+   (drivers '())
    (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
    (extra-config
     (list "Section \"Device\""
           "  Identifier \"AMD Graphics\""
           "  Driver \"modesetting\""
           "  Option \"TearFree\" \"true\""
+          ;; SWcursor: the modesetting HW cursor plane is not rotated on
+          ;; this amdgpu/Strix Halo path, so the pointer is invisible on a
+          ;; rotated external output (e.g. the dock's portrait monitor) even
+          ;; though everything else renders.  Software cursor composites
+          ;; correctly on rotated CRTCs.  Negligible cost on a static desktop.
+          "  Option \"SWcursor\" \"true\""
+          "EndSection"
+          "Section \"Screen\""
+          "  Identifier \"AMD Screen\""
+          "  Device \"AMD Graphics\""
+          "EndSection"
+          ;; Explicit ServerLayout so X binds OUR Screen/Device instead of the
+          ;; auto-generated screen-modesetting (which carries no options).
+          "Section \"ServerLayout\""
+          "  Identifier \"AMD Layout\""
+          "  Screen \"AMD Screen\""
           "EndSection"))))
 
 ;;; Curie-specific packages
@@ -83,6 +108,13 @@
              (rootless-podman-configuration
               (subuids (list (subid-range (name "rafael"))))
               (subgids (list (subid-range (name "rafael"))))))
+
+    ;; Thunderbolt device manager (boltd).  Security level is `user', so
+    ;; the ThinkPad Thunderbolt 4 Dock must be authorized on every connect;
+    ;; boltd persists a per-UUID enrollment and re-authorizes it
+    ;; automatically.  One-time after first reconfigure:
+    ;;   boltctl enroll <uuid>   (uuid from `boltctl list')
+    (service bolt-service-type)
 
     ;; Home environment for rafael lives in
     ;; entelequia/home/machines/curie-rafael.scm and is deployed
