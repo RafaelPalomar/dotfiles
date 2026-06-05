@@ -155,3 +155,7 @@ super + shift + h
 # Move window to prev/next monitor
 super + shift + {comma,period}
     bspc node -m {prev,next} --follow
+
+# Display profiles (autorandr): switch / detect / save via rofi
+super + shift + d
+    ~/.local/bin/autorandr-menu.sh

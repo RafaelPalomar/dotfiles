@@ -59,7 +59,8 @@
 ;;; X11 utilities
 
 (define base-x11-packages
-  '("setxkbmap"
+  '("autorandr"                        ; save/restore per-output display profiles
+    "setxkbmap"
     "synergy"
     "xdg-utils"
     "xdpyinfo"
