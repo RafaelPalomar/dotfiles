@@ -62,7 +62,7 @@
          ;; @mariozechner/pi-coding-agent), from the guix-openclaw channel's
          ;; generated npm dep set.  Library `pi_agent' (PyPI pi_agent_core) is
          ;; unrelated and ships no binary.
-         node-earendil-works-pi-coding-agent-0.78.0
+         node-earendil-works-pi-coding-agent-0.78.1
          ;; python-playwright is intentionally NOT in this profile: it is a
          ;; library whose python closure (greenlet/pyee → typing-extensions)
          ;; collides with the guix-hermes channel's vendored python rebuild on
