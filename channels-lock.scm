@@ -47,7 +47,7 @@
        (name 'guix-openclaw)
        (url "https://github.com/OUH-MESHLab/guix-openclaw")
        (branch "main")
-       (commit "02bef9d242d29ec6e00ad0051aabf6e3cd113222"))
+       (commit "e95a7ff0fb0516bd96a9ba7916025e242648c7f1"))
       (channel
        (name 'sops-guix)
        (url "https://github.com/fishinthecalculator/sops-guix.git")
