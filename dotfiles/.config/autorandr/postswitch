@@ -1,0 +1,22 @@
+#!/bin/sh
+# autorandr global postswitch hook
+# ────────────────────────────────
+# Runs after EVERY autorandr profile switch (--load / --change / bare
+# `autorandr`).  A RANDR reconfiguration tears down desktop furniture
+# bound to the old output geometry; this puts it back:
+#
+#   1. Wallpaper — feh's root pixmap is sized to the old screen and is
+#      lost / mis-tiled when outputs change.  Re-apply the entelequia
+#      wallpaper (mirrors bspwmrc).
+#   2. Polybar — bars are spawned one-per-monitor at bspwm start and
+#      are destroyed when their output is removed or resized; nothing
+#      respawns them.  launch.sh kills any survivors, re-enumerates
+#      monitors via `polybar -m`, and respawns the correct bar (compact
+#      vs masthead) per panel.  This is the fix for "polybar is gone
+#      after I changed the layout".
+
+ENTELEQUIA_WP="${HOME}/Pictures/Wallpapers/entelequia-graphite.png"
+[ -f "$ENTELEQUIA_WP" ] && feh --bg-fill "$ENTELEQUIA_WP"
+
+[ -x "${HOME}/.config/polybar.local/launch.sh" ] && \
+    "${HOME}/.config/polybar.local/launch.sh"
