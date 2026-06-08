@@ -8,7 +8,7 @@
   "ripgrep" "cmake" "ninja" "pkg-config" "gcc-toolchain"
   "coreutils" "git" "patch" "openssl" "curl" "nss-certs"
   "bash" "perl" "make" "sed" "grep" "gawk" "findutils"
-  "strace" "binutils" "file"
+  "strace" "binutils" "file" "patchelf"
 
   ;; Core libs
   "zlib" "pcre2" "glib" "fontconfig" "freetype"

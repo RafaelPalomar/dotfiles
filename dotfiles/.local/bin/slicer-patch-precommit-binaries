@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Patch pre-commit's downloaded manylinux binaries (ruff, clang-format, ...)
+# to use Guix's ld-linux loader + runtime libs, so they execute on Guix
+# System without FHS emulation or .pre-commit-config changes. Keeps the
+# exact pinned hook versions (CI-faithful). Idempotent — re-run after any
+# `pre-commit clean` / `install-hooks` / hook-rev bump.
+#
+# Out-of-repo by design: the Slicer-Liver tree stays platform-neutral.
+set -euo pipefail
+
+GLIBC="$(guix build glibc | grep -vE 'static|debug|doc' | head -1)"
+# Derive the gcc lib dir from libstdc++.so.6 — only the main gcc-toolchain
+# output carries it (the -debug/-static outputs do not), so this is
+# unambiguous and also the dir that holds libgcc_s.so.1.
+GCCLIB="$(dirname "$(find $(guix build gcc-toolchain) -name 'libstdc++.so.6' | head -1)")"
+LD="$GLIBC/lib/ld-linux-x86-64.so.2"
+RPATH="$GLIBC/lib:$GCCLIB"
+CACHE="${PRE_COMMIT_HOME:-$HOME/.cache/pre-commit}"
+
+[ -e "$LD" ] || { echo "no ld-linux at $LD" >&2; exit 1; }
+[ -d "$CACHE" ] || { echo "no pre-commit cache at $CACHE" >&2; exit 0; }
+
+guix shell patchelf findutils -- bash -c '
+  set -euo pipefail
+  LD="$1"; RPATH="$2"; CACHE="$3"; n=0
+  while IFS= read -r f; do
+    interp="$(patchelf --print-interpreter "$f" 2>/dev/null || true)"
+    if [ "$interp" = "/lib64/ld-linux-x86-64.so.2" ]; then
+      patchelf --set-interpreter "$LD" --set-rpath "$RPATH" "$f"
+      echo "patched: $f"; n=$((n+1))
+    fi
+  done < <(find "$CACHE" -type f -perm -u+x)
+  echo "patched $n binary(ies)"
+' _ "$LD" "$RPATH" "$CACHE"
