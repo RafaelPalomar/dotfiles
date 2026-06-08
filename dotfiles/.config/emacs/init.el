@@ -2005,41 +2005,103 @@ in `denote-silo-extras-directories'."
   "All known PKS silo labels for completion."
   (cons "fleeting" (mapcar #'car denote-silo-extras-directories)))
 
-(defun my-pks--move-current-to (silo &optional kw-vocab restrict-to-path)
-  "Move the current denote note to SILO, preserving its denote ID.
+(defun my-pks--move-note-file (file silo &optional kw-vocab restrict-to-path)
+  "Move denote note FILE to SILO, preserving its denote ID.  Returns new path.
 KW-VOCAB seeds `completing-read-multiple' for new keywords (empty = keep
-existing).  If RESTRICT-TO-PATH is non-nil, error unless the buffer's
-file lives under that path.
+existing).  If RESTRICT-TO-PATH is non-nil, error unless FILE lives under
+that path.
 
 Uses Denote's native rename API rather than denotecli, since denotecli
 0.8.0 only exposes read/search/create operations."
-  (let ((file (buffer-file-name)))
-    (unless (and file (denote-file-is-note-p file))
-      (user-error "Current buffer is not a denote note"))
-    (when restrict-to-path
-      (unless (string-prefix-p (expand-file-name restrict-to-path) file)
-        (user-error "Current note is not under %s" restrict-to-path)))
-    (let ((silo-dir (my-pks--silo-path silo)))
-      (unless silo-dir
-        (user-error "Unknown PKS silo: %s" silo))
-      (let* ((id      (denote-retrieve-filename-identifier file))
-             (title   (or (denote-retrieve-title-or-filename file 'org) ""))
-             (sig     (or (denote-retrieve-filename-signature file) ""))
-             (ext     (file-name-extension file t))
-             (kw-in   (completing-read-multiple
-                       (format "%s keywords (comma-separated, empty = keep): "
-                               silo)
-                       kw-vocab))
-             (new-kw  (if kw-in kw-in
-                        (denote-extract-keywords-from-path file)))
-             (new-path (denote-format-file-name
-                        (file-name-as-directory silo-dir)
-                        id new-kw title ext sig)))
-        (when (file-equal-p file new-path)
-          (user-error "Note is already in %s with the same keywords" silo))
+  (unless (and file (denote-file-is-note-p file))
+    (user-error "Not a denote note: %s" file))
+  (when restrict-to-path
+    (unless (string-prefix-p (expand-file-name restrict-to-path) file)
+      (user-error "Note is not under %s" restrict-to-path)))
+  (let ((silo-dir (my-pks--silo-path silo)))
+    (unless silo-dir
+      (user-error "Unknown PKS silo: %s" silo))
+    (let* ((id      (denote-retrieve-filename-identifier file))
+           (title   (or (denote-retrieve-title-or-filename file 'org) ""))
+           (sig     (or (denote-retrieve-filename-signature file) ""))
+           (ext     (file-name-extension file t))
+           (kw-in   (completing-read-multiple
+                     (format "%s keywords (comma-separated, empty = keep): "
+                             silo)
+                     kw-vocab))
+           (new-kw  (if kw-in kw-in
+                      (denote-extract-keywords-from-path file)))
+           (new-path (denote-format-file-name
+                      (file-name-as-directory silo-dir)
+                      id new-kw title ext sig)))
+      (when (file-equal-p file new-path)
+        (user-error "Note is already in %s with the same keywords" silo))
+      ;; Visit so `denote-rename-file-and-buffer' updates any live buffer
+      ;; — the note need not already be open (e.g. promoted from a digest).
+      (with-current-buffer (find-file-noselect file)
         (save-buffer)
-        (denote-rename-file-and-buffer file new-path)
-        (message "Moved %s → %s" id silo)))))
+        (denote-rename-file-and-buffer file new-path))
+      (message "Moved %s → %s" id silo)
+      new-path)))
+
+(defun my-pks--denote-id-on-line ()
+  "Return the denote ID of a [[denote:ID]] link on the current line, or nil."
+  (save-excursion
+    (beginning-of-line)
+    (when (re-search-forward "\\[\\[denote:\\([0-9T]+\\)" (line-end-position) t)
+      (match-string-no-properties 1))))
+
+(defun my-pks--in-review-digest-p ()
+  "Non-nil when the current buffer is a `_review' digest with a link on this line.
+Identifies the daily/weekly review notes produced by `pks-daily-review'
+and `pks-weekly-review' (filetags `:review:'), so promote commands can
+act on the item under point rather than on the digest's own file."
+  (let ((file (buffer-file-name)))
+    (and file
+         (denote-file-is-note-p file)
+         (member "review" (denote-extract-keywords-from-path file))
+         (my-pks--denote-id-on-line))))
+
+(defun my-pks-promote-link-at-point (&optional silo kw-vocab)
+  "Promote the denote note linked on the current line to a chosen silo.
+Intended for daily/weekly review digests: resolves the [[denote:ID]]
+link on the current line, moves THAT note (preserving its ID) to SILO
+\(prompted when nil), and on success removes the line from the digest so
+the item disappears from the review.
+
+This is the fix for promoting from a digest: the per-buffer promote
+helpers act on `buffer-file-name' (the digest itself), never the link
+under point."
+  (interactive)
+  (let ((id (my-pks--denote-id-on-line)))
+    (unless id
+      (user-error "No denote link on this line"))
+    ;; Widen `denote-directory' to all of ~/pks/ so cross-silo IDs resolve
+    ;; (the default is pinned to ~/pks/fleeting/).
+    (let ((file (let ((denote-directory (expand-file-name "~/pks/")))
+                  (denote-get-path-by-id id))))
+      (unless (and file (file-exists-p file))
+        (user-error "Cannot resolve denote ID %s under ~/pks/" id))
+      (let ((target (or silo
+                        (completing-read "Promote linked note to silo: "
+                                         (my-pks--silo-labels) nil t))))
+        (my-pks--move-note-file file target (or kw-vocab denote-known-keywords))
+        ;; Drop the now-promoted item from the digest and persist the edit.
+        (let ((inhibit-read-only t))
+          (delete-region (line-beginning-position)
+                         (min (point-max) (1+ (line-end-position)))))
+        (when (buffer-file-name) (save-buffer))
+        (message "Promoted %s → %s; removed from review" id target)))))
+
+(defun my-pks--move-current-to (silo &optional kw-vocab restrict-to-path)
+  "Move the current buffer's denote note to SILO (see `my-pks--move-note-file').
+When the current buffer is a review digest and point sits on a line
+carrying a [[denote:ID]] link, operate on that linked note instead and
+remove the line from the digest — so `!'/`^'/`m' Do The Right Thing when
+invoked from a daily/weekly review."
+  (if (my-pks--in-review-digest-p)
+      (my-pks-promote-link-at-point silo kw-vocab)
+    (my-pks--move-note-file (buffer-file-name) silo kw-vocab restrict-to-path)))
 
 (defun my-denote-promote-fleeting-to-permanent ()
   "Promote the current fleeting note to permanent/ (preserves denote ID)."
@@ -2135,6 +2197,7 @@ any target silo from `denote-silo-extras-directories' (plus fleeting)."
     (define-key m "A" #'my-denote-remove-from-agenda)
     (define-key m "!" #'my-denote-promote-fleeting-to-permanent)
     (define-key m "^" #'my-denote-promote-to-reference)
+    (define-key m "t" #'my-pks-promote-link-at-point)
     (define-key m "z" #'my-denote-archive-fleeting)
     (define-key m "m" #'my-pks-move-note-to-silo)
     (define-key m (kbd "l l") #'denote-org-dblock-insert-links)
