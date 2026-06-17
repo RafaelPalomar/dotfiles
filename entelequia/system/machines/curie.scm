@@ -223,8 +223,9 @@
    (inherit (make-desktop-base-os curie-config
                                   #:extra-packages curie-extra-packages
                                   #:extra-services curie-services
-                                  #:firewall-extra-tcp-ports '(4549)
-                                  #:firewall-extra-udp-ports '(4549 4171 4175 4179)
+                                  ;; 57165 — Barony direct-IP host port (TCP+UDP)
+                                  #:firewall-extra-tcp-ports '(4549 57165)
+                                  #:firewall-extra-udp-ports '(4549 4171 4175 4179 57165)
                                   #:firewall-trusted-subnets '("192.168.88.0/24")))
 
    ;; Curie-specific kernel arguments
