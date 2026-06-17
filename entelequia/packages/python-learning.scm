@@ -35,6 +35,10 @@
     (build-system python-build-system)
     (arguments
      (list #:tests? #f))    ; tests need a display
+    ;; Recent guix unbundled setuptools from `python', so the legacy
+    ;; `setup.py build' phase needs it (and wheel) explicitly on the path,
+    ;; else: "ModuleNotFoundError: No module named 'setuptools'".
+    (native-inputs (list python-setuptools python-wheel))
     (propagated-inputs (list python-pygame python-numpy))
     (home-page "https://github.com/lordmauve/pgzero")
     (synopsis "Zero-boilerplate 2D games framework for education")
