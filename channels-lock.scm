@@ -62,9 +62,9 @@
        (name 'guix-agentic)
        (url "https://github.com/OUH-MESHLab/guix-agentic")
        (branch "main")
-       (commit "4b51de076aa596463657c3c21528e917e6eadf83"))
+       (commit "4e8ea2b30883da33e86ae46c99848b7d9d303c9e"))
       (channel
        (name 'archimedes-agent)
        (url "https://github.com/RafaelPalomar/archimedes-agent")
        (branch "main")
-       (commit "738e3f9f4892e9ec9350d534d25b838f42f31046")))
+       (commit "14387ac591e4c8f4f4015c65f7fb135cfb2938c0")))
