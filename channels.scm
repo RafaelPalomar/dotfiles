@@ -45,6 +45,14 @@
         (url "https://github.com/OUH-MESHLab/guix-openclaw")
         (branch "main"))
       (channel
+        (name 'guix-agentic)
+        (url "https://github.com/OUH-MESHLab/guix-agentic")
+        (branch "main"))
+      (channel
+        (name 'archimedes-agent)
+        (url "https://github.com/RafaelPalomar/archimedes-agent")
+        (branch "main"))
+      (channel
         (name 'sops-guix)
         (url "https://github.com/fishinthecalculator/sops-guix.git")
         (branch "main")

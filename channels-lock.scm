@@ -2,7 +2,7 @@
        (name 'guix)
        (url "https://codeberg.org/guix/guix.git")
        (branch "master")
-       (commit "21898c0a1aae913fe732ad81f01328e34acb5721")
+       (commit "ed155dc4ed5ff62a7596aef6066c994671d35923")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -12,7 +12,7 @@
        (name 'nonguix)
        (url "https://gitlab.com/nonguix/nonguix")
        (branch "master")
-       (commit "a8326a5b325400f25c0520c8ef9127fff6d4796d")
+       (commit "4ae06fb5cb75f2ca6b0f2f384f41677ae28c069a")
        (introduction
         (make-channel-introduction
          "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -22,7 +22,7 @@
        (name 'guix-xlibre)
        (url "https://codeberg.org/rafaelpalomar/guix-xlibre.git")
        (branch "master")
-       (commit "876828a590c28881c649450588eb2e3eb2bc1f99"))
+       (commit "5a7d0123ed4f805588bbe6035800143262fbe203"))
       (channel
        (name 'tailscale)
        (url "https://codeberg.org/rafaelpalomar/guix-tailscale.git")
@@ -32,7 +32,7 @@
        (name 'guix-systole)
        (url "https://github.com/systoleos/guix-systole")
        (branch "main")
-       (commit "def9078237a144d69fb58278f74b858409bf4108"))
+       (commit "4e140cf77d1be0d6337c36fb0e6249b34b4bf6e7"))
       (channel
        (name 'systole-artwork)
        (url "https://github.com/systoleos/guix-systole-artwork")
@@ -57,4 +57,14 @@
         (make-channel-introduction
          "0bbaf1fdd25266c7df790f65640aaa01e6d2dbc9"
          (openpgp-fingerprint
-          "8D10 60B9 6BB8 292E 829B  7249 AED4 1CC1 93B7 01E2")))))
+          "8D10 60B9 6BB8 292E 829B  7249 AED4 1CC1 93B7 01E2"))))
+      (channel
+       (name 'guix-agentic)
+       (url "https://github.com/OUH-MESHLab/guix-agentic")
+       (branch "main")
+       (commit "4b51de076aa596463657c3c21528e917e6eadf83"))
+      (channel
+       (name 'archimedes-agent)
+       (url "https://github.com/RafaelPalomar/archimedes-agent")
+       (branch "main")
+       (commit "738e3f9f4892e9ec9350d534d25b838f42f31046")))

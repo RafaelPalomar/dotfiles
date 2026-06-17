@@ -4,6 +4,7 @@
   #:use-module (entelequia home profiles python-learning)
   #:use-module (entelequia home services desktop-suite)
   #:use-module (entelequia home services librewolf-kids)
+  #:use-module (entelequia home services archimedes)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -28,4 +29,5 @@
    (list librewolf-kids-home-service
          (service home-dotfiles-service-type
                   (home-dotfiles-configuration
-                   (directories '("../../../dotfiles"))))))))
+                   (directories '("../../../dotfiles")))))
+   (archimedes-home-service #:learner "leandro"))))
