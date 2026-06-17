@@ -60,8 +60,10 @@ home profile)."
     (source #f)
     (build-system trivial-build-system)
     (arguments
-     (list #:builder
+     (list #:modules '((guix build utils))
+           #:builder
            #~(begin
+               (use-modules (guix build utils))
                (mkdir-p (string-append #$output "/bin"))
                (copy-file #$(archimedes-wrapper learner key-file)
                           (string-append #$output "/bin/archimedes"))
