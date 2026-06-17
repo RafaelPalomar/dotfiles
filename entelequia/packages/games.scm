@@ -8,10 +8,11 @@
   #:use-module (gnu packages xml)         ; expat (libCEGUIExpatParser.so)
   #:use-module (gnu packages linux)      ; util-linux, eudev, libcap
   #:use-module (gnu packages xorg)       ; libx11, libxrandr, libxfixes, etc.
-  #:use-module (gnu packages gl)         ; mesa
+  #:use-module (gnu packages gl)         ; mesa, libglvnd (libOpenGL.so.0)
+  #:use-module (gnu packages image)      ; libpng (libpng16.so.16)
   #:use-module (gnu packages luanti)         ; mesa
   #:use-module (gnu packages audio)      ; openal, pulseaudio, alsa-lib
-  #:use-module (gnu packages xiph)       ; libogg
+  #:use-module (gnu packages xiph)       ; libogg, libvorbis, opus
   #:use-module (gnu packages gcc)        ; gcc "lib"
   #:use-module (gnu packages sdl)        ; sdl2
   #:use-module (gnu packages gtk)        ; gtk+ (GTK3), gtk+-2 (GTK2)
@@ -46,6 +47,7 @@
             gog-they-are-billions
             gog-9-kings
             gog-he-is-coming
+            gog-barony
             ;; Direct-download games
             coq-caves-of-qud
             coq-caves-of-qud-native
@@ -1137,6 +1139,97 @@ inside the container."
    #:extra-env '(("RADV_PERFTEST" . "gpl")
                  ("DXVK_ASYNC"    . "1")
                  ("mesa_glthread" . "true"))))
+
+;;; Barony — Tier 1 (native Linux)
+;;;
+;;; Native Linux GOG build (v5.0.1).  SDL2 roguelike-FPS (Turning Wheel).
+;;; The game dir bundles its own libSDL2/libSDL2_image/_net/_ttf, libfmod,
+;;; libphysfs, libtheora(player), libpng12 and libz, so ${GAMEDIR}/game on
+;;; LD_LIBRARY_PATH (via #:extra-lib-dirs) satisfies those.  Missing system
+;;; libs after patchelf'ing barony.x86_64:
+;;;   libogg/libvorbis/libopus  → libogg, libvorbis, opus (xiph) — Theora
+;;;                               audio + opus codecs the bundled libs link to
+;;;   libOpenGL.so.0            → libglvnd (GLVND dispatch; SDL2 GL backend)
+;;;   libGL.so.1                → mesa.  The binary ships needing libOpenGL.so.0
+;;;                               (pure GLVND), but Guix's mesa is the classic
+;;;                               non-GLVND build (no libGLX_mesa.so.0 vendor),
+;;;                               so GLVND has no driver to dispatch to → the GL
+;;;                               context comes up with vendor/renderer/version
+;;;                               all (null), every shader fails to compile, and
+;;;                               you get a black screen.  Fix: patchelf the
+;;;                               libOpenGL.so.0 NEEDED to mesa's classic
+;;;                               libGL.so.1 (which exports the full GL API) so
+;;;                               the binary and SDL share one GL stack.  See the
+;;;                               one-time install step below.
+;;;   libpng16.so.16            → libpng (the bundled libpng12 is for older
+;;;                               assets; the binary itself links libpng16)
+;;;   libz.so.1                 → zlib.  The game bundles libz.so.1 too, but
+;;;                               it tops out at ZLIB_1.2.3.4, while Guix's
+;;;                               libpng16 needs ZLIB_1.2.9.  Because ${GAMEDIR}
+;;;                               precedes the store dirs on LD_LIBRARY_PATH the
+;;;                               stale bundled copy wins, so it MUST be removed
+;;;                               from the game dir (one-time, see below).
+;;;   libstdc++/libgcc_s        → gcc:lib
+;;;   libudev.so.1              → eudev.  The bundled SDL2 dlopen()s libudev for
+;;;                               input-device detection ("Could not initialize
+;;;                               UDEV" without it).
+;;;   libpulse.so.0/libasound.so.2 → pulseaudio + alsa-lib.  The bundled libfmod
+;;;                               dlopen()s both for audio output; without them
+;;;                               FMOD silently falls back to the "NoSound
+;;;                               Driver" (no sound).  pulseaudio's client lib
+;;;                               connects to curie's pipewire-pulse server.
+;;; mesa + the X11 libs cover SDL2's runtime dlopen() of GLX/X11.
+;;;
+;;; Install (one-time):
+;;;   The GOG installer is a makeself wrapper around a zip with the standard
+;;;   data/noarch/ layout.  Extract straight from the .sh with unzip:
+;;;     mkdir -p ~/"GOG Games/Barony"
+;;;     guix shell unzip -- unzip ~/Games/gog-installers/barony/barony_*_linux_*.sh \
+;;;       'data/noarch/*' -d /tmp/barony
+;;;     cp -a /tmp/barony/data/noarch/game /tmp/barony/data/noarch/support \
+;;;       ~/"GOG Games/Barony"/
+;;;     cd ~/"GOG Games/Barony/game"
+;;;     guix shell patchelf -- bash -c '\
+;;;       for b in barony.x86_64 editor.x86_64; do \
+;;;         patchelf --set-interpreter \
+;;;           $(readlink -f /run/current-system/profile/lib/ld-linux-x86-64.so.2) \
+;;;           --replace-needed libOpenGL.so.0 libGL.so.1 "$b"; \
+;;;       done'
+;;;   The --replace-needed swap is mandatory (see libGL.so.1 note above) — the
+;;;   editor.x86_64 needs it too.  Then drop the stale bundled zlib so Guix's
+;;;   libz (ZLIB_1.2.9) is used instead of the bundled ZLIB_1.2.3.4:
+;;;     rm ~/"GOG Games/Barony/game/libz.so.1"
+;;;
+;;; curie-only: registered in home/machines/curie-rafael.scm, NOT in the
+;;; shared gaming-home-packages list — so the kids' homes (alucard/hopper)
+;;; never receive it.
+
+(define-public gog-barony
+  (make-game-launcher
+   "barony"
+   "GOG Games/Barony/game"
+   "barony.x86_64"
+   (list mesa
+         libpng
+         zlib
+         eudev
+         pulseaudio
+         alsa-lib
+         libogg
+         libvorbis
+         opus
+         libx11
+         libxext
+         libxcursor
+         libxrandr
+         libxi
+         libxxf86vm
+         libxscrnsaver
+         libxinerama
+         `(,gcc "lib"))
+   #:extra-lib-dirs '("${GAMEDIR}")
+   #:desktop-name "Barony"
+   #:desktop-icon "~/GOG Games/Barony/support/icon.png"))
 
 ;;; ── Direct-download games ────────────────────────────────────────────────
 
