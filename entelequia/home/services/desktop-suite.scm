@@ -3,7 +3,6 @@
   #:use-module (entelequia home services desktop)
   #:use-module (entelequia home services encrypted-usb)
   #:use-module (entelequia home services containers)
-  #:use-module (entelequia home services github-sync)
   #:use-module (entelequia home services pks)
   #:use-module (entelequia packages polybar-themes)
   #:use-module (entelequia packages notebooklm-py)
@@ -34,7 +33,7 @@
 ;;;   (common-home-services)  — bash, env vars, gpg-agent, dbus, gnupg perms,
 ;;;                              optional claude-skills files.
 ;;;   (desktop-home-services) — the 6 user shepherd services + emacs + pipewire
-;;;                              + containers + github-sync + pks + polybar
+;;;                              + containers + pks + polybar
 ;;;                              themes + optional datalocker + optional slicer.
 ;;;   (laptop-home-services)  — batsignal.
 ;;;
@@ -217,7 +216,7 @@ unset __sops_oauth_file
 (define* (desktop-home-services #:key (datalocker? #t))
   "Window-manager-adjacent home services: the 6 user shepherd daemons (picom,
 gammastep, xautolock, udiskie, nm-applet, pass-secret-service) bundled inside
-home-desktop-service-type; emacs daemon; pipewire; containers; github-sync;
+home-desktop-service-type; emacs daemon; pipewire; containers;
 pks; polybar themes file dump; and (optionally) the DataLocker auto-unlock."
   (append
    (list
@@ -234,9 +233,6 @@ pks; polybar themes file dump; and (optionally) the DataLocker auto-unlock."
 
     ;; Container configuration (podman + distrobox user-side bits).
     (service home-containers-service-type)
-
-    ;; GitHub→org-mode sync (mcron-driven, every 60 minutes).
-    (service home-github-sync-service-type)
 
     ;; PKS silo bootstrap + weekly Nextcloud-conflict scanner.
     (service home-pks-service-type)
