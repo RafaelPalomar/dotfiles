@@ -4,6 +4,7 @@
   #:use-module (entelequia home profiles python-learning)
   #:use-module (entelequia home services desktop-suite)
   #:use-module (entelequia home services librewolf-kids)
+  #:use-module (entelequia home services scratch-launcher)
   #:use-module (entelequia home services archimedes)
   #:use-module (gnu)
   #:use-module (gnu home)
@@ -36,6 +37,7 @@
    (desktop-home-services)
    (laptop-home-services)
    (list librewolf-kids-home-service
+         scratch-launcher-home-service
          (service home-dotfiles-service-type
                   (home-dotfiles-configuration
                    (directories '("../../../dotfiles")))))
