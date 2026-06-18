@@ -12,6 +12,10 @@
   #:use-module (gnu services containers)
   #:use-module (gnu system accounts)
   #:use-module (xlibre)
+  #:use-module (sops packages sops)
+  #:use-module (sops secrets)
+  #:use-module (sops services sops)
+  #:use-module (guix gexp)
   #:export (hopper-os))
 
 (use-service-modules xorg containers pm)
@@ -73,10 +77,30 @@
 ;;; respectively, and are deployed independently per-user via
 ;;; `guix home reconfigure' (alias `home-reconfigure').
 
+;;; SOPS encrypted secrets file (in git, encrypted). Decrypted at boot by the
+;;; Hopper SOPS key in /root/.gnupg (generated on the host).  NOTE: this file
+;;; must exist before reconfiguring — create sops/hopper.yaml with the
+;;; openrouter/adrian key (mirror sops/alucard.yaml).
+(define %sops-hopper
+  (local-file "../../../sops/hopper.yaml"))
+
 ;;; Hopper-specific services
 
 (define hopper-services
   (list
+   ;; sops-guix: decrypt per-machine secrets to /run/secrets/ at boot.
+   ;; openrouter/adrian -> /run/secrets/openrouter/adrian (owner adrian, 0400),
+   ;; read by the Archimedes launcher (adrian's home service).
+   (service sops-secrets-service-type
+            (sops-service-configuration
+             (sops sops)
+             (gnupg-home "/root/.gnupg")
+             (secrets
+              (list (sops-secret (key '("openrouter" "adrian"))
+                                 (file %sops-hopper)
+                                 (user "adrian")
+                                 (permissions #o400))))))
+
    ;; Intel thermal management (was removed from base when AMD took over;
    ;; re-add here for Intel laptops).
    (service thermald-service-type)

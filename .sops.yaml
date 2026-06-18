@@ -44,6 +44,27 @@ creation_rules:
         1902E1477A9D19FD73BBF7F47050A7747D28D4A9,
         6513C7248D7BECE2EC1BD34B70350DAD507FA72F
 
+    # Kids' machine — Archimedes tutor key (generated on alucard via keys
+    # host-sops / guix deploy -x), personal key as secondary recipient.
+    - path_regex: sops/alucard\.yaml$
+      pgp: >-
+        B607E174ADDBEA492F8D0E6162032497FA92CF96,
+        6513C7248D7BECE2EC1BD34B70350DAD507FA72F
+
+    # Curie — alpha personal-agent key (generated on curie via
+    # gpg --homedir /root/.gnupg), personal key as secondary recipient.
+    - path_regex: sops/curie\.yaml$
+      pgp: >-
+        F85D92CAFE560BA70C32E776D4AAAB1C40D8029D,
+        6513C7248D7BECE2EC1BD34B70350DAD507FA72F
+
+    # Hopper — kids' machine, Archimedes tutor key for adrian (generated on
+    # hopper via gpg --homedir /root/.gnupg), personal key as secondary recipient.
+    - path_regex: sops/hopper\.yaml$
+      pgp: >-
+        61777DDACBDCE29C340DDF1582D249E14856D496,
+        6513C7248D7BECE2EC1BD34B70350DAD507FA72F
+
     # User-scope secrets (no machine key needed — decrypted interactively
     # via the user's personal GPG key, not via a systemd-style activation).
     - path_regex: sops/rafael\.yaml$
