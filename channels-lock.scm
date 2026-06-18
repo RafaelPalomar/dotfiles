@@ -67,4 +67,9 @@
        (name 'archimedes-agent)
        (url "https://github.com/RafaelPalomar/archimedes-agent")
        (branch "main")
-       (commit "7f7e4639480f76e62e5d607e006ba790bda769b6")))
+       (commit "05c705cd1b49554ca2ab89c5a98abf9acc2580f0"))
+      (channel
+       (name 'alpha-agent)
+       (url "https://github.com/RafaelPalomar/alpha-agent")
+       (branch "master")
+       (commit "2b9caf29b2c4275efa50dff15905fd2bf3e78155")))
