@@ -28,6 +28,11 @@
 ;;;   Mozilla's `SearchEngines.Default' sets the initial default for new
 ;;;   profiles; users can change it (see librewolf-kids home service for
 ;;;   the per-user override path on alucard/hopper).
+;;; - Cookies.Allow for scratch.mit.edu — Librewolf's bundled hardening clears
+;;;   cookies + site data on shutdown, which logs kids out of Scratch and
+;;;   loses their saved projects between sessions.  A per-site cookie `Allow'
+;;;   permission exempts just that origin from the clearing (and from cookie
+;;;   blocking), so Scratch stays usable without relaxing hardening globally.
 ;;;
 ;;; Per-user override is NOT possible from this layer — Librewolf, like
 ;;; Firefox, only honours one system-wide policies.json.
@@ -61,6 +66,11 @@ DEFAULT-NAME picked as the SearchEngines.Default."
   (string-append
    "{
   \"policies\": {
+    \"Cookies\": {
+      \"Allow\": [
+        \"https://scratch.mit.edu\"
+      ]
+    },
     \"ExtensionSettings\": {
       \"" %bitwarden-firefox-id "\": {
         \"installation_mode\": \"force_installed\",
