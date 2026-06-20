@@ -62,6 +62,12 @@
              (lambda (p)
                (let ((k (read-line p)))
                  (when (string? k) (setenv "OPENROUTER_API_KEY" k))))))
+         ;; Point denotecli's default --dirs at the PKS so a flag-less
+         ;; `denotecli search' the agent runs hits ~/pks (not the upstream ~/org
+         ;; default).  alpha's sandbox preserves DENOTECLI_DIRS into the L1
+         ;; container; the vendored denotecli reads it (see alpha-agent
+         ;; denotecli.scm snippet).
+         (setenv "DENOTECLI_DIRS" "/home/rafael/pks")
          ;; Hand the launcher a ready-built tool profile to reuse inside the
          ;; container, so rg/fd/denotecli are on PATH and nothing is downloaded.
          (unless (getenv "GUIX_ENVIRONMENT")
