@@ -78,6 +78,7 @@
                                     (default-args '())
                                     (pre-launch '())
                                     (post-launch '())
+                                    (terminal? #f)
                                     (desktop-name launcher-name)
                                     (desktop-icon "applications-games"))
   "Return a package that installs a shell wrapper under bin/LAUNCHER-NAME.
@@ -87,6 +88,10 @@ The wrapper sets LD_LIBRARY_PATH to:
   $GAMEDIR/lib64
   EXTRA-LIB-DIRS (shell expressions evaluated at run time,
                   e.g. \"${GAMEDIR}/jre/lib/amd64\")
+  the inherited LD_LIBRARY_PATH (preserved, inserted here so that on an
+                  NVIDIA host the home-profile libglvnd dispatch set globally
+                  by common-home-services wins over a bundled Mesa store path;
+                  empty/unset on AMD/Intel, contributing nothing)
   + /gnu/store paths for each package in LIB-INPUTS that has a /lib dir
 
 Also installs a .desktop file so the game appears in rofi/app menus.
@@ -97,6 +102,9 @@ EXTRA-ENV is an alist of (\"VAR\" . \"VALUE\") environment variables.
 EXTRA-LIB-DIRS is a list of shell path strings appended after lib64.
 DEFAULT-ARGS is a list of strings prepended before \"$@\" in the exec line
   and baked into the .desktop Exec= field (e.g. '(\"-screen-width\" \"1280\")).
+TERMINAL? when true makes the wrapper re-exec itself inside kitty if launched
+  without a controlling terminal (e.g. from rofi / a .desktop entry), so a
+  console app such as a dedicated server shows its output and can be stopped.
 PRE-LAUNCH is a list of shell script lines emitted before the game launch.
 POST-LAUNCH is a list of shell script lines emitted after the game exits.
   When POST-LAUNCH is non-empty, 'exec' is replaced by a direct call so that
@@ -128,9 +136,19 @@ Refresh store paths after 'guix pull' with: guix home reconfigure"
                (format port "# Game launcher: ~a~%" ,launcher-name)
                (format port "# Store paths embedded at build time.~%")
                (format port "# Run 'guix home reconfigure' after 'guix pull' to refresh.~%")
+               ;; Console games (e.g. dedicated servers) re-exec inside a
+               ;; terminal when launched without one (rofi/.desktop), so their
+               ;; output is visible and the window can be closed to stop them.
+               ,@(if terminal?
+                     '((format port "if [ -z \"$GAME_LAUNCHER_IN_TERM\" ] && [ ! -t 1 ]; then~%")
+                       (format port "  export GAME_LAUNCHER_IN_TERM=1~%")
+                       (format port "  exec kitty -- \"$0\" \"$@\"~%")
+                       (format port "fi~%"))
+                     '())
                (format port "GAMEDIR=\"${HOME}/~a\"~%" ,game-subdir)
                (format port "export LD_LIBRARY_PATH=\"${GAMEDIR}/lib:${GAMEDIR}/lib64")
                ,@(map (lambda (d) `(format port ":~a" ,d)) extra-lib-dirs)
+               (format port "${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}")
                (for-each (lambda (p) (format port ":~a" p)) lib-dirs)
                (format port "\"~%")
                ,@(map (lambda (pair)
@@ -799,6 +817,37 @@ inside the container."
          `(,gcc "lib"))
    #:extra-lib-dirs '("${GAMEDIR}")
    #:desktop-name "Starbound"
+   #:desktop-icon "~/GOG Games/Starbound/support/icon.png"))
+
+;;; Starbound dedicated server — Tier 1 (native Linux)
+;;;
+;;; The single-player client never opens a network port (its embedded server
+;;; talks over an internal pipe), so multiplayer REQUIRES the dedicated
+;;; starbound_server, which binds 0.0.0.0:21025.  Same install dir as the
+;;; client; binary is game/linux/starbound_server.  ldd resolves entirely to
+;;; Guix glibc (no SDL/mesa/GL, not even libstdc++ — the server is headless),
+;;; so the only lib dir needed is ${GAMEDIR} for the dlopen'd libsteam_api.so.
+;;;
+;;; Like every Tier-1 game here, the binary needs its interpreter patched once
+;;; (the GOG build ships /lib64/ld-linux-x86-64.so.2) and execute permission:
+;;;   chmod +x ~/GOG\ Games/Starbound/game/linux/starbound_server
+;;;   patchelf --set-interpreter \
+;;;     $(readlink -f /run/current-system/profile/lib/ld-linux-x86-64.so.2) \
+;;;     ~/GOG\ Games/Starbound/game/linux/starbound_server
+;;;
+;;; The host quits single-player first (server + client lock the same
+;;; storage/universe).  Players then join via the client's multiplayer toggle:
+;;; the host at 127.0.0.1, LAN peers at the host's IP, port 21025.
+
+(define-public gog-starbound-server
+  (make-game-launcher
+   "starbound-server"
+   "GOG Games/Starbound/game/linux"
+   "starbound_server"
+   (list `(,gcc "lib"))
+   #:extra-lib-dirs '("${GAMEDIR}")
+   #:terminal? #t
+   #:desktop-name "Starbound (Dedicated Server)"
    #:desktop-icon "~/GOG Games/Starbound/support/icon.png"))
 
 ;;; Wizard of Legend — Tier 1

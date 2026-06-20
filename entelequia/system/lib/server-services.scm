@@ -24,6 +24,7 @@
   #:export (postgresql-lovelace-service
             smartd-lovelace-service
             luanti-game-service
+            starbound-game-service
             borgmatic-lovelace-service
             lovelace-data-dir-service
             nextcloud-proxy-config-service
@@ -772,6 +773,95 @@ goblins_lair_elev_max = -5
                                       #$(file-append luanti-server
                                                      "/share/luanti/games"))
                                      "LUANTI_MOD_PATH=/var/lib/luanti/mods")))
+                     (stop #~(make-kill-destructor))
+                     (respawn? #t))))))
+
+;;; starbound-game-service: Starbound dedicated multiplayer server (LAN).
+;;; Modeled on luanti-game-service, with one crucial difference: Starbound is
+;;; proprietary GOG data with NO Guix package, so the server binary + assets
+;;; are provisioned out-of-store under /data/starbound — they are NOT in git
+;;; or the store.  One-time operator steps before this service can start
+;;; (the same patchelf step every GOG game in entelequia/packages/games.scm
+;;; documents):
+;;;   # copy the whole `game' dir (assets/ mods/ live under it):
+;;;   ssh <host> 'tar -C ".../Starbound" -cf - game' | \
+;;;     ssh root@edison 'mkdir -p /data/starbound && tar -C /data/starbound -xf -'
+;;;   chmod +x /data/starbound/game/linux/starbound_server
+;;;   patchelf --set-interpreter \
+;;;     "$(readlink -f /run/current-system/profile/lib/ld-linux-x86-64.so.2)" \
+;;;     /data/starbound/game/linux/starbound_server
+;;; Mutable state (universe, player saves, the generated starbound_server.config)
+;;; lives in /data/starbound/storage, owned by the dedicated `starbound' user.
+;;; The server's ldd resolves entirely to Guix glibc (no SDL/mesa/GL, not even
+;;; libstdc++ — it is headless), so LD_LIBRARY_PATH only needs the game dir for
+;;; the dlopen'd, optional libsteam_api.so.  TCP 21025 must be open in edison's
+;;; firewall (see edison.scm).
+(define starbound-game-service
+  (list
+   ;; Dedicated system user for the Starbound server
+   (simple-service 'starbound-user
+                   account-service-type
+                   (list (user-account
+                          (name "starbound")
+                          (comment "Starbound dedicated server")
+                          (group "nogroup")
+                          (system? #t)
+                          (home-directory "/var/lib/starbound")
+                          (shell (file-append shadow "/sbin/nologin")))))
+
+   ;; Data dirs + a declarative sbinit.config with ABSOLUTE asset/storage
+   ;; paths, so the server is independent of cwd and the install's relative
+   ;; bootstrap.  Only the write targets (storage, home) are chowned to
+   ;; `starbound'; the rsync'd assets stay root-owned + world-readable, which
+   ;; is enough for the server to read them.  sbinit.config is safe to rewrite
+   ;; every activation — it is pure config we own and never touches storage/.
+   (simple-service 'starbound-dirs
+                   activation-service-type
+                   #~(begin
+                       (use-modules (guix build utils))
+                       (for-each
+                        (lambda (dir)
+                          (mkdir-p dir)
+                          (let ((pw (getpwnam "starbound")))
+                            (chown dir (passwd:uid pw) (passwd:gid pw))))
+                        '("/data/starbound"
+                          "/data/starbound/storage"
+                          "/var/lib/starbound"))
+                       (call-with-output-file "/data/starbound/sbinit.config"
+                         (lambda (port)
+                           (display "{\n\
+  \"assetDirectories\" : [ \"/data/starbound/game/assets\", \"/data/starbound/game/mods\" ],\n\
+  \"storageDirectory\" : \"/data/starbound/storage\"\n\
+}\n" port)))))
+
+   ;; Starbound shepherd service.  Binary lives at an absolute /data path
+   ;; (non-hermetic, provisioned + patchelf'd by the operator — see above),
+   ;; not the store.  Binds 0.0.0.0:21025 by default.
+   (simple-service 'starbound-server
+                   shepherd-root-service-type
+                   (list
+                    (shepherd-service
+                     (documentation "Starbound dedicated server")
+                     (provision '(starbound))
+                     (requirement '(file-systems networking))
+                     (start #~(make-forkexec-constructor
+                               (list "/data/starbound/game/linux/starbound_server"
+                                     "-bootconfig" "/data/starbound/sbinit.config")
+                               #:user "starbound"
+                               #:group "nogroup"
+                               #:directory "/data/starbound/game/linux"
+                               ;; Shepherd's own stdout/stderr capture — kept
+                               ;; SEPARATE from Starbound's internal log, which
+                               ;; the server writes itself at
+                               ;; storage/starbound_server.log (storage is owned
+                               ;; by `starbound').  Pointing both at the same
+                               ;; path makes shepherd pre-create it root-owned,
+                               ;; and the unprivileged server then aborts with
+                               ;; "Permission denied" opening its own log.
+                               #:log-file "/var/log/starbound.log"
+                               #:environment-variables
+                               (list "HOME=/var/lib/starbound"
+                                     "LD_LIBRARY_PATH=/data/starbound/game/linux")))
                      (stop #~(make-kill-destructor))
                      (respawn? #t))))))
 

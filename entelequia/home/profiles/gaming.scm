@@ -43,6 +43,7 @@ profiles that shouldn't ship age-inappropriate titles)."
          gog-papers-please
          gog-terraria
          gog-starbound
+         gog-starbound-server
          gog-wizard-of-legend
          gog-slay-the-spire
          gog-torchlight-2

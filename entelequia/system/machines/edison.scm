@@ -106,7 +106,11 @@
    ;; Luanti (Mineclonia) game server — moved from lovelace.
    ;; Lovelace's Opteron X3421 APU was too weak; edison's Xeon E5-1620 is ~2-3x
    ;; faster single-thread, which is what Luanti's main loop needs.
-   luanti-game-service))
+   luanti-game-service
+   ;; Starbound dedicated server (LAN, kids).  Non-hermetic: binary + assets
+   ;; are provisioned under /data/starbound and the server binary patchelf'd
+   ;; out-of-band — see starbound-game-service in server-services.scm.
+   starbound-game-service))
 
 ;;; Edison operating system
 
@@ -123,14 +127,15 @@
                                       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINjd0lrTPhG75R5jWBCrtN7xX4u7D12527agB+Jolx9f openpgp:0xA08C8C2F")))
              ;; Ports: 8096 Jellyfin, 4533 Navidrome HTTP, 4534 Navidrome HTTPS (Caddy),
              ;;        8080 ARM web UI, 6600 MPD, 8000 MPD HTTP stream,
-             ;;        30000 Luanti
+             ;;        21025 Starbound, 30000 Luanti
              #:firewall-extra-tcp-ports
              '(8096   ; Jellyfin (LAN fallback)
                4533   ; Navidrome HTTP (LAN)
                4534   ; Navidrome HTTPS via Caddy (Symfonium primary, ignore-cert)
                8080   ; ARM web UI (LAN fallback)
                6600   ; MPD protocol
-               8000)  ; MPD HTTP stream
+               8000   ; MPD HTTP stream
+               21025) ; Starbound dedicated server (LAN, kids)
              ;; NOTE: NO 8065 here.  Mattermost is tailnet-only (tailscale serve
              ;; HTTPS → 127.0.0.1:8065 inside the ts-mattermost netns); the hermes
              ;; tutor/household tiers reach MM over loopback in that shared netns,
