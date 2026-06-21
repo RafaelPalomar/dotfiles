@@ -123,7 +123,7 @@ then execs the poppins launcher.")
   ;; GUIX_PYTHONPATH (requests + websocket-client are propagated).
   (profile (content (packages->manifest (list poppins-bridge)))))
 
-(define (poppins-bridge-start-script mm-fragment)
+(define (poppins-bridge-start-script mm-fragment mm-origin)
   (mixed-text-file "poppins-bridge-start"
     ;; NB: -e only, NOT -u: the guix profile's etc/profile (sourced below)
     ;; expands $GUIX_PYTHONPATH unguarded, which aborts under `set -u'.
@@ -134,20 +134,24 @@ then execs the poppins launcher.")
     ;; MATTERMOST_URL / MATTERMOST_TOKEN / MATTERMOST_ALLOWED_CHANNELS (+ _USERS,
     ;; which the bridge ignores) — the same ms-poppins coordinates Hermes used.
     "set -a\n. \"$FRAG\"\nset +a\n"
+    ;; The fragment's MATTERMOST_URL is the loopback (127.0.0.1:8065), but MM's
+    ;; WS upgrader only accepts an Origin equal to its SiteURL.  Connect over
+    ;; loopback, present the SiteURL as Origin.
+    "export MATTERMOST_ORIGIN=\"" mm-origin "\"\n"
     ;; python3 + GUIX_PYTHONPATH for requests/websocket-client.
     ". " (file-append poppins-bridge-profile "/etc/profile") "\n"
     ;; The `poppins' wrapper lives in the home profile.
     "export PATH=\"$HOME/.guix-home/profile/bin:$PATH\"\n"
     "exec " (file-append poppins-bridge-profile "/bin/poppins-bridge") "\n"))
 
-(define (poppins-bridge-shepherd-service mm-fragment)
+(define (poppins-bridge-shepherd-service mm-fragment mm-origin)
   (list
    (shepherd-service
     (documentation "Mary Poppins Mattermost bridge (ms-poppins bot -> poppins -p)")
     (provision '(poppins-bridge))
     (start #~(make-forkexec-constructor
               (list #$(file-append bash-minimal "/bin/sh")
-                    #$(poppins-bridge-start-script mm-fragment))
+                    #$(poppins-bridge-start-script mm-fragment mm-origin))
               #:environment-variables
               (list (string-append "HOME=" (getenv "HOME"))
                     (string-append "PATH=" (getenv "HOME")
@@ -166,7 +170,8 @@ then execs the poppins launcher.")
                 (nc-user "mary-poppins")
                 (nc-calendar "family_shared_by_mary-poppins")
                 (nc-url "https://nextcloud.drake-karat.ts.net")
-                (mm-fragment %mm-fragment))
+                (mm-fragment %mm-fragment)
+                (mm-origin "https://mattermost.drake-karat.ts.net"))
   "Deploy `poppins' (pi + the Mary Poppins wrapper) into the home profile, plus
 the Mattermost bridge daemon that exposes her on the family `#household' channel."
   (list
@@ -176,4 +181,4 @@ the Mattermost bridge daemon that exposes her on the family `#household' channel
                                          nc-user nc-calendar nc-url)))
    (simple-service 'poppins-bridge
                    home-shepherd-service-type
-                   (poppins-bridge-shepherd-service mm-fragment))))
+                   (poppins-bridge-shepherd-service mm-fragment mm-origin))))
