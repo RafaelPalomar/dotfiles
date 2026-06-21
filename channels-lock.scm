@@ -62,7 +62,12 @@
        (name 'guix-agentic)
        (url "https://github.com/OUH-MESHLab/guix-agentic")
        (branch "main")
-       (commit "df37c6c4a806179ce0fda2bec101b750f78bbde2"))
+       (commit "57a5d55336373ca648585d679c40bc1449bb6bbb"))
+      (channel
+       (name 'guix-codegraph)
+       (url "https://github.com/OUH-MESHLab/guix-codegraph")
+       (branch "main")
+       (commit "e778c96efeecd2f60b2cce518c5a20867cd8a273"))
       (channel
        (name 'archimedes-agent)
        (url "https://github.com/RafaelPalomar/archimedes-agent")
@@ -72,4 +77,4 @@
        (name 'alpha-agent)
        (url "https://github.com/RafaelPalomar/alpha-agent")
        (branch "master")
-       (commit "1c9688a1cf40a5edc8d2e2e2cb3d5175365b7856")))
+       (commit "c308fd4ecee9581ee3b28f64eb8fb38a60a56222")))
