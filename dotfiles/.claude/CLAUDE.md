@@ -19,7 +19,7 @@ YYYYMMDDTHHMMSS--slug__kw1_kw2.org
 
 Closed keyword vocabulary (warn before extending):
 `_research _code _learn _project _lit _perm _fleeting _ntnu _ous
-_agenda _moc _meeting _hub _idea _review`.
+_agenda _moc _meeting _hub _idea _review _contact _slicer`.
 
 ### Tools available
 
