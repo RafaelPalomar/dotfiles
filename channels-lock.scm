@@ -77,4 +77,4 @@
        (name 'alpha-agent)
        (url "https://github.com/RafaelPalomar/alpha-agent")
        (branch "master")
-       (commit "889e7613f8fe01ac85415321ed866fc50d6b1bec")))
+       (commit "cb8ca225985d9b566f13abafc9def53f6d9f7b34")))
