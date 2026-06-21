@@ -1905,21 +1905,16 @@ mattermost:
     #:entrypoint #f
     #:command (list "gateway" "run"))
 
-   ;; ── hermes-household (parents + kids) ──────────────────────────────────
-   ;; Gemini 3 Pro brain + Mistral Medium 3.5 executor, both via OpenRouter.
-   ;; allow_private_urls false; planning/economy persona; #household only.
-   ;; Joins the ts-mattermost netns; MM at http://127.0.0.1:8065.
-   (make-app-container
-    "hermes-household" %hermes-image
-    #:share-ts-netns? #t
-    #:ts-name "mattermost"
-    #:requirement '(mattermost-provision)
-    #:volumes (list "/data/hermes-household:/var/lib/hermes")
-    #:environment %hermes-common-env
-    #:extra-arguments (list "--env-file" "/run/secrets/hermes-household/env"
-                            "--env-file" "/var/lib/mattermost-provision/hermes-household.env")
-    #:entrypoint #f
-    #:command (list "gateway" "run"))
+   ;; ── hermes-household RETIRED → poppins-bridge (colony cutover) ──────────
+   ;; The household tier's Mattermost responder is now the pi-based Mary Poppins
+   ;; on the guix-agentic colony, reached through `poppins-bridge' (a rafael
+   ;; home-shepherd service), which connects as the SAME `ms-poppins' bot using
+   ;; the provisioner's hermes-household.env fragment.  The old hermes-agent
+   ;; household container is therefore gone so the two never double-answer.
+   ;; KEPT (intentionally): the `hermes-household' provisioner tier (mints the
+   ;; ms-poppins token + writes the .env fragment the bridge reads) and the
+   ;; hermes-household/env sops secret (OpenRouter key the bridge's `poppins'
+   ;; reuses at runtime).  Full Hermes teardown (tutor/ops/images/sops) stays P3.
 
    ;; ── nextcloud-mcp — Ms. Poppins's NextCloud hands (Files + Deck + Calendar) ─
    ;; cbcoutinho/nextcloud-mcp-server, pinned by digest.  Joins the ts-mattermost

@@ -3,11 +3,16 @@
   #:use-module (gnu services)
   #:use-module (guix gexp)
   #:use-module (guix packages)
+  #:use-module (guix profiles)                             ; profile, packages->manifest
   #:use-module (guix build-system trivial)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (alpha-agent poppins)                       ; poppins-launcher (pinned channel)
   #:use-module (alpha-agent manifests poppins)             ; poppins-tool-profile
+  #:use-module (alpha-agent poppins-bridge)                ; poppins-bridge (Mattermost daemon)
   #:use-module (guix-openclaw packages node-openclaw-deps) ; pi
+  #:use-module (gnu home services shepherd)                ; home-shepherd-service-type
+  #:use-module (gnu services shepherd)                     ; shepherd-service, forkexec
+  #:use-module (gnu packages bash)                         ; bash-minimal (/bin/sh)
   #:export (poppins-home-service))
 
 ;;; poppins — Mary Poppins, the household agent (PERSONAL domain).
@@ -97,16 +102,76 @@ then execs the poppins launcher.")
     (home-page "https://github.com/RafaelPalomar/alpha-agent")
     (license license:gpl3+)))
 
+;;; --- the Mattermost bridge (chat surface) ----------------------------------
+;;;
+;;; `poppins-bridge' logs in to the family Mattermost as the `ms-poppins' bot and
+;;; shells out to the `poppins' wrapper per message.  It runs on the HOST (this
+;;; home shepherd), NOT inside the agent's L1 sandbox: it is transport only.  Its
+;;; Mattermost coordinates (URL / bot token / allowed channel) are REUSED from the
+;;; household tier's provisioned fragment — the same `ms-poppins' identity the old
+;;; Hermes household container used — so taking over the chat surface is just a
+;;; matter of which process holds the connection.  Run the bridge alongside, then
+;;; stop the old hermes-household container, and the new Poppins answers #household.
+;;;
+;;; Python deps (requests + websocket-client) resolve via the bridge profile's
+;;; etc/profile (GUIX_PYTHONPATH); `poppins' resolves from the home profile.
+
+(define %mm-fragment "/var/lib/mattermost-provision/hermes-household.env")
+
+(define poppins-bridge-profile
+  ;; A standalone profile of just the bridge; its etc/profile exports a complete
+  ;; GUIX_PYTHONPATH (requests + websocket-client are propagated).
+  (profile (content (packages->manifest (list poppins-bridge)))))
+
+(define (poppins-bridge-start-script mm-fragment)
+  (mixed-text-file "poppins-bridge-start"
+    "#!/bin/sh\nset -eu\n"
+    "FRAG=\"" mm-fragment "\"\n"
+    ;; Wait (respawn) until the provisioner has written the bot token fragment.
+    "[ -f \"$FRAG\" ] || { echo 'poppins-bridge: waiting for MM fragment' >&2; sleep 10; exit 1; }\n"
+    ;; MATTERMOST_URL / MATTERMOST_TOKEN / MATTERMOST_ALLOWED_CHANNELS (+ _USERS,
+    ;; which the bridge ignores) — the same ms-poppins coordinates Hermes used.
+    "set -a\n. \"$FRAG\"\nset +a\n"
+    ;; python3 + GUIX_PYTHONPATH for requests/websocket-client.
+    ". " (file-append poppins-bridge-profile "/etc/profile") "\n"
+    ;; The `poppins' wrapper lives in the home profile.
+    "export PATH=\"$HOME/.guix-home/profile/bin:$PATH\"\n"
+    "exec " (file-append poppins-bridge-profile "/bin/poppins-bridge") "\n"))
+
+(define (poppins-bridge-shepherd-service mm-fragment)
+  (list
+   (shepherd-service
+    (documentation "Mary Poppins Mattermost bridge (ms-poppins bot -> poppins -p)")
+    (provision '(poppins-bridge))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append bash-minimal "/bin/sh")
+                    #$(poppins-bridge-start-script mm-fragment))
+              #:environment-variables
+              (list (string-append "HOME=" (getenv "HOME"))
+                    (string-append "PATH=" (getenv "HOME")
+                                   "/.guix-home/profile/bin:/run/current-system/profile/bin"))
+              #:log-file (string-append
+                          (or (getenv "XDG_STATE_HOME")
+                              (string-append (getenv "HOME") "/.local/state"))
+                          "/poppins-bridge.log")))
+    (stop #~(make-kill-destructor))
+    (respawn? #t))))
+
 (define* (poppins-home-service
           #:key (openrouter-env-file "/run/secrets/hermes-household/env")
                 (nc-apppw-file "/run/secrets/nextcloud/poppins-apppw")
                 (personal-root "/home/rafael/pks-personal")
                 (nc-user "mary-poppins")
                 (nc-calendar "family_shared_by_mary-poppins")
-                (nc-url "https://nextcloud.drake-karat.ts.net"))
-  "Deploy `poppins' (pi + the Mary Poppins wrapper) into the home profile."
+                (nc-url "https://nextcloud.drake-karat.ts.net")
+                (mm-fragment %mm-fragment))
+  "Deploy `poppins' (pi + the Mary Poppins wrapper) into the home profile, plus
+the Mattermost bridge daemon that exposes her on the family `#household' channel."
   (list
    (simple-service 'poppins
                    home-profile-service-type
                    (list pi (poppins-cli openrouter-env-file nc-apppw-file personal-root
-                                         nc-user nc-calendar nc-url)))))
+                                         nc-user nc-calendar nc-url)))
+   (simple-service 'poppins-bridge
+                   home-shepherd-service-type
+                   (poppins-bridge-shepherd-service mm-fragment))))
