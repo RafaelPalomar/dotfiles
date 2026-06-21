@@ -667,6 +667,14 @@ TMDB_API_KEY: \"\"\n" p)))
                (sops-secret (key '("tmdb" "api_key"))
                             (file %sops-edison)
                             (permissions #o400))  ; root-only: written to arm.yaml at activation
+               ;; ── Poppins (household agent, personal domain) ───────────────
+               ;; mary-poppins NextCloud app-password — read by the poppins
+               ;; home-service wrapper as NC_APPPW.  Owner rafael (the home
+               ;; service runs as rafael), #o400.
+               (sops-secret (key '("nextcloud" "poppins-apppw"))
+                            (file %sops-edison)
+                            (user "rafael")
+                            (permissions #o400))
                ;; ── Mattermost (Phase 1) ─────────────────────────────────────
                ;; DB password: bind-mounted read-only into mattermost/mattermost-db
                ;; and read by their /bin/sh start shim.  #o444 (world-readable),

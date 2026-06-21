@@ -24,9 +24,11 @@ mattermost:
     userpw_adrian: ENC[AES256_GCM,data:s56KJ/tN/tKIvqXXo9X99jTCdSmOypt/7WFBNQ==,iv:83YDcsjrIDqiZczcOl9h84Nc6b6MzmPGWmtnW/Rlad8=,tag:8aKyYJ+8HMfyUmY5Elo4mg==,type:str]
 nextcloud-mcp:
     env: ENC[AES256_GCM,data:RLom62lV6So5+9JqiIPt0vdNrn+uD+STvIgX1YZqmc1lo4TDHcwXiUS8qv8GCnnMLN25Y+L014qElztrd3BBdv5jcWbTGh/RlOJvs7IgWES6nZxq20X5iFsU27U=,iv:eUZZrQ2KncQ7tMJZsf38Q1m6+joz9Zfd0BA0jZ1PMM8=,tag:iQ8oFF8hIRdoUhVS5dM9/g==,type:str]
+nextcloud:
+    poppins-apppw: ENC[AES256_GCM,data:WlEpZAWPK7EhAncEdQGpFLNTGWG/qp1PXLJR6AeMnA52ImBOJaqbqYAbPHkdVqzJQzYHLsr724OrAf4eEOhaM6L3dplQVCvd,iv:Fy7CFob13g8aBR56SYPA10Vel0nNvlqfbBao01pv1NM=,tag:Ycp1pAKu+aetbBj5HmS9oQ==,type:str]
 sops:
-    lastmodified: "2026-06-03T10:30:42Z"
-    mac: ENC[AES256_GCM,data:D7p6rHJ8nMqtJCntVgfZTI+dKraMXRvxRVh8iPZGaWo5GWv5o58Y/U/VEkyrdumgnDFR6mjfroD2dW5A44S3T9DcMiYfYOz7v4Q+WQBIqOUEiOITSszSMe4JIHpeC1tK3tLMv79juMg7ZKXNEULD2aJ6eZ9cbIwwoY/VwjNK+x0=,iv:LwYV7JIwGGnr+tbhc+Nj4AcAS7onyz9vnqumYXKDPG0=,tag:O5+wjdlmaaivyEirVHBaVQ==,type:str]
+    lastmodified: "2026-06-21T16:24:00Z"
+    mac: ENC[AES256_GCM,data:txX/Le0Zc9YNBf69gmsUK7gWKC0PP7NmQob+/xre16JhpGrfJ32vL1qB9zP/8p+RzpPAbfw3VIErLCBO1jgK+qTndbPvFKwUTXoWZFDXF6ZZbP+uR+AK6xsTB46vuE4VZO1cunR7HkBk3YZOws52/9oIbRhH0Wpp97Cm5Z2EF+g=,iv:LG5TXzPub8qvQYgRfkF8fBCBpoKT4G0mGW4Fkcq7/z0=,tag:1hetHPiRkHytE2y/VzvlwQ==,type:str]
     pgp:
         - created_at: "2026-04-01T07:52:57Z"
           enc: |-
