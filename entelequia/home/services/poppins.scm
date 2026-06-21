@@ -26,19 +26,40 @@
 
 (define pi node-earendil-works-pi-coding-agent-0.78.1)
 
-(define (poppins-wrapper key-file nc-apppw-file personal-root nc-user nc-calendar nc-url)
+(define (poppins-wrapper openrouter-env-file nc-apppw-file personal-root nc-user nc-calendar nc-url)
   "An executable `poppins' that injects the OpenRouter key + the NextCloud
-app-password (read from sops-decrypted files) and the household env, then execs
-the poppins launcher with its tool profile on GUIX_ENVIRONMENT."
+app-password and the household env, then execs the poppins launcher with its
+tool profile on GUIX_ENVIRONMENT.  The wrapper (running as rafael at launch)
+reads the secrets from sops-decrypted files — the agent process never sees them.
+OPENROUTER_API_KEY is REUSED from the household tier's dotenv env-file
+(/run/secrets/hermes-household/env) during the Hermes->colony migration; at
+Hermes teardown (P3) point this at Poppins's own key-file instead."
   (program-file
    "poppins"
    #~(begin
-       (use-modules (ice-9 rdelim))
+       (use-modules (ice-9 rdelim) (srfi srfi-13))
        (define (read-secret f)
          (and (file-exists? f)
               (call-with-input-file f
                 (lambda (p) (let ((s (read-line p))) (and (string? s) s))))))
-       (let ((k  (read-secret #$key-file))
+       ;; Extract VAR=value from a dotenv file (KEY=VALUE lines), stripping
+       ;; surrounding quotes — reuses the household OpenRouter key at runtime.
+       (define (read-dotenv f var)
+         (and (file-exists? f)
+              (call-with-input-file f
+                (lambda (p)
+                  (let ((pfx (string-append var "=")))
+                    (let loop ()
+                      (let ((line (read-line p)))
+                        (cond ((eof-object? line) #f)
+                              ((string-prefix? pfx line)
+                               (let* ((v (substring line (string-length pfx)))
+                                      (n (string-length v)))
+                                 (if (and (>= n 2) (memv (string-ref v 0) '(#\" #\')))
+                                     (substring v 1 (- n 1))
+                                     v)))
+                              (else (loop))))))))))
+       (let ((k  (read-dotenv #$openrouter-env-file "OPENROUTER_API_KEY"))
              (np (read-secret #$nc-apppw-file)))
          (when k  (setenv "OPENROUTER_API_KEY" k))
          (when np (setenv "NC_APPPW" np)))
@@ -53,7 +74,7 @@ the poppins launcher with its tool profile on GUIX_ENVIRONMENT."
        (apply execl #$(file-append poppins-launcher "/bin/poppins")
               "poppins" (cdr (command-line))))))
 
-(define (poppins-cli key-file nc-apppw-file personal-root nc-user nc-calendar nc-url)
+(define (poppins-cli openrouter-env-file nc-apppw-file personal-root nc-user nc-calendar nc-url)
   (package
     (name "poppins-cli")
     (version "0")
@@ -65,7 +86,7 @@ the poppins launcher with its tool profile on GUIX_ENVIRONMENT."
            #~(begin
                (use-modules (guix build utils))
                (mkdir-p (string-append #$output "/bin"))
-               (copy-file #$(poppins-wrapper key-file nc-apppw-file personal-root
+               (copy-file #$(poppins-wrapper openrouter-env-file nc-apppw-file personal-root
                                              nc-user nc-calendar nc-url)
                           (string-append #$output "/bin/poppins"))
                (chmod (string-append #$output "/bin/poppins") #o755))))
@@ -77,7 +98,7 @@ then execs the poppins launcher.")
     (license license:gpl3+)))
 
 (define* (poppins-home-service
-          #:key (key-file "/run/secrets/openrouter/rafael")
+          #:key (openrouter-env-file "/run/secrets/hermes-household/env")
                 (nc-apppw-file "/run/secrets/nextcloud/poppins-apppw")
                 (personal-root "/home/rafael/pks-personal")
                 (nc-user "mary-poppins")
@@ -87,5 +108,5 @@ then execs the poppins launcher.")
   (list
    (simple-service 'poppins
                    home-profile-service-type
-                   (list pi (poppins-cli key-file nc-apppw-file personal-root
+                   (list pi (poppins-cli openrouter-env-file nc-apppw-file personal-root
                                          nc-user nc-calendar nc-url)))))
