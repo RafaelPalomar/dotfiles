@@ -80,8 +80,6 @@
    edison-nfs-media-service
    ;; Create /data subdirectories at activation time
    edison-data-dir-service
-   ;; Hermes + Mattermost data dirs and per-tier config/SOUL seeding
-   edison-hermes-data-service
    ;; Remove stale containers from previous boot before OCI services start
    podman-prune-service
    ;; NVIDIA device nodes — trigger udev rules at boot to create /dev/nvidia*
@@ -99,10 +97,8 @@
    edison-arm-config-patch-service
    ;; MPD music daemon (port 6600 MPD protocol, port 8000 HTTP stream)
    edison-mpd-service
-   ;; OCI containers: Jellyfin, Navidrome, ARM, Mattermost, Hermes tutor/household
+   ;; OCI containers: Jellyfin, Navidrome, ARM, Mattermost
    edison-container-services
-   ;; Hermes ops gateway — guix container (full store + daemon shared, OPS-ONLY)
-   edison-hermes-ops-service
    ;; Luanti (Mineclonia) game server — moved from lovelace.
    ;; Lovelace's Opteron X3421 APU was too weak; edison's Xeon E5-1620 is ~2-3x
    ;; faster single-thread, which is what Luanti's main loop needs.

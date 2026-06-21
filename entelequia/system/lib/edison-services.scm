@@ -697,28 +697,11 @@ TMDB_API_KEY: \"\"\n" p)))
                             (file %sops-edison)
                             (output-type "dotenv")
                             (permissions #o444))
-               ;; ── Hermes per-tier env-files (Phase 2) ──────────────────────
-               ;; Decrypt to /run/secrets/hermes-<tier>/env, #o444 so the rootless
-               ;; (rafael) podman start can read them for --env-file, and the ops
-               ;; guix-container launcher can read+re-export them.  output-type
-               ;; "dotenv": the YAML value is a MAP and sops emits KEY=VALUE lines
-               ;; (verified: sops-secret accepts json|dotenv|binary|yaml).
-               (sops-secret (key '("hermes-tutor" "env"))
-                            (file %sops-edison)
-                            (output-type "dotenv")
-                            (permissions #o444))
+               ;; ── Hermes household env-file — KEPT after the Hermes teardown ─
+               ;; The colony's poppins-bridge reuses OPENROUTER_API_KEY from this
+               ;; at runtime (the Hermes responders + tutor/ops/nextcloud-mcp
+               ;; secrets are gone).  Repoint to a poppins-owned key in a later pass.
                (sops-secret (key '("hermes-household" "env"))
-                            (file %sops-edison)
-                            (output-type "dotenv")
-                            (permissions #o444))
-               (sops-secret (key '("hermes-ops" "env"))
-                            (file %sops-edison)
-                            (output-type "dotenv")
-                            (permissions #o444))
-               ;; ── NextCloud MCP server credential (cbcoutinho sidecar) ─────
-               ;; NEXTCLOUD_PASSWORD (mary-poppins app-password) only; HOST +
-               ;; USERNAME are non-secret, set in the container #:environment.
-               (sops-secret (key '("nextcloud-mcp" "env"))
                             (file %sops-edison)
                             (output-type "dotenv")
                             (permissions #o444))
@@ -2239,13 +2222,7 @@ mattermost:
   '("ts-jellyfin" "jellyfin"
     "ts-navidrome" "navidrome" "caddy-navidrome"
     "ts-arm" "arm"
-    "ts-mattermost" "mattermost-db" "mattermost"
-    ;; Hermes Podman gateways (standalone netns, outbound-only).
-    ;; hermes-ops is a guix container, NOT podman — watch it separately if
-    ;; desired (the watchdog uses `herd status`, which works for any service).
-    "hermes-tutor" "hermes-household" "hermes-ops"
-    ;; NextCloud MCP sidecar (cbcoutinho) — shares the ts-mattermost netns.
-    "nextcloud-mcp"))
+    "ts-mattermost" "mattermost-db" "mattermost"))
 
 (define %edison-container-watchdog-script
   (program-file
@@ -2316,5 +2293,4 @@ mattermost:
                             %navidrome-containers
                             (list %caddy-navidrome-container)
                             %arm-containers
-                            %mattermost-containers
-                            %hermes-containers)))))
+                            %mattermost-containers)))))
