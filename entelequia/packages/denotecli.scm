@@ -27,10 +27,15 @@
          (file-name (git-file-name name version))
          (sha256
           (base32 "0aixcmfcqvmd6qgxx6zd7p4vpy1xb82dqq3r82b0rpxgqq9k5pgm"))
-         ;; Make `denotecli create --content -' read the body from stdin.
-         ;; Upstream 0.8.0 treats --content's value as a literal string with
-         ;; no `-' special case, which silently drops piped bodies.  Patch
-         ;; the CLI layer (cmdCreate in main.go) so CreateNote stays pure.
+         ;; Two local patches (kept identical in the alpha-agent vendored copy,
+         ;; alpha-agent/alpha-agent/denotecli.scm):
+         ;;  1. `denotecli create --content -' reads the body from stdin.
+         ;;     Upstream 0.8.0 treats --content's value as a literal string with
+         ;;     no `-' special case, which silently drops piped bodies.  Patch
+         ;;     the CLI layer (cmdCreate in main.go) so CreateNote stays pure.
+         ;;  2. `--dirs' defaults to $DENOTECLI_DIRS (falling back to upstream
+         ;;     ~/org when unset), so a flag-less command can target a configured
+         ;;     store instead of ~/org.  Backward-compatible: env unset => ~/org.
          (snippet
           '(begin
              (use-modules (guix build utils))
@@ -49,7 +54,21 @@
                  "\t\t\tfatal(\"read stdin: \" + err.Error())\n"
                  "\t\t}\n"
                  "\t\tcontent = string(data)\n"
-                 "\t}\n")))))))
+                 "\t}\n")))
+             ;; Inject defaultDirs() and route every --dirs default through it.
+             (substitute* "denotecli/main.go"
+               (("func main\\(\\) \\{")
+                (string-append
+                 "func defaultDirs() string {\n"
+                 "\tif d := os.Getenv(\"DENOTECLI_DIRS\"); d != \"\" {\n"
+                 "\t\treturn d\n"
+                 "\t}\n"
+                 "\treturn \"~/org\"\n"
+                 "}\n\n"
+                 "func main() {")))
+             (substitute* "denotecli/main.go"
+               (("getFlag\\(args, \"--dirs\", \"~/org\"\\)")
+                "getFlag(args, \"--dirs\", defaultDirs())"))))))
       (build-system go-build-system)
       (arguments
        (list #:go go-1.25
