@@ -2,6 +2,7 @@
   #:use-module (entelequia home profiles base)
   #:use-module (entelequia home profiles server)
   #:use-module (entelequia home services server-suite)
+  #:use-module (entelequia home services poppins)
   #:use-module (gnu home))
 
 ;;; edison home environment — rafael
@@ -14,4 +15,11 @@
  (packages
   (append (base-home-packages)
           (server-home-packages)))
- (services (server-home-services)))
+ (services
+  (append (server-home-services)
+          ;; Mary Poppins — the household agent (personal domain) on the family
+          ;; server.  Authenticates to the family NextCloud as mary-poppins;
+          ;; needs the app-pw in sops at /run/secrets/nextcloud/poppins-apppw +
+          ;; a personal PKS root (~/pks-personal).  Until those exist it's just
+          ;; an inert `poppins' wrapper on PATH (no work data, ever).
+          (poppins-home-service))))
