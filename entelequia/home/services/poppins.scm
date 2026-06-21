@@ -125,7 +125,9 @@ then execs the poppins launcher.")
 
 (define (poppins-bridge-start-script mm-fragment)
   (mixed-text-file "poppins-bridge-start"
-    "#!/bin/sh\nset -eu\n"
+    ;; NB: -e only, NOT -u: the guix profile's etc/profile (sourced below)
+    ;; expands $GUIX_PYTHONPATH unguarded, which aborts under `set -u'.
+    "#!/bin/sh\nset -e\n"
     "FRAG=\"" mm-fragment "\"\n"
     ;; Wait (respawn) until the provisioner has written the bot token fragment.
     "[ -f \"$FRAG\" ] || { echo 'poppins-bridge: waiting for MM fragment' >&2; sleep 10; exit 1; }\n"
