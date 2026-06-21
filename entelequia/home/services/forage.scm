@@ -10,6 +10,9 @@
   #:use-module (alpha-agent forager)                       ; forager-launcher (pinned channel)
   #:use-module (alpha-agent manifests forager)             ; forager-tool-profile
   #:use-module (guix-openclaw packages node-openclaw-deps) ; pi
+  #:use-module (gnu home services shepherd)                ; home-shepherd-service-type
+  #:use-module (gnu services shepherd)                     ; shepherd-service, forkexec
+  #:use-module (gnu packages bash)                         ; bash-minimal (/bin/sh for the broker)
   #:export (forage-home-service))
 
 ;;; forage — the queen's forager-dispatch entrypoint (Stage 1 of the colony).
@@ -86,9 +89,76 @@ isolated forager launcher, pointing GUIX_ENVIRONMENT at the forager tool profile
     (home-page "https://github.com/RafaelPalomar/alpha-agent")
     (license license:gpl3+)))
 
-(define* (forage-home-service #:key (key-file "/run/secrets/openrouter/rafael"))
-  "Return the home services deploying `forage': `pi' and the `forage' wrapper."
+;;; --- the broker (host side, Stage 2): watch the dispatch dir, spawn ONE
+;;; isolated forager per request, write the <report> back.  This is the
+;;; PRIVILEGED half — it owns the spawn and (through `forage') the key.  A
+;;; request file carries a task, never a command; its `.forager' extension
+;;; selects the fixed, isolated agent.  Lets a sandboxed queen (alpha, via the
+;;; `with-foraging' dispatch client) delegate without ever touching the daemon.
+
+(define %default-dispatch-dir "/home/rafael/.local/share/agent-dispatch")
+
+(define (forage-broker-script key-file dispatch-dir)
+  (mixed-text-file "forage-broker"
+    "#!/bin/sh\nset -u\n"
+    "DIR=\"" dispatch-dir "\"\n"
+    "FORAGE=\"" (file-append (forage-cli key-file) "/bin/forage") "\"\n"
+    "mkdir -p \"$DIR/requests\" \"$DIR/reports\" \"$DIR/done\"\n"
+    "while :; do\n"
+    "  for req in \"$DIR\"/requests/*.forager; do\n"
+    "    [ -e \"$req\" ] || continue\n"
+    "    id=\"$(basename \"$req\" .forager)\"; rep=\"$DIR/reports/$id.report\"\n"
+    "    if [ ! -f \"$rep\" ]; then\n"
+    "      \"$FORAGE\" -p < \"$req\" > \"$rep.part\" 2>\"$DIR/reports/$id.err\" || true\n"
+    "      mv \"$rep.part\" \"$rep\" 2>/dev/null || true\n"
+    "    fi\n"
+    "    mv \"$req\" \"$DIR/done/$id.forager\" 2>/dev/null || true\n"
+    "  done\n"
+    "  sleep 3\n"
+    "done\n"))
+
+(define (forage-broker-shepherd-service key-file dispatch-dir)
+  (list
+   (shepherd-service
+    (documentation "Forager broker: spawn an isolated forager per dispatch request")
+    (provision '(forage-broker))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append bash-minimal "/bin/sh")
+                    #$(forage-broker-script key-file dispatch-dir))
+              #:environment-variables
+              (list (string-append "HOME=" (getenv "HOME"))
+                    ;; pi + tools resolve from the home profile; system profile
+                    ;; keeps coreutils/sh available to the broker loop.
+                    (string-append "PATH=" (getenv "HOME")
+                                   "/.guix-home/profile/bin:/run/current-system/profile/bin"))
+              #:log-file (string-append
+                          (or (getenv "XDG_STATE_HOME")
+                              (string-append (getenv "HOME") "/.local/state"))
+                          "/forage-broker.log")))
+    (stop #~(make-kill-destructor))
+    (respawn? #t))))
+
+(define (forage-dispatch-dir-activation dispatch-dir)
+  ;; The dispatch dir must exist before alpha launches (its sandbox --shares it).
+  (simple-service 'forage-dispatch-dir
+                  home-activation-service-type
+                  (with-imported-modules '((guix build utils))
+                    #~(begin
+                        (use-modules (guix build utils))
+                        (for-each mkdir-p
+                                  (list (string-append #$dispatch-dir "/requests")
+                                        (string-append #$dispatch-dir "/reports")
+                                        (string-append #$dispatch-dir "/done")))))))
+
+(define* (forage-home-service #:key (key-file "/run/secrets/openrouter/rafael")
+                              (dispatch-dir %default-dispatch-dir))
+  "Deploy `forage' (the queen entrypoint + pi), the forager broker (spawns an
+isolated forager per dispatch request), and the shared dispatch dir."
   (list
    (simple-service 'forage
                    home-profile-service-type
-                   (list pi (forage-cli key-file)))))
+                   (list pi (forage-cli key-file)))
+   (forage-dispatch-dir-activation dispatch-dir)
+   (simple-service 'forage-broker
+                   home-shepherd-service-type
+                   (forage-broker-shepherd-service key-file dispatch-dir))))
