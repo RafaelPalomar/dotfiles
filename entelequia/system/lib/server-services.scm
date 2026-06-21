@@ -1142,11 +1142,19 @@ oci-container-configuration."
                 (setuid uid)
                 ;; Pre-cleanup: forcibly remove any prior container with this
                 ;; name.  No-op if absent; serial alternative to --replace.
+                ;; `--depend` also removes containers that share this one's
+                ;; network namespace (apps/sidecars joined via
+                ;; `--network container:NAME`).  Without it a netns owner's
+                ;; `rm -f` fails with "has dependent containers" after a reboot
+                ;; — the owner never restarts and the whole group flaps
+                ;; (feedback_podman_name_flap_after_reboot).  The freed
+                ;; dependents are recreated by their own shepherd services,
+                ;; which `requirement` orders after this owner.
                 ;; Wrapped in `timeout 30` so a wedged podman lock can't
                 ;; stall the start indefinitely.
                 (system* #$(file-append coreutils "/bin/timeout") "30"
                          #$(file-append podman "/bin/podman")
-                         "rm" "-f" #$container-name)
+                         "rm" "-f" "--depend" #$container-name)
                 ;; Argument list assembled inline so file-like volume entries
                 ;; (e.g. plain-file → /gnu/store path) are properly resolved.
                 (apply execlp
