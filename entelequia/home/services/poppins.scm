@@ -76,6 +76,15 @@ Hermes teardown (P3) point this at Poppins's own key-file instead."
        (setenv "NC_URL"      #$nc-url)
        (unless (getenv "GUIX_ENVIRONMENT")
          (setenv "GUIX_ENVIRONMENT" #$poppins-tool-profile))
+       ;; The guix-agentic launcher symlinks skills + extensions into the agent
+       ;; config dir from these framework search-path vars (read from the OUTER
+       ;; env, before the L1 container).  GUIX_ENVIRONMENT alone does NOT set
+       ;; them, so set them explicitly from the tool profile — otherwise the
+       ;; family-calendar skill and the MCP extension never load.
+       (setenv "GUIX_AGENTIC_PI_SKILL_PATH"
+               (string-append #$poppins-tool-profile "/share/pi/skills"))
+       (setenv "GUIX_AGENTIC_PI_EXTENSION_PATH"
+               (string-append #$poppins-tool-profile "/share/pi/extensions"))
        (apply execl #$(file-append poppins-launcher "/bin/poppins")
               "poppins" (cdr (command-line))))))
 
