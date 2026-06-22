@@ -705,6 +705,13 @@ TMDB_API_KEY: \"\"\n" p)))
                             (file %sops-edison)
                             (output-type "dotenv")
                             (permissions #o444))
+               ;; ── NextCloud MCP server credential (re-added for Poppins) ───
+               ;; NEXTCLOUD_PASSWORD (mary-poppins app-pw); the nextcloud-mcp
+               ;; sidecar (Poppins's MCP NextCloud hands) reads it via --env-file.
+               (sops-secret (key '("nextcloud-mcp" "env"))
+                            (file %sops-edison)
+                            (output-type "dotenv")
+                            (permissions #o444))
                ;; ── Mattermost family-account SEED passwords ────────────────
                ;; Read as rafael by mattermost-provision (step 5b) for `mmctl
                ;; user create --password'.  #o444 like admin_password; seeds,
@@ -2222,7 +2229,9 @@ mattermost:
   '("ts-jellyfin" "jellyfin"
     "ts-navidrome" "navidrome" "caddy-navidrome"
     "ts-arm" "arm"
-    "ts-mattermost" "mattermost-db" "mattermost"))
+    "ts-mattermost" "mattermost-db" "mattermost"
+    ;; NextCloud MCP sidecar — Poppins's NextCloud hands (host-reachable).
+    "nextcloud-mcp"))
 
 (define %edison-container-watchdog-script
   (program-file
@@ -2266,6 +2275,26 @@ mattermost:
 ;;; Single oci-service-type for all Edison containers
 ;;;
 
+;;; nextcloud-mcp — Poppins's NextCloud hands (Deck/Calendar/Files/Contacts/
+;;; Sharing) over MCP.  Re-added after the Hermes teardown, now HOST-reachable:
+;;; a standalone pasta netns publishing 127.0.0.1:8000 (loopback only — so only
+;;; host-local; Poppins's L1 sandbox shares the host netns via `guix shell -C -N'
+;;; and reaches it), binding 0.0.0.0:8000 inside.  Egress to NextCloud on
+;;; lovelace goes over the tailnet through the host network stack (pasta mirrors
+;;; host connectivity).  pi-mcp-extension connects to http://127.0.0.1:8000/mcp.
+(define %nextcloud-mcp-containers
+  (list
+   (make-app-container
+    "nextcloud-mcp" %nextcloud-mcp-image
+    #:share-ts-netns? #f
+    #:ports (list "127.0.0.1:8000:8000")
+    #:environment (list "NEXTCLOUD_HOST=https://nextcloud.drake-karat.ts.net"
+                        "NEXTCLOUD_USERNAME=mary-poppins")
+    #:extra-arguments (list "--env-file" "/run/secrets/nextcloud-mcp/env")
+    #:entrypoint "/app/.venv/bin/nextcloud-mcp-server"
+    #:command (list "run" "--host" "0.0.0.0" "--port" "8000"
+                    "--transport" "streamable-http"))))
+
 (define edison-container-services
   (append
    ;; Gate services: one-shot readiness checks that ensure each ts-* sidecar
@@ -2293,4 +2322,5 @@ mattermost:
                             %navidrome-containers
                             (list %caddy-navidrome-container)
                             %arm-containers
-                            %mattermost-containers)))))
+                            %mattermost-containers
+                            %nextcloud-mcp-containers)))))
