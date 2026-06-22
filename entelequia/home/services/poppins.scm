@@ -85,6 +85,15 @@ Hermes teardown (P3) point this at Poppins's own key-file instead."
                (string-append #$poppins-tool-profile "/share/pi/skills"))
        (setenv "GUIX_AGENTIC_PI_EXTENSION_PATH"
                (string-append #$poppins-tool-profile "/share/pi/extensions"))
+       ;; CA bundle for the python HTTPS tools (family-cal, nc-deck-share) INSIDE
+       ;; the L1 sandbox: the host's SSL_CERT_FILE (/run/current-system/...) isn't
+       ;; valid in the container, so point at the tool profile's own bundle (the
+       ;; profile carries nss-certs and is exposed into the sandbox via -p).  The
+       ;; launcher preserves ^SSL_CERT, so these cross in.
+       (setenv "SSL_CERT_DIR"
+               (string-append #$poppins-tool-profile "/etc/ssl/certs"))
+       (setenv "SSL_CERT_FILE"
+               (string-append #$poppins-tool-profile "/etc/ssl/certs/ca-certificates.crt"))
        (apply execl #$(file-append poppins-launcher "/bin/poppins")
               "poppins" (cdr (command-line))))))
 
