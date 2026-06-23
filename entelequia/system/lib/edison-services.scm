@@ -2307,14 +2307,19 @@ mattermost:
 (define %searxng-mcp-image
   "docker.io/isokoliuk/mcp-searxng@sha256:c9c111440f233740a57998177cd7d5c9e8160c99dd0d958bc4ddf56a3de0fc9a")
 
+;; mcp-searxng binds 127.0.0.1 inside the container in HTTP mode (no bind-host
+;; env), so pasta+publish can't forward to it.  Use --network host instead: the
+;; container's 127.0.0.1:3000 IS the host's, which Poppins's host-netns sandbox
+;; (`guix shell -C -N`) reaches; egress to SearxNG goes over the host tailnet.
+;; Loopback-only bind = not exposed on the LAN/tailnet.
 (define %searxng-mcp-containers
   (list
-   (make-app-container
+   (make-podman-shepherd-service
     "searxng-mcp" %searxng-mcp-image
-    #:share-ts-netns? #f
-    #:ports (list "127.0.0.1:3000:3000")
-    #:environment (list "SEARXNG_URL=https://searxng.drake-karat.ts.net"
-                        "MCP_HTTP_PORT=3000"))))
+    #:requirement '(podman-prune)
+    #:network "host"
+    #:env (list "SEARXNG_URL=https://searxng.drake-karat.ts.net"
+                "MCP_HTTP_PORT=3000"))))
 
 (define edison-container-services
   (append
