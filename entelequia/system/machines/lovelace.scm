@@ -181,6 +181,7 @@
               podman-prune-service
               lovelace-nfs-service
               lovelace-data-dir-service
+              searxng-settings-service
               nextcloud-proxy-config-service
               postgresql-lovelace-service
               smartd-lovelace-service

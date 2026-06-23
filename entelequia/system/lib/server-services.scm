@@ -27,6 +27,7 @@
             starbound-game-service
             borgmatic-lovelace-service
             lovelace-data-dir-service
+            searxng-settings-service
             nextcloud-proxy-config-service
             nextcloud-provision-service
             lovelace-container-services
@@ -123,6 +124,41 @@
                           "/data/borg"))))))
 
 ;;;
+;;; searxng-settings-service: make the SearxNG tuning declarative + reproducible.
+;;; The image generates a full settings.yml in /data/searxng{,-kids}; rather than
+;;; reconstruct 2700 lines (and risk the secret_key + engine list), this activation
+;;; service idempotently ENFORCES the two settings we care about on both instances,
+;;; on every reconfigure/boot:
+;;;   - outgoing request_timeout 3.0 -> 8.0 (+ max_request_timeout 15.0): the 3s
+;;;     default is too tight through the Mullvad exit, so engines time out and
+;;;     searches flake.  Applies to BOTH instances (kids search benefits too).
+;;;   - search.formats: add `json` (needed by the searxng-mcp server Poppins uses;
+;;;     HTML-only returns 403 for ?format=json).
+;;; Idempotent: the timeout regexes match only the old defaults, and json is added
+;;; only when absent.  Runs at activation (before the containers start on boot);
+;;; on a live reconfigure restart searxng{,-kids} once so they re-read settings.yml.
+(define searxng-settings-service
+  (list
+   (simple-service 'searxng-settings
+                   activation-service-type
+                   #~(begin
+                       (use-modules (guix build utils) (ice-9 textual-ports))
+                       (for-each
+                        (lambda (p)
+                          (when (file-exists? p)
+                            (substitute* p
+                              (("^  request_timeout: 3\\.0$")
+                               "  request_timeout: 8.0")
+                              (("^  # max_request_timeout: 10\\.0$")
+                               "  max_request_timeout: 15.0"))
+                            (unless (string-contains
+                                     (call-with-input-file p get-string-all)
+                                     "    - json")
+                              (substitute* p
+                                (("^  formats:$") "  formats:\n    - json")))))
+                        '("/data/searxng/settings.yml"
+                          "/data/searxng-kids/settings.yml"))))))
+
 ;;; NFS server — export /data/media to Edison (192.168.88.14)
 ;;;
 
