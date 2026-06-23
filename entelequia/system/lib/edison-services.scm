@@ -2231,7 +2231,9 @@ mattermost:
     "ts-arm" "arm"
     "ts-mattermost" "mattermost-db" "mattermost"
     ;; NextCloud MCP sidecar — Poppins's NextCloud hands (host-reachable).
-    "nextcloud-mcp"))
+    "nextcloud-mcp"
+    ;; SearXNG MCP sidecar — Poppins's web search (host-reachable).
+    "searxng-mcp"))
 
 (define %edison-container-watchdog-script
   (program-file
@@ -2295,6 +2297,25 @@ mattermost:
     #:command (list "run" "--host" "0.0.0.0" "--port" "8000"
                     "--transport" "streamable-http"))))
 
+;;; searxng-mcp — Poppins's web search hands.  Queries the family's OWN
+;;; self-hosted SearxNG (searxng.drake-karat.ts.net, Mullvad-routed) — privacy-
+;;; preserving, no third-party API key.  ihor-sokoliuk/mcp-searxng in HTTP mode
+;;; (Streamable HTTP on /mcp), host-reachable on 127.0.0.1:3000 like nextcloud-mcp
+;;; (standalone pasta netns; egress to SearxNG over the host tailnet).  No secret:
+;;; SearxNG is unauthenticated on the tailnet.  Tools: searxng_web_search,
+;;; searxng_search_suggestions, searxng_instance_info, web_url_read.
+(define %searxng-mcp-image
+  "docker.io/isokoliuk/mcp-searxng@sha256:c9c111440f233740a57998177cd7d5c9e8160c99dd0d958bc4ddf56a3de0fc9a")
+
+(define %searxng-mcp-containers
+  (list
+   (make-app-container
+    "searxng-mcp" %searxng-mcp-image
+    #:share-ts-netns? #f
+    #:ports (list "127.0.0.1:3000:3000")
+    #:environment (list "SEARXNG_URL=https://searxng.drake-karat.ts.net"
+                        "MCP_HTTP_PORT=3000"))))
+
 (define edison-container-services
   (append
    ;; Gate services: one-shot readiness checks that ensure each ts-* sidecar
@@ -2323,4 +2344,5 @@ mattermost:
                             (list %caddy-navidrome-container)
                             %arm-containers
                             %mattermost-containers
-                            %nextcloud-mcp-containers)))))
+                            %nextcloud-mcp-containers
+                            %searxng-mcp-containers)))))
