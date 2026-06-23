@@ -134,30 +134,40 @@
 ;;;     searches flake.  Applies to BOTH instances (kids search benefits too).
 ;;;   - search.formats: add `json` (needed by the searxng-mcp server Poppins uses;
 ;;;     HTML-only returns 403 for ?format=json).
-;;; Idempotent: the timeout regexes match only the old defaults, and json is added
-;;; only when absent.  Runs at activation (before the containers start on boot);
+;;; Idempotent: each line is matched exactly, so the timeout edits only fire on
+;;; the old defaults, and json is added only when absent.  Pure procedures (no
+;;; substitute* macro — that needs compile-time module imports an activation
+;;; gexp doesn't get).  Runs at activation (before the containers start on boot);
 ;;; on a live reconfigure restart searxng{,-kids} once so they re-read settings.yml.
 (define searxng-settings-service
   (list
    (simple-service 'searxng-settings
                    activation-service-type
                    #~(begin
-                       (use-modules (guix build utils) (ice-9 textual-ports))
-                       (for-each
-                        (lambda (p)
-                          (when (file-exists? p)
-                            (substitute* p
-                              (("^  request_timeout: 3\\.0$")
-                               "  request_timeout: 8.0")
-                              (("^  # max_request_timeout: 10\\.0$")
-                               "  max_request_timeout: 15.0"))
-                            (unless (string-contains
-                                     (call-with-input-file p get-string-all)
-                                     "    - json")
-                              (substitute* p
-                                (("^  formats:$") "  formats:\n    - json")))))
-                        '("/data/searxng/settings.yml"
-                          "/data/searxng-kids/settings.yml"))))))
+                       (use-modules (ice-9 textual-ports))
+                       (define (patch p)
+                         (when (file-exists? p)
+                           (let* ((content (call-with-input-file p get-string-all))
+                                  (lines   (string-split content #\newline))
+                                  (has-json (and (member "    - json" lines) #t))
+                                  (out '()))
+                             (for-each
+                              (lambda (l)
+                                (cond
+                                 ((string=? l "  request_timeout: 3.0")
+                                  (set! out (cons "  request_timeout: 8.0" out)))
+                                 ((string=? l "  # max_request_timeout: 10.0")
+                                  (set! out (cons "  max_request_timeout: 15.0" out)))
+                                 ((and (string=? l "  formats:") (not has-json))
+                                  (set! out (cons "    - json" (cons l out))))
+                                 (else (set! out (cons l out)))))
+                              lines)
+                             (call-with-output-file p
+                               (lambda (port)
+                                 (put-string port (string-join (reverse out) "\n")))))))
+                       (for-each patch
+                                 (list "/data/searxng/settings.yml"
+                                       "/data/searxng-kids/settings.yml"))))))
 
 ;;; NFS server — export /data/media to Edison (192.168.88.14)
 ;;;
