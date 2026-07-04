@@ -12,7 +12,7 @@ set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 KEYS="$ROOT/dotfiles/rafael/.local/bin/keys"
-RELEVANT='^(docs/source/keys-inventory\.md|dotfiles/\.gnupg/(deploy-keys\.conf|sshcontrol)|\.sops\.yaml|dotfiles/\.local/bin/keys)$'
+RELEVANT='^(docs/source/keys-inventory\.md|dotfiles/rafael/\.gnupg/(deploy-keys\.conf|sshcontrol)|\.sops\.yaml|dotfiles/rafael/\.local/bin/keys)$'
 
 # Nothing key-related staged → nothing to check.
 git diff --cached --name-only --diff-filter=ACMR | grep -qE "$RELEVANT" || exit 0
