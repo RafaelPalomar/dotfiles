@@ -53,6 +53,35 @@ EOF
     fi
 }
 
+echo "== 0. channels.scm <-> channels-lock.scm drift ==========="
+drift=$("${GUIX[@]}" repl -q 2>/dev/null <<'EOF'
+(use-modules (guix channels) (srfi srfi-1))
+;; NB: one top-level form, wrapped in catch — channels.scm carries a
+;; define-module that switches the REPL module mid-load, which breaks
+;; helpers defined in separate top-level forms.
+(catch #t
+  (lambda ()
+    (let ()
+      (define (channel-names file)
+        (sort (map (compose symbol->string channel-name) (primitive-load file))
+              string<?))
+      (let* ((intent  (channel-names "channels.scm"))
+             (lock    (channel-names "channels-lock.scm"))
+             (missing (lset-difference equal? intent lock))
+             (extra   (lset-difference equal? lock intent)))
+        (for-each (lambda (n) (format #t "declared-but-unpinned: ~a~%" n)) missing)
+        (for-each (lambda (n) (format #t "pinned-but-undeclared: ~a~%" n)) extra))))
+  (lambda args (format #t "drift-check-error: ~s~%" args)))
+EOF
+)
+if grep -qE "declared-but-unpinned|pinned-but-undeclared" <<<"$drift"; then
+    fail "channel sets differ between intent and lock (regen with scripts/update-lock.sh)"
+    grep -E "declared-but-unpinned|pinned-but-undeclared" <<<"$drift" | sed 's/^/    /'
+else
+    pass "channel sets match between channels.scm and channels-lock.scm"
+fi
+echo
+
 echo "== 1. Core library modules =============================="
 out=$("${GUIX[@]}" repl -q -L . 2>&1 <<'EOF'
 ,use (entelequia lib records)
