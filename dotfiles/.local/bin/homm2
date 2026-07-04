@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# homm2 — launch the original DOS *Heroes of Might & Magic II: Gold* (GOG)
+# under dosbox-staging, with optional NetBIOS-over-IPX network multiplayer.
+#
+#   homm2                    single-player / hot-seat
+#   homm2 host               start an IPX server on this machine, then launch
+#   homm2 join <ip[:port]>   connect to a host's IPX server, then launch
+#   homm2 music <sw|pol>     pick town music: Succession Wars or Price of Loyalty
+#
+# Network play tunnels DOSBox's IPX over UDP (default port 213).  Because it is
+# just UDP, it works over the tailnet: the host runs `homm2 host`, everyone else
+# runs `homm2 join <host-tailscale-ip>`.  In-game choose "Multi-Player" ->
+# "Network" and the players show up over the shared IPX bus.
+#
+# Assets: the GOG "HoMM 2 Gold" DOS install (galaxy-install product 1207658785,
+# lands in ~/Games/homm2-galaxy).  The modern fheroes2 engine is the better
+# single-player experience; this launcher exists specifically for the original
+# engine's network multiplayer, which fheroes2 does not yet implement.
+set -euo pipefail
+
+GAME="${HOMM2_DIR:-$HOME/Games/homm2-galaxy/HoMM 2 Gold}"
+
+if [ ! -f "$GAME/HEROES2.EXE" ]; then
+  echo "homm2: game not found at: $GAME" >&2
+  echo "       reinstall with:" >&2
+  echo "         lgogdownloader --galaxy-install 1207658785/0 --directory ~/Games/homm2-galaxy" >&2
+  echo "       or point HOMM2_DIR at an existing install." >&2
+  exit 1
+fi
+
+# C: = the on-disk game; D: = the CD image (intro video, CD audio).  Mirrors
+# GOG's own dosboxhomm2 configs.  Saves land in the game's GAMES/ subdir.
+launch() {
+  # $@ = extra dosbox flags/commands appended after the common mounts.
+  exec dosbox \
+    -c "mount c \"$GAME\"" \
+    -c "imgmount d \"$GAME/homm2.ins\" -t iso -fs iso" \
+    -c "c:" \
+    "$@"
+}
+
+mode="${1:-single}"
+case "$mode" in
+  single)
+    launch -c "heroes2.exe" -c "exit"
+    ;;
+  host)
+    # IPXNET STARTSERVER opens the UDP tunnel; netbios.exe is the TSR the game's
+    # network layer needs; then the game itself.
+    launch -set "ipx ipx=true" \
+           -c "IPXNET STARTSERVER" \
+           -c "netbios.exe" \
+           -c "heroes2.exe" -c "exit"
+    ;;
+  join)
+    host="${2:-}"
+    if [ -z "$host" ]; then
+      echo "usage: homm2 join <host-ip[:port]>" >&2
+      exit 1
+    fi
+    launch -set "ipx ipx=true" \
+           -c "IPXNET CONNECT $host" \
+           -c "netbios.exe" \
+           -c "heroes2.exe" -c "exit"
+    ;;
+  music)
+    # Swap the town-theme tracks, mirroring GOG's in-launcher music selector.
+    # sw/ and pol/ hold the two variants; copying one set over MUSIC/ activates it.
+    set="${2:-}"
+    case "$set" in
+      sw)  cp -f "$GAME/MUSIC/sw/"*.ogg  "$GAME/MUSIC/"; echo "homm2: town music -> Succession Wars" ;;
+      pol) cp -f "$GAME/MUSIC/pol/"*.ogg "$GAME/MUSIC/"; echo "homm2: town music -> Price of Loyalty" ;;
+      *)   echo "usage: homm2 music <sw|pol>   (sw = Succession Wars, pol = Price of Loyalty)" >&2; exit 1 ;;
+    esac
+    ;;
+  -h|--help|help)
+    sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
+    ;;
+  *)
+    echo "usage: homm2 [single|host|join <ip>|music <sw|pol>]" >&2
+    exit 1
+    ;;
+esac

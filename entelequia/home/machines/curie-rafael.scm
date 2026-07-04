@@ -10,6 +10,8 @@
   #:use-module (guix-hermes packages hermes)
   #:use-module (guix-hermes services hermes)
   #:use-module (btv tailscale)
+  #:use-module (gnu packages games)       ; fheroes2 (HoMM2 engine; assets are user-supplied)
+  #:use-module (gnu packages emulators)   ; dosbox-staging (original DOS HoMM2 + IPX multiplayer)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -35,7 +37,12 @@
           (home-role-packages 'work)
           documentation-home-packages
           (gaming-home-packages)
-          (list tailscaled
+          ;; Heroes of Might & Magic II (curie-only): fheroes2 is the modern
+          ;; engine (single/hot-seat); dosbox-staging runs the original GOG DOS
+          ;; game for its NetBIOS/IPX network multiplayer (fheroes2 has none).
+          (list fheroes2
+                dosbox-staging
+                tailscaled
                 hermes-agent)))
  (services
   (append
