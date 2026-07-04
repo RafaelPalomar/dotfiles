@@ -8,11 +8,11 @@ System Configuration
 .. code-block:: bash
 
     # Apply system configuration (run from ~/.dotfiles)
-    sudo guix time-machine -C ~/.dotfiles/channels.scm -- system reconfigure entelequia/system/machines/einstein.scm  # Desktop
-    sudo guix time-machine -C ~/.dotfiles/channels.scm -- system reconfigure entelequia/system/machines/curie.scm     # Laptop
+    sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure entelequia/system/machines/einstein.scm  # Desktop
+    sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system reconfigure entelequia/system/machines/curie.scm     # Laptop
 
     # Test build before applying (dry-run, no sudo needed)
-    guix time-machine -C channels.scm -- system build -L . entelequia/system/machines/einstein.scm --dry-run
+    guix time-machine -C channels-lock.scm -- system build -L . entelequia/system/machines/einstein.scm --dry-run
 
     # Test in VM before deploying to hardware
     ./scripts/test-vm.sh test-desktop  # Desktop VM test
@@ -22,10 +22,10 @@ System Configuration
     guix pull --channels=channels.scm
 
     # Search for packages
-    sudo guix time-machine -C ~/.dotfiles/channels.scm -- search <package-name>
+    sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- search <package-name>
 
     # Check system generations
-    sudo guix time-machine -C ~/.dotfiles/channels.scm -- system list-generations
+    sudo guix time-machine -C ~/.dotfiles/channels-lock.scm -- system list-generations
 
     # Rollback to previous generation
     sudo guix system roll-back

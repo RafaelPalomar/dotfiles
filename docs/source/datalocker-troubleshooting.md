@@ -117,7 +117,7 @@ datalocker-lock
 cd ~/.dotfiles
 
 # System reconfiguration (udev rule + datalocker-lock script)
-sudo guix time-machine -C channels.scm -- \
+sudo guix time-machine -C channels-lock.scm -- \
   system reconfigure entelequia/system/machines/einstein.scm
 
 # Home reconfiguration (expect, libnotify, and all profile packages)

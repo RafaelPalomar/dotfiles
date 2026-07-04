@@ -13,7 +13,7 @@
 ;;; Guix deployment specification for lovelace (192.168.88.46)
 ;;;
 ;;; Usage:
-;;;   guix time-machine -C channels.scm -- deploy -L . entelequia/deploy/lovelace.scm
+;;;   guix time-machine -C channels-lock.scm -- deploy -L . entelequia/deploy/lovelace.scm
 ;;;
 ;;; Pre-requisites:
 ;;;   1. Base Guix System installed on the server (see migration plan)

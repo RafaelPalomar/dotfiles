@@ -80,17 +80,6 @@ Filesystem Security
 
 Mounted with ``noexec``, ``nosuid``, ``nodev`` flags
 
-AIDE
-----
-
-File integrity monitoring (Einstein only):
-
-- Monitors /bin, /sbin, /usr/bin, /usr/sbin, /etc, /boot, /lib, /gnu/store
-- SHA256 checksums with permission tracking
-- Configuration at ``/etc/aide/aide.conf``
-- Manual check: ``herd start aide-check``
-- Database: ``/var/lib/aide/aide.db``
-
 Audit & Monitoring
 ==================
 
@@ -131,9 +120,6 @@ Security Commands
     # View banned IPs
     sudo fail2ban-client status sshd
 
-    # Run AIDE file integrity check
-    herd start aide-check
-
     # View audit logs
     sudo ausearch -ts today
 
@@ -147,7 +133,6 @@ Security Configuration Files
 - Kernel hardening: ``/etc/sysctl.d/99-security-hardening.conf``
 - Firewall rules: ``/etc/nftables.conf``
 - Fail2Ban: ``/etc/fail2ban/jail.local``
-- AIDE config: ``/etc/aide/aide.conf``
 - Audit rules: ``/etc/audit/audit.rules``
 - SSH config: Generated from ``hardened-ssh-service``
 
@@ -155,6 +140,5 @@ Important Notes
 ===============
 
 - Firewall allows all outgoing connections (can be restricted if needed)
-- AIDE database must be initialized after first install
 - Some security features may need adjustment for specific use cases (e.g., containers need user namespaces)
 - Audit logs can grow large; rotate regularly

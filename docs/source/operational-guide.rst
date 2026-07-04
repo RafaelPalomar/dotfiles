@@ -136,12 +136,12 @@ Verify fingerprint from the backed-up file::
 
 Decrypt and edit (requires the sops key in your keyring)::
 
-    guix time-machine -C ~/.dotfiles/channels.scm -- shell sops -- \
+    guix time-machine -C ~/.dotfiles/channels-lock.scm -- shell sops -- \
         sops ~/.dotfiles/sops/lovelace.yaml
 
 Re-encrypt after editing the plaintext directly::
 
-    guix time-machine -C ~/.dotfiles/channels.scm -- shell sops -- \
+    guix time-machine -C ~/.dotfiles/channels-lock.scm -- shell sops -- \
         sops --encrypt --in-place ~/.dotfiles/sops/lovelace.yaml
 
 2.3 Adding a sops key for a new machine
@@ -278,7 +278,7 @@ Collect borg credentials from the existing server::
 
 Populate sops secrets (TS auth keys, DB passwords, borg, etc.)::
 
-    guix time-machine -C ~/.dotfiles/channels.scm -- shell sops -- \
+    guix time-machine -C ~/.dotfiles/channels-lock.scm -- shell sops -- \
         sops ~/.dotfiles/sops/lovelace.yaml
 
 Validate entelequia modules::
@@ -336,7 +336,7 @@ Ensure ``entelequia/deploy/lovelace.scm`` has ``(port 22)`` and the correct
 host-key from ``ssh-keyscan``::
 
     cd ~/.dotfiles
-    guix time-machine -C channels.scm -- deploy -L . \
+    guix time-machine -C channels-lock.scm -- deploy -L . \
         entelequia/deploy/lovelace.scm
 
 After the first deploy succeeds, update ``deploy/lovelace.scm`` to ``(port 2222)``
@@ -348,7 +348,7 @@ and commit.
 ::
 
     cd ~/.dotfiles
-    guix time-machine -C channels.scm -- deploy -L . \
+    guix time-machine -C channels-lock.scm -- deploy -L . \
         entelequia/deploy/lovelace.scm
 
 Or using ``sync-and-deploy`` from guix-systole (handles channel version sync)::
@@ -491,7 +491,7 @@ Validate modules::
 
 Dry-run build::
 
-    guix time-machine -C channels.scm -- system build -L . \
+    guix time-machine -C channels-lock.scm -- system build -L . \
         entelequia/system/machines/lovelace.scm --dry-run
 
 USB integrity check workflow::

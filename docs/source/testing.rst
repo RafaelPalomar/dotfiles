@@ -15,7 +15,7 @@ System Configuration Testing
 
    .. code-block:: bash
 
-       guix time-machine -C channels.scm -- system build -L . \
+       guix time-machine -C channels-lock.scm -- system build -L . \
          entelequia/system/machines/einstein.scm --dry-run
 
 3. **Test in VM** (safest, isolated environment):
@@ -32,14 +32,14 @@ System Configuration Testing
 
    .. code-block:: bash
 
-       sudo guix time-machine -C channels.scm -- \
+       sudo guix time-machine -C channels-lock.scm -- \
          system reconfigure entelequia/system/machines/einstein.scm --dry-run
 
 5. **Apply to actual hardware**:
 
    .. code-block:: bash
 
-       sudo guix time-machine -C channels.scm -- \
+       sudo guix time-machine -C channels-lock.scm -- \
          system reconfigure entelequia/system/machines/einstein.scm
 
 6. **Rollback if needed**: ``sudo guix system roll-back``

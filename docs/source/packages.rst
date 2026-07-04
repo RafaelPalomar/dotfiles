@@ -24,7 +24,7 @@ Key Services
 - **Virtualization**: libvirt, QEMU, Podman
 - **VPN**: Tailscale
 - **Email**: isync + msmtp + mutt_oauth2 (OAuth2 for institutional accounts)
-- **Security**: GPG agent, SSH, Fail2Ban, AIDE (file integrity)
+- **Security**: GPG agent, SSH, Fail2Ban
 - **Power Management**: TLP (laptop), thermald
 
 System-Specific Features
@@ -36,7 +36,6 @@ Einstein (Desktop)
 - NVIDIA GPU support (nvidia-driver)
 - SLiM display manager
 - Container tools (Podman, Distrobox)
-- AIDE file integrity monitoring
 - More development packages
 
 Curie (Laptop)
@@ -59,14 +58,14 @@ Critical Configuration
 - ``entelequia/system/layers/base.scm`` - Shared OS base (~71 services: kernel, bootloader, networking, virtualization, security)
 - ``entelequia/system/layers/desktop-base.scm`` - Desktop layer (adds desktop packages to base)
 - ``entelequia/system/lib/common-packages.scm`` - Shared package lists (8 categories: hardware, audio, bluetooth, X11, security, etc.)
-- ``entelequia/system/lib/common-services.scm`` - Reusable service definitions (AIDE, bluetooth, libvirt, polkit, etc.)
+- ``entelequia/system/lib/common-services.scm`` - Reusable service definitions (bluetooth, gamepad udev, zram, polkit, etc.)
 - ``entelequia/system/lib/security-hardening.scm`` - Comprehensive security hardening (kernel, firewall, fail2ban, audit, SSH)
 - ``entelequia/home/home-config.scm`` - Base home environment (packages, dotfiles service, bash config)
 
 Machine Configurations
 ----------------------
 
-- ``entelequia/system/machines/einstein.scm`` - Desktop system (NVIDIA, AIDE, Podman, more packages)
+- ``entelequia/system/machines/einstein.scm`` - Desktop system (NVIDIA, Podman, more packages)
 - ``entelequia/system/machines/curie.scm`` - Laptop system (AMD, TLP, thermald, power management)
 
 Home Environment

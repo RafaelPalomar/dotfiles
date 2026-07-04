@@ -13,7 +13,7 @@
 ;;; Guix deployment specification for alucard.local
 ;;;
 ;;; Usage:
-;;;   guix time-machine -C channels.scm -- deploy -L . entelequia/deploy/alucard.scm
+;;;   guix time-machine -C channels-lock.scm -- deploy -L . entelequia/deploy/alucard.scm
 ;;;
 ;;; Requirements:
 ;;;   - Root SSH access to alucard.local on port 2222 (port 22 on first deploy from installer)

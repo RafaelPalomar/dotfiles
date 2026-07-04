@@ -44,11 +44,11 @@ Added `expect` to `entelequia/home/profiles/base.scm` for password automation.
 # From ~/.dotfiles directory
 
 # 1. Dry-run (verify what will change)
-sudo guix time-machine -C channels.scm -- \
+sudo guix time-machine -C channels-lock.scm -- \
   system reconfigure entelequia/system/machines/einstein.scm --dry-run
 
 # 2. Apply the configuration
-sudo guix time-machine -C channels.scm -- \
+sudo guix time-machine -C channels-lock.scm -- \
   system reconfigure entelequia/system/machines/einstein.scm
 
 # 3. Reboot (or restart udev)

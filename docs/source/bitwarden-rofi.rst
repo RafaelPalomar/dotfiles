@@ -265,7 +265,7 @@ If not found, rebuild Guix home configuration:
 .. code-block:: bash
 
     cd ~/.dotfiles
-    sudo guix time-machine -C channels.scm -- system reconfigure entelequia/system/machines/einstein.scm
+    sudo guix time-machine -C channels-lock.scm -- system reconfigure entelequia/system/machines/einstein.scm
 
 rbw-agent Not Starting
 ----------------------
@@ -486,7 +486,7 @@ rbw is managed by Guix:
 
     guix pull
     cd ~/.dotfiles
-    sudo guix time-machine -C channels.scm -- system reconfigure entelequia/system/machines/einstein.scm
+    sudo guix time-machine -C channels-lock.scm -- system reconfigure entelequia/system/machines/einstein.scm
 
 Update rofi-rbw
 ---------------

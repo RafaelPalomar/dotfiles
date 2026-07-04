@@ -13,7 +13,7 @@
 ;;; Guix deployment specification for edison (192.168.88.14)
 ;;;
 ;;; Usage:
-;;;   guix time-machine -C channels.scm -- deploy -L . entelequia/deploy/edison.scm
+;;;   guix time-machine -C channels-lock.scm -- deploy -L . entelequia/deploy/edison.scm
 ;;;
 ;;; Pre-requisites:
 ;;;   1. Base Guix System installed (done — fresh install at 192.168.88.14)
