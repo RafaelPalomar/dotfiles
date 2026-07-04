@@ -53,6 +53,14 @@
         (url "https://github.com/RafaelPalomar/archimedes-agent")
         (branch "main"))
       (channel
+        (name 'alpha-agent)
+        (url "https://github.com/RafaelPalomar/alpha-agent")
+        (branch "master"))
+      (channel
+        (name 'guix-codegraph)
+        (url "https://github.com/OUH-MESHLab/guix-codegraph")
+        (branch "main"))
+      (channel
         (name 'sops-guix)
         (url "https://github.com/fishinthecalculator/sops-guix.git")
         (branch "main")
