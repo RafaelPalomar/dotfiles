@@ -23,7 +23,8 @@
    GPU-TYPE should be one of: 'nvidia, 'amd, 'intel, or #f (no GPU)."
   (case gpu-type
     ((nvidia)
-     '("nvidia-driver"))
+     '("nvidia-driver"
+       "xlibre-input-evdev"))
     ((amd)
      '("xlibre-video-amdgpu"
        "amd-microcode"

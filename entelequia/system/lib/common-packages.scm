@@ -9,10 +9,8 @@
             base-security-packages
             base-virtualization-packages
             base-monitoring-packages
-            nvidia-specific-packages
-            amd-specific-packages
             base-latex-packages
-            curie-specific-packages
+            workstation-packages
             einstein-specific-packages
             alucard-specific-packages
             lovelace-specific-packages))
@@ -127,17 +125,6 @@
     "powertop"
     "acpi"))
 
-;;; GPU-specific packages
-
-(define nvidia-specific-packages
-  '("nvidia-driver"
-    "xlibre-input-evdev"))
-
-(define amd-specific-packages
-  '("xlibre-video-amdgpu"
-    "amd-microcode"
-    "amdgpu-firmware"))
-
 ;;; LaTeX / XeLaTeX toolchain (system-level for Emacs AUCTeX and other daemons)
 ;;;
 ;;; These are placed at the system level so they are on PATH for all processes,
@@ -185,7 +172,9 @@
     "jq"
     "nextcloud-client"))
 
-(define curie-specific-packages
+;; Consumed by curie, hopper, and baroja — interactive workstation
+;; packages, not curie-specific (renamed from curie-specific-packages).
+(define workstation-packages
   '("feh"
     "python-pywal"
     "imagemagick"

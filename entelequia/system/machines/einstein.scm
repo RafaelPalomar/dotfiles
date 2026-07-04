@@ -8,20 +8,11 @@
   #:use-module (entelequia system lib common-services)
   #:use-module (entelequia system lib pam-gnupg)
   #:use-module (entelequia system lib chromium-policy)
-  #:use-module (entelequia system lib librewolf-policy)
-  #:use-module (entelequia packages xlibre-fix)
   #:use-module (entelequia system machines datalocker-udev-rules)
   #:use-module (gnu)
   #:use-module (gnu services)
-  #:use-module (gnu services xorg)
-  #:use-module (gnu services containers)
-  #:use-module (gnu system accounts)
-  #:use-module (nongnu packages nvidia)
-  #:use-module (nongnu services nvidia)
   #:use-module (nonguix transformations)
-  #:use-module (xlibre))
-
-(use-service-modules xorg containers)
+  #:export (einstein-os))
 
 ;;; Einstein system configuration
 ;;;
@@ -40,31 +31,10 @@
    (gpu-type 'nvidia)
    (machine-type 'desktop)))
 
-;;; NVIDIA Xorg configuration
-
-(define nvidia-xorg-config
-  (xlibre-configuration
-   ;; Patched xlibre-server: drops `Module "glx"` from the bundled
-   ;; share/X11/xorg.conf.d/10-nvidia.conf so the OutputClass only
-   ;; loads NVIDIA's GLX (see entelequia/packages/xlibre-fix.scm).
-   (server xlibre-server-no-mesa-glx)
-   (modules (list nvidia-driver xlibre-input-libinput))
-   (drivers '("nvidia"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
-   ;; Belt-and-suspenders: even with the OutputClass patched, X still
-   ;; loads a default `glx` module that registers as the GLX vendor
-   ;; for screen 0 ahead of glxserver_nvidia.  Disable it explicitly.
-   (extra-config
-    (list "Section \"Module\""
-          "  Disable \"glx\""
-          "  Load \"glxserver_nvidia\""
-          "EndSection"))))
-
 ;;; Einstein-specific packages
 
 (define einstein-extra-packages
   (append
-   (specifications->packages nvidia-specific-packages)
    (specifications->packages einstein-specific-packages)
    (specifications->packages base-latex-packages)
    (list font-sciflycore-sans latex-nfr)))
@@ -74,12 +44,6 @@
 ;; Define einstein-specific services
 (define einstein-services
   (list
-   ;; Rootless podman for containerization
-   (service rootless-podman-service-type
-            (rootless-podman-configuration
-             (subuids (list (subid-range (name "rafael"))))
-             (subgids (list (subid-range (name "rafael"))))))
-
    ;; Game controller udev rules (PS4, PS5, Xbox, etc.)
    gamepad-udev-rules-service
 
@@ -93,13 +57,6 @@
    ;; entelequia/home/machines/einstein-rafael.scm and is deployed
    ;; independently via `guix home reconfigure' (alias `home-reconfigure').
 
-   ;; SLiM display manager with NVIDIA Xorg config
-   (service slim-service-type
-            (slim-configuration
-             (auto-login? #f)
-             (default-user "rafael")
-             (xorg-configuration nvidia-xorg-config)))
-
    ;; pam-gnupg: SLiM login password → gpg-agent passphrase cache.
    ;; Eliminates pinentry prompts for keygrips listed in ~/.pam-gnupg.
    ;; Requires the GPG passphrase to equal the login password.
@@ -107,41 +64,18 @@
 
    ;; Chromium managed policy: SearXNG default search + Bitwarden forcelist.
    ;; Per-profile launchers come from the home environment.
-   chromium-policy-service
-
-   ;; Librewolf managed policy: both SearXNG variants installed, adult as
-   ;; default, Bitwarden force-installed via Mozilla's AMO.
-   librewolf-policy-service))
+   chromium-policy-service))
 
 (define einstein-system
   (operating-system
    (inherit (make-desktop-base-os einstein-config
                                   #:extra-packages einstein-extra-packages
                                   #:extra-services einstein-services
+                                  ;; lp (printers) + dialout on top of the
+                                  ;; default cgroup (containers)
+                                  #:extra-user-groups '("lp" "cgroup" "dialout")
                                   ;; Allow Synergy for keyboard/mouse sharing
                                   #:firewall-extra-tcp-ports '(24800)))
-
-   ;; NVIDIA-specific kernel arguments
-   (kernel-arguments (gpu-kernel-arguments 'nvidia))
-
-   ;; User configuration (add lp and cgroup to supplementary groups)
-   ;; Note: cgroup group now defined in base.scm
-   (users (cons* (user-account
-                  (name "rafael")
-                  (comment "Rafael")
-                  (group "users")
-                  (home-directory "/home/rafael")
-                  ;; Include all base groups + lp (printers) + cgroup (containers)
-                  (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
-                                          "realtime" "audio" "video" "lp" "cgroup"
-                                          "dialout")))
-                 %base-user-accounts))
-
-   ;; Bootloader configuration
-   (bootloader (bootloader-configuration
-                (bootloader grub-efi-bootloader)
-                (targets (list "/boot/efi"))
-                (keyboard-layout (keyboard-layout "us" "altgr-intl"))))
 
    ;; Additional kernel modules for VMD
    (initrd-modules (append '("vmd") %base-initrd-modules))
@@ -162,4 +96,7 @@
 
 ;;; Apply NVIDIA transformation and export
 
-((nonguix-transformation-nvidia #:configure-xorg? #f) einstein-system)
+(define einstein-os
+  ((nonguix-transformation-nvidia #:configure-xorg? #f) einstein-system))
+
+einstein-os

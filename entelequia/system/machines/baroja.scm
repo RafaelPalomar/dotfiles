@@ -4,17 +4,9 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
-  #:use-module (entelequia system lib librewolf-policy)
   #:use-module (gnu)
   #:use-module (gnu services)
-  #:use-module (gnu services xorg)
-  #:use-module (gnu services pm)         ; thermald
-  #:use-module (gnu services containers)
-  #:use-module (gnu system accounts)
-  #:use-module (xlibre)
   #:export (baroja-os))
-
-(use-service-modules xorg containers pm)
 
 ;;; Baroja system configuration
 ;;;
@@ -45,24 +37,6 @@
    ;; on AC to keep temps in check; repaste/declog is the durable hardware fix.
    (cpu-ac-profile 'cool)))
 
-;;; Intel xorg configuration
-;;;
-;;; modesetting (KMS) + TearFree, same approach as hopper/curie -- works
-;;; well for the Sandy Bridge iGPU and avoids the legacy
-;;; xlibre-video-intel DDX.
-
-(define intel-xlibre-config
-  (xlibre-configuration
-   (modules (list xlibre-input-libinput))
-   (drivers '("modesetting"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
-   (extra-config
-    (list "Section \"Device\""
-          "  Identifier \"Intel Graphics\""
-          "  Driver \"modesetting\""
-          "  Option \"TearFree\" \"true\""
-          "EndSection"))))
-
 ;;; Baroja-specific packages
 ;;
 ;; intel-microcode: CPU errata + vulnerability mitigations.
@@ -70,88 +44,42 @@
 ;; machine-type 'laptop in the base layer).
 ;; lm-sensors: `sensors' CLI for thermal/voltage probes.
 
+;; intel-microcode comes via gpu-driver-packages ('intel) in desktop-base;
+;; thermald via the (intel, laptop) conditional in the base layer.
 (define baroja-extra-packages
   (append
-   (specifications->packages '("intel-microcode"
-                               "tlp"
-                               "powertop"
-                               "lm-sensors"))
-   (specifications->packages curie-specific-packages)))
+   (specifications->packages '("tlp" "powertop" "lm-sensors"))
+   (specifications->packages workstation-packages)))
 
 ;;; Home environment for rafael lives in
 ;;; entelequia/home/machines/baroja-rafael.scm and is deployed
 ;;; independently via `guix home reconfigure' (alias `home-reconfigure').
 
-;;; Baroja-specific services
+;;; Baroja-specific services (slim/podman/librewolf/thermald all come from
+;;; the layers now)
 
-(define baroja-services
-  (list
-   ;; Intel thermal management (base layer dropped thermald when AMD took
-   ;; over; re-add for Intel laptops, as hopper does).
-   (service thermald-service-type)
-
-   ;; Rootless podman for containerization (rafael)
-   (service rootless-podman-service-type
-            (rootless-podman-configuration
-             (subuids (list (subid-range (name "rafael"))))
-             (subgids (list (subid-range (name "rafael"))))))
-
-   ;; SLiM display manager with Intel xorg
-   (service slim-service-type
-            (slim-configuration
-             (auto-login? #f)
-             (default-user "rafael")
-             (xorg-configuration intel-xlibre-config)))
-
-   ;; Librewolf managed policy: SearXNG default + Bitwarden force-install.
-   librewolf-policy-service))
+(define baroja-services '())
 
 (define baroja-os
   (operating-system
    (inherit (make-desktop-base-os baroja-config
                                   #:extra-packages baroja-extra-packages
                                   #:extra-services baroja-services
+                                  ;; Laptop power tweaks for the X220 (Sandy Bridge)
+                                  ;;   i915.enable_fbc=1     FBC — supported + stable here
+                                  ;;   pcie_aspm=force       Aggressive PCIe ASPM
+                                  ;;   mem_sleep_default=deep  S3 deep sleep (X220 supports it)
+                                  ;; (No i915.enable_psr — PSR is Haswell+.)
+                                  ;; Predictable iface names kept (no net.ifnames=0) to match
+                                  ;; the installed state on a remote box.
+                                  #:extra-kernel-arguments '("i915.enable_fbc=1"
+                                                             "pcie_aspm=force"
+                                                             "mem_sleep_default=deep")
                                   #:firewall-trusted-subnets '("192.168.88.0/24")
                                   #:ssh-authorized-keys
                                   `(("root" ,(plain-file
                                               "baroja-deploy.pub"
                                               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHLL6b/8zk5+uIj/0WxYLMAYI+3y7ZEJPsjF9jXYgR0R openpgp:0xC2B1C020")))))
-
-   ;; Intel kernel arguments + laptop power tweaks for the X220 (Sandy Bridge)
-   ;;   i915.enable_fbc=1     Frame Buffer Compression -- reduces memory
-   ;;                         bandwidth; supported + stable on Sandy Bridge.
-   ;;   pcie_aspm=force       Aggressive PCIe Active State Power Management.
-   ;;   mem_sleep_default=deep  Use S3 deep sleep (X220 supports it) rather
-   ;;                         than s2idle.
-   ;; (No i915.enable_psr -- Panel Self Refresh is Haswell+, not Sandy Bridge.)
-   ;; Predictable iface names (enp0s25/wlp3s0) kept -- no net.ifnames=0 -- to
-   ;; match the installed state and avoid surprising NetworkManager on a
-   ;; remote box.
-   (kernel-arguments (gpu-kernel-arguments
-                      'intel
-                      #:extra-args '("i915.enable_fbc=1"
-                                     "pcie_aspm=force"
-                                     "mem_sleep_default=deep")))
-
-   ;; Users: rafael (admin, podman/containers).
-   ;; NOTE: the systole installer created the account as "Rafael" (capital,
-   ;; /home/Rafael).  Standardised here to lowercase "rafael" to match every
-   ;; other entelequia machine + the baroja-rafael home file.  First deploy
-   ;; creates /home/rafael; the empty /home/Rafael can be removed afterwards.
-   (users (cons* (user-account
-                  (name "rafael")
-                  (comment "Rafael")
-                  (group "users")
-                  (home-directory "/home/rafael")
-                  (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
-                                          "realtime" "audio" "video" "cgroup")))
-                 %base-user-accounts))
-
-   ;; Bootloader (UEFI) -- GRUB on the EFI system partition (sda1).
-   (bootloader (bootloader-configuration
-                (bootloader grub-efi-bootloader)
-                (targets (list "/boot/efi"))
-                (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
 
    ;; Swap (sda2)
    (swap-devices (list (swap-space

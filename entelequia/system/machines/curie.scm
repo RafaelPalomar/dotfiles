@@ -8,18 +8,14 @@
   #:use-module (entelequia system lib common-services)
   #:use-module (entelequia system lib pam-gnupg)
   #:use-module (entelequia system lib chromium-policy)
-  #:use-module (entelequia system lib librewolf-policy)
   #:use-module (gnu)
   #:use-module (gnu services)
   #:use-module (gnu services base)     ; guix-extension, guix-service-type
-  #:use-module (gnu services xorg)
-  #:use-module (gnu services containers)
   #:use-module (gnu services shepherd)   ; shepherd-service, shepherd-root-service-type
   #:use-module (guix gexp)               ; #~ for shepherd start gexps
-  #:use-module (gnu system accounts)
-  #:use-module (xlibre))
-
-(use-service-modules xorg containers)
+  #:use-module (sops packages sops)
+  #:use-module (sops secrets)
+  #:use-module (sops services sops))
 
 ;;; Curie system configuration
 ;;;
@@ -38,76 +34,43 @@
    (gpu-type 'amd)
    (machine-type 'laptop)))
 
-;;; AMD Xlibre configuration
-;;; Using modesetting driver instead of xlibre-video-amdgpu for better pixmap stability
-;;; Modesetting provides better per-CRTC framebuffer handling to prevent pixmap corruption
-;;; TearFree option enabled at driver level for smooth rendering
-;;; See: https://wiki.archlinux.org/title/AMDGPU#Xorg_configuration
-;;; Rollback if needed: sudo guix system roll-back
-
-(define amd-xlibre-config
-  (xlibre-configuration
-   (modules (list xlibre-input-libinput))  ; Removed xlibre-video-amdgpu module
-   ;; NOTE on `drivers': Guix ALWAYS emits a default `device-modesetting' +
-   ;; `screen-modesetting' pair (whether `drivers' is '() or
-   ;; '("modesetting")).  That auto pair would shadow the custom "AMD
-   ;; Graphics" Device below — which is why TearFree/SWcursor never applied
-   ;; before.  We cannot inject options into the auto device, so instead we
-   ;; declare an explicit ServerLayout -> Screen -> "AMD Graphics" Device in
-   ;; extra-config.  X uses the explicit ServerLayout and leaves the auto
-   ;; sections unreferenced, so our Device (with its options) is the one that
-   ;; actually binds.
-   (drivers '())
-   (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))
-   (extra-config
-    (list "Section \"Device\""
-          "  Identifier \"AMD Graphics\""
-          "  Driver \"modesetting\""
-          "  Option \"TearFree\" \"true\""
-          ;; SWcursor: the modesetting HW cursor plane is not rotated on
-          ;; this amdgpu/Strix Halo path, so the pointer is invisible on a
-          ;; rotated external output (e.g. the dock's portrait monitor) even
-          ;; though everything else renders.  Software cursor composites
-          ;; correctly on rotated CRTCs.  Negligible cost on a static desktop.
-          "  Option \"SWcursor\" \"true\""
-          "EndSection"
-          "Section \"Screen\""
-          "  Identifier \"AMD Screen\""
-          "  Device \"AMD Graphics\""
-          "EndSection"
-          ;; Explicit ServerLayout so X binds OUR Screen/Device instead of the
-          ;; auto-generated screen-modesetting (which carries no options).
-          "Section \"ServerLayout\""
-          "  Identifier \"AMD Layout\""
-          "  Screen \"AMD Screen\""
-          "EndSection"))))
-
 ;;; Curie-specific packages
 
 (define curie-extra-packages
   (append
-   (specifications->packages amd-specific-packages)
-   (specifications->packages curie-specific-packages)
+   (specifications->packages workstation-packages)
    (specifications->packages base-latex-packages)
    (list font-sciflycore-sans latex-nfr)))
 
 ;;; Curie system definition
 
 ;; Define curie-specific services
+;;; SOPS encrypted secrets file (in git, encrypted). Decrypted at boot by the
+;;; Curie SOPS key in /root/.gnupg (passwordless, generated on the host).
+(define %sops-curie
+  (local-file "../../../sops/curie.yaml"))
+
 (define curie-services
   (append
    (list
+    ;; sops-guix: decrypt rafael's OpenRouter key to /run/secrets/ at boot.
+    ;; openrouter/rafael -> /run/secrets/openrouter/rafael (owner rafael, 0400),
+    ;; read by the alpha launcher (rafael's home service).
+    (service sops-secrets-service-type
+             (sops-service-configuration
+              (sops sops)
+              (gnupg-home "/root/.gnupg")
+              (secrets
+               (list (sops-secret (key '("openrouter" "rafael"))
+                                  (file %sops-curie)
+                                  (user "rafael")
+                                  (permissions #o400))))))
+
     ;; Game controller udev rules (PS4, PS5, Xbox, etc.)
     gamepad-udev-rules-service
 
     ;; Allow non-bonded Bluetooth HID devices (PS5 DualSense, etc.)
     bluetooth-input-config-service
-
-    ;; Rootless podman for containerization
-    (service rootless-podman-service-type
-             (rootless-podman-configuration
-              (subuids (list (subid-range (name "rafael"))))
-              (subgids (list (subid-range (name "rafael"))))))
 
     ;; Thunderbolt device manager (boltd).  Security level is `user', so
     ;; the ThinkPad Thunderbolt 4 Dock must be authorized on every connect;
@@ -120,13 +83,6 @@
     ;; entelequia/home/machines/curie-rafael.scm and is deployed
     ;; independently via `guix home reconfigure' (alias `home-reconfigure').
 
-    ;; SLiM display manager with AMD Xlibre config
-    (service slim-service-type
-             (slim-configuration
-              (auto-login? #f)
-              (default-user "rafael")
-              (xorg-configuration amd-xlibre-config)))
-
     ;; pam-gnupg: SLiM login password → gpg-agent passphrase cache.
     ;; Eliminates pinentry prompts for keygrips listed in ~/.pam-gnupg.
     ;; Requires the GPG passphrase to equal the login password.
@@ -134,11 +90,7 @@
 
     ;; Chromium managed policy: SearXNG default search + Bitwarden forcelist.
     ;; Per-profile launchers come from the home environment.
-    chromium-policy-service
-
-    ;; Librewolf managed policy: both SearXNG variants installed, adult as
-    ;; default, Bitwarden force-installed via Mozilla's AMO.
-    librewolf-policy-service)
+    chromium-policy-service)
 
    ;; zram compressed swap (8GB, zstd compression)
    (zram-service #:size-mb 8192)
@@ -226,59 +178,28 @@
                                   ;; 57165 — Barony direct-IP host port (TCP+UDP)
                                   #:firewall-extra-tcp-ports '(4549 57165)
                                   #:firewall-extra-udp-ports '(4549 4171 4175 4179 57165)
-                                  #:firewall-trusted-subnets '("192.168.88.0/24")))
-
-   ;; Curie-specific kernel arguments
-   ;;   amd_pstate / amdgpu.* — set in (gpu-kernel-arguments 'amd)
-   ;;   net.ifnames / biosdevname — keep classic eth0/wlan0 naming
-   ;;   acpi.ec_no_wakeup=1     — Strix/Krackan Point s2idle wake fix.  The EC
-   ;;                             fires spurious wake events that stall resume
-   ;;                             on AMD ThinkPads, leading to "suspends but
-   ;;                             won't wake".
-   ;;
-   ;; Note: resume= is intentionally absent.  Guix's initrd does not resolve
-   ;; resume=UUID=<fs-uuid>, and the swap partition (3.7 GiB) is too small to
-   ;; hold a hibernation image of 30 GiB RAM anyway.  When we set up a proper
-   ;; swapfile, add resume=UUID=<root-uuid> resume_offset=<file-offset> here.
-   ;; amdgpu.cwsr_enable=0 — workaround for a Strix Halo gfx1150 / Radeon
-   ;; 890M kernel bug.  Under sustained GPU load (proven by NMS under
-   ;; Proton-GE with DXVK) the MES (Microengine Scheduler) wedges on
-   ;; Ring 13; amdgpu's automatic reset then triggers a hard SoC
-   ;; power-off (faster than disk flush, hence no kernel logs of the
-   ;; event).  Reported on the AMD-GFX list for kernel 6.18 and the same
-   ;; symptom continues in 6.19-rc3.  Disabling Compute Wave Store and
-   ;; Resume (cwsr) prevents the MES path from being exercised in a
-   ;; way that triggers the wedge.  Revisit when curie's kernel moves
-   ;; past the upstream fix (track gfx1150 MES patches on amd-gfx).
-   ;;
-   ;; Mailing list refs:
-   ;;   https://lists.freedesktop.org/archives/amd-gfx/2025-December/135310.html
-   ;;   https://lists.freedesktop.org/archives/amd-gfx/2025-December/136016.html
-   (kernel-arguments (gpu-kernel-arguments 'amd
-                                           #:extra-args
-                                           '("net.ifnames=0"
-                                             "biosdevname=0"
-                                             "acpi.ec_no_wakeup=1"
-                                             "amdgpu.cwsr_enable=0")))
-
-   ;; User configuration (add cgroup to supplementary groups for containers)
-   ;; Note: cgroup group now defined in base.scm
-   (users (cons* (user-account
-                  (name "rafael")
-                  (comment "Rafael")
-                  (group "users")
-                  (home-directory "/home/rafael")
-                  ;; Include all base groups + cgroup (containers)
-                  (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
-                                          "realtime" "audio" "video" "cgroup"
-                                          "dialout")))
-                 %base-user-accounts))
-
-   ;; Bootloader configuration
-   (bootloader (bootloader-configuration
-                (bootloader grub-efi-bootloader)
-                (targets (list "/boot/efi"))
-                (keyboard-layout (keyboard-layout "us" "altgr-intl" #:model "thinkpad"))))
+                                  #:firewall-trusted-subnets '("192.168.88.0/24")
+                                  #:extra-user-groups '("cgroup" "dialout")
+                                  ;; Curie-specific kernel arguments
+                                  ;;   net.ifnames / biosdevname — keep classic eth0/wlan0 naming
+                                  ;;   acpi.ec_no_wakeup=1 — Strix/Krackan Point s2idle wake fix.
+                                  ;;     The EC fires spurious wake events that stall resume on
+                                  ;;     AMD ThinkPads ("suspends but won't wake").
+                                  ;;   amdgpu.cwsr_enable=0 — workaround for a Strix Halo gfx1150 /
+                                  ;;     Radeon 890M kernel bug: under sustained GPU load (NMS via
+                                  ;;     Proton-GE/DXVK) the MES wedges on Ring 13 and amdgpu's
+                                  ;;     reset hard powers-off the SoC.  Reported on amd-gfx for
+                                  ;;     6.18; still present in 6.19-rc3.  Revisit when the kernel
+                                  ;;     carries the gfx1150 MES fix:
+                                  ;;     https://lists.freedesktop.org/archives/amd-gfx/2025-December/135310.html
+                                  ;;     https://lists.freedesktop.org/archives/amd-gfx/2025-December/136016.html
+                                  ;; Note: resume= intentionally absent — Guix initrd doesn't
+                                  ;; resolve resume=UUID=, and the 3.7 GiB swap can't hold a
+                                  ;; 30 GiB hibernation image anyway.
+                                  #:extra-kernel-arguments '("net.ifnames=0"
+                                                             "biosdevname=0"
+                                                             "acpi.ec_no_wakeup=1"
+                                                             "amdgpu.cwsr_enable=0")))
 
    ;; Swap device
    (swap-devices (list (swap-space

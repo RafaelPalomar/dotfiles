@@ -4,20 +4,15 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
-  #:use-module (entelequia system lib librewolf-policy)
-  #:use-module (entelequia packages xlibre-fix)
   #:use-module (gnu)
   #:use-module (gnu services)
-  #:use-module (gnu services xorg)
-  #:use-module (gnu services containers)
-  #:use-module (gnu system accounts)
-  #:use-module (nongnu packages nvidia)
-  #:use-module (nongnu services nvidia)
+  #:use-module (gnu system shadow)
   #:use-module (nonguix transformations)
-  #:use-module (xlibre)
+  #:use-module (sops packages sops)
+  #:use-module (sops secrets)
+  #:use-module (sops services sops)
+  #:use-module (guix gexp)
   #:export (alucard-os))
-
-(use-service-modules xorg containers)
 
 ;;; Alucard system configuration
 ;;;
@@ -37,67 +32,53 @@
    (gpu-type 'nvidia)
    (machine-type 'desktop)))
 
-;;; NVIDIA Xorg configuration
-
-(define nvidia-xorg-config
-  (xlibre-configuration
-   ;; Patched xlibre-server: drops `Module "glx"` from the bundled
-   ;; share/X11/xorg.conf.d/10-nvidia.conf so the OutputClass only
-   ;; loads NVIDIA's GLX (see entelequia/packages/xlibre-fix.scm).
-   (server xlibre-server-no-mesa-glx)
-   (modules (list nvidia-driver xlibre-input-libinput))
-   (drivers '("nvidia"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl"))
-   ;; Belt-and-suspenders: even with the OutputClass patched, X still
-   ;; loads a default `glx` module that registers as the GLX vendor
-   ;; for screen 0 ahead of glxserver_nvidia.  Disable it explicitly
-   ;; so libglvnd routes to NVIDIA and apps get hardware acceleration.
-   (extra-config
-    (list "Section \"Module\""
-          "  Disable \"glx\""
-          "  Load \"glxserver_nvidia\""
-          "EndSection"))))
-
 ;;; Alucard-specific packages
 
 (define alucard-extra-packages
-  (append
-   (specifications->packages nvidia-specific-packages)
-   (specifications->packages alucard-specific-packages)))
+  (specifications->packages alucard-specific-packages))
 
 ;;; Home environments for rafael and leandro live in
 ;;; entelequia/home/machines/alucard-rafael.scm and alucard-leandro.scm
 ;;; respectively, and are deployed independently per-user via
 ;;; `guix home reconfigure' (alias `home-reconfigure').
 
+;;; SOPS encrypted secrets file (in git, encrypted). Decrypted at boot by the
+;;; Alucard SOPS key in /root/.gnupg (generated on the host).
+(define %sops-alucard
+  (local-file "../../../sops/alucard.yaml"))
+
 ;;; Alucard-specific services
 
 (define alucard-services
   (list
-   ;; Rootless podman for containerization (rafael)
-   (service rootless-podman-service-type
-            (rootless-podman-configuration
-             (subuids (list (subid-range (name "rafael"))))
-             (subgids (list (subid-range (name "rafael"))))))
-
-   ;; SLiM display manager with NVIDIA xorg (proven to work with xlibre + NVIDIA)
-   ;; Both rafael and leandro use bspwm via .xsession from dotfiles
-   (service slim-service-type
-            (slim-configuration
-             (auto-login? #f)
-             (default-user "rafael")
-             (xorg-configuration nvidia-xorg-config)))
-
-   ;; Librewolf managed policy: both SearXNG variants installed, adult as
-   ;; system-wide default, Bitwarden force-installed.  Kids (leandro) get
-   ;; a per-user user.js override via librewolf-kids home service.
-   librewolf-policy-service))
+   ;; sops-guix: decrypt per-machine secrets to /run/secrets/ at boot.
+   ;; openrouter/leandro -> /run/secrets/openrouter/leandro (owner leandro, 0400),
+   ;; read by the Archimedes launcher (leandro's home service).
+   (service sops-secrets-service-type
+            (sops-service-configuration
+             (sops sops)
+             (gnupg-home "/root/.gnupg")
+             (secrets
+              (list (sops-secret (key '("openrouter" "leandro"))
+                                 (file %sops-alucard)
+                                 (user "leandro")
+                                 (permissions #o400))))))
+))
 
 (define alucard-system
   (operating-system
    (inherit (make-desktop-base-os alucard-config
                                   #:extra-packages alucard-extra-packages
                                   #:extra-services alucard-services
+                                  ;; Second user of the shared desktop.
+                                  #:extra-user-accounts
+                                  (list (user-account
+                                         (name "leandro")
+                                         (comment "Leandro")
+                                         (group "users")
+                                         (home-directory "/home/leandro")
+                                         (supplementary-groups
+                                          '("wheel" "netdev" "audio" "video"))))
                                   #:firewall-extra-tcp-ports '(4549)
                                   #:firewall-extra-udp-ports '(4549 4171 4175 4179)
                                   #:firewall-trusted-subnets '("192.168.88.0/24")
@@ -106,31 +87,6 @@
                                                          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP1k6qoXg+tPB5tQjDu690RvaICgd8TJYWPCp+U9UJTi rafael@curie"))
                                     ("rafael" ,(plain-file "rafael-curie.pub"
                                                            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCMfBOPdeKIKGekKgBOxJSozJ/jCrnZas657mege/d7VuhXQ1nSvd4en2PjrYTNN0hRgUQ4ccrJpPpKOrLdS5UB3YyZbrTjdQFHjDeEhkaO9dyphfWL0OeVVj1VC4j0/PlIhBqOOdfgC1+Y+z2+6P8xFILWolH7d4yYNCKANz0sUVorPVRYc388S7PSiBZOf4ZVcdEFql6uqDiMVtWlkXtq/4DcXMDtTudvQvjh1BYAAzAM5TEoYwXL/LHCed010FELX96KdqTZXuBKtEdjW7WX85IYWhw05vaSYNyML0DA6trvD7qAOmQ5SDXXot/Vkyf8aX36Xwhu2yoVTKBxdVvklkSZSrvTigpvlPFphFRkF2j6B6A8uIalKLoHZecE+xyCfq+0aUaHz6/KDw2N6SkhFg3N4/f5HjlA2j00wLILj6/htI57TNGbffls/Ln9gXwuyq15v4+sIAYyY1LZyjA4WsB/AtO9IZjusJjkQYuu8Zg6SxSkFMaJ3mmNk6rNwhjyVPXbmpBg97+6CrApwQbF4As/h7dcQTbeTIbZdVJbv7TWxRHfqmaGZYzWKNkt+Njd/VmlLnY29D4DJ3zmC/NkXymTeOggt/YMGFr2UHFSYYtjtd8y/0z5bu0tRNXNt2gE0glQhozTuZMSAD4uzzXOC2YnJXqsvhZTPOH0iKJuCQ== rafael@curie")))))
-
-   ;; NVIDIA kernel arguments
-   (kernel-arguments (gpu-kernel-arguments 'nvidia))
-
-   ;; Both users (cgroup group for rafael's containers)
-   (users (cons* (user-account
-                  (name "rafael")
-                  (comment "Rafael")
-                  (group "users")
-                  (home-directory "/home/rafael")
-                  (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
-                                          "realtime" "audio" "video" "cgroup")))
-                 (user-account
-                  (name "leandro")
-                  (comment "Leandro")
-                  (group "users")
-                  (home-directory "/home/leandro")
-                  (supplementary-groups '("wheel" "netdev" "audio" "video")))
-                 %base-user-accounts))
-
-   ;; Bootloader
-   (bootloader (bootloader-configuration
-                (bootloader grub-efi-bootloader)
-                (targets (list "/boot/efi"))
-                (keyboard-layout (keyboard-layout "us" "altgr-intl"))))
 
    ;; Swap
    (swap-devices (list (swap-space

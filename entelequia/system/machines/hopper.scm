@@ -4,21 +4,14 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
-  #:use-module (entelequia system lib librewolf-policy)
   #:use-module (gnu)
   #:use-module (gnu services)
-  #:use-module (gnu services xorg)
-  #:use-module (gnu services pm)         ; thermald
-  #:use-module (gnu services containers)
-  #:use-module (gnu system accounts)
-  #:use-module (xlibre)
+  #:use-module (gnu system shadow)
   #:use-module (sops packages sops)
   #:use-module (sops secrets)
   #:use-module (sops services sops)
   #:use-module (guix gexp)
   #:export (hopper-os))
-
-(use-service-modules xorg containers pm)
 
 ;;; Hopper system configuration
 ;;;
@@ -39,24 +32,6 @@
    (gpu-type 'intel)
    (machine-type 'laptop)))
 
-;;; Intel xorg configuration
-;;;
-;;; Use modesetting (KMS) like curie's AMD config — works well for
-;;; modern Intel iGPUs and avoids the legacy xlibre-video-intel
-;;; driver.  TearFree for smoother rendering.
-
-(define intel-xlibre-config
-  (xlibre-configuration
-   (modules (list xlibre-input-libinput))
-   (drivers '("modesetting"))
-   (keyboard-layout (keyboard-layout "us" "altgr-intl"))
-   (extra-config
-    (list "Section \"Device\""
-          "  Identifier \"Intel Graphics\""
-          "  Driver \"modesetting\""
-          "  Option \"TearFree\" \"true\""
-          "EndSection"))))
-
 ;;; Hopper-specific packages
 ;;
 ;; intel-microcode: CPU vulnerability mitigations + errata fixes.
@@ -64,13 +39,12 @@
 ;; system-wide (TLP service is enabled via machine-type 'laptop).
 ;; lm-sensors: provides the `sensors` CLI for thermal/voltage probes.
 
+;; intel-microcode comes via gpu-driver-packages ('intel) in desktop-base;
+;; thermald via the (intel, laptop) conditional in the base layer.
 (define hopper-extra-packages
   (append
-   (specifications->packages '("intel-microcode"
-                               "tlp"
-                               "powertop"
-                               "lm-sensors"))
-   (specifications->packages curie-specific-packages)))
+   (specifications->packages '("tlp" "powertop" "lm-sensors"))
+   (specifications->packages workstation-packages)))
 
 ;;; Home environments for rafael and adrian live in
 ;;; entelequia/home/machines/hopper-rafael.scm and hopper-adrian.scm
@@ -100,73 +74,36 @@
                                  (file %sops-hopper)
                                  (user "adrian")
                                  (permissions #o400))))))
-
-   ;; Intel thermal management (was removed from base when AMD took over;
-   ;; re-add here for Intel laptops).
-   (service thermald-service-type)
-
-   ;; Rootless podman for containerization (rafael)
-   (service rootless-podman-service-type
-            (rootless-podman-configuration
-             (subuids (list (subid-range (name "rafael"))))
-             (subgids (list (subid-range (name "rafael"))))))
-
-   ;; SLiM display manager with Intel xorg
-   (service slim-service-type
-            (slim-configuration
-             (auto-login? #f)
-             (default-user "rafael")
-             (xorg-configuration intel-xlibre-config)))
-
-   ;; Librewolf managed policy: both SearXNG variants installed, adult as
-   ;; system-wide default, Bitwarden force-installed.  Kids (adrian) get
-   ;; a per-user user.js override via librewolf-kids home service.
-   librewolf-policy-service))
+))
 
 (define hopper-os
   (operating-system
    (inherit (make-desktop-base-os hopper-config
                                   #:extra-packages hopper-extra-packages
                                   #:extra-services hopper-services
+                                  ;; adrian: account-only (games, learning)
+                                  #:extra-user-accounts
+                                  (list (user-account
+                                         (name "adrian")
+                                         (comment "Adrian")
+                                         (group "users")
+                                         (home-directory "/home/adrian")
+                                         (supplementary-groups
+                                          '("netdev" "audio" "video"))))
+                                  ;; Laptop power tweaks for the XPS 13 (Kaby Lake R)
+                                  ;;   i915.enable_psr=1     Panel Self Refresh
+                                  ;;   i915.enable_fbc=1     Frame Buffer Compression
+                                  ;;   pcie_aspm=force       Aggressive PCIe ASPM
+                                  ;;   mem_sleep_default=deep  deep S3 over s2idle
+                                  #:extra-kernel-arguments '("i915.enable_psr=1"
+                                                             "i915.enable_fbc=1"
+                                                             "pcie_aspm=force"
+                                                             "mem_sleep_default=deep")
                                   #:firewall-trusted-subnets '("192.168.88.0/24")
                                   #:ssh-authorized-keys
                                   `(("root" ,(plain-file
                                               "hopper-deploy.pub"
                                               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJKoGmzFMaiX/JdtOXJjejf0X7gjG++0qF3uEJWCOrfu hopper-deploy [A]:0x0266C7CE")))))
-
-   ;; Intel kernel arguments + laptop power tweaks for the XPS 13 (Kaby Lake R)
-   ;;   i915.enable_psr=1     Panel Self Refresh — saves power on stable display
-   ;;   i915.enable_fbc=1     Frame Buffer Compression — reduces memory bandwidth
-   ;;   pcie_aspm=force       Aggressive PCIe Active State Power Management
-   ;;   mem_sleep_default=deep  Use deep S3 sleep (when supported) instead of s2idle
-   (kernel-arguments (gpu-kernel-arguments
-                      'intel
-                      #:extra-args '("i915.enable_psr=1"
-                                     "i915.enable_fbc=1"
-                                     "pcie_aspm=force"
-                                     "mem_sleep_default=deep")))
-
-   ;; Users: rafael (admin, podman) + adrian (account-only, occasional games)
-   (users (cons* (user-account
-                  (name "rafael")
-                  (comment "Rafael")
-                  (group "users")
-                  (home-directory "/home/rafael")
-                  (supplementary-groups '("wheel" "netdev" "kvm" "tty" "input"
-                                          "realtime" "audio" "video" "cgroup")))
-                 (user-account
-                  (name "adrian")
-                  (comment "Adrian")
-                  (group "users")
-                  (home-directory "/home/adrian")
-                  (supplementary-groups '("netdev" "audio" "video")))
-                 %base-user-accounts))
-
-   ;; Bootloader (UEFI)
-   (bootloader (bootloader-configuration
-                (bootloader grub-efi-bootloader)
-                (targets (list "/boot/efi"))
-                (keyboard-layout (keyboard-layout "us" "altgr-intl"))))
 
    ;; Swap (nvme0n1p2)
    (swap-devices (list (swap-space

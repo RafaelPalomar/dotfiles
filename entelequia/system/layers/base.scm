@@ -28,6 +28,8 @@
 (define* (make-base-operating-system config
                                      #:key
                                      (extra-services '())
+                                     (extra-user-groups '())
+                                     (extra-user-accounts '())
                                      (firewall-extra-tcp-ports '())
                                      (firewall-extra-udp-ports '())
                                      (firewall-trusted-subnets '())
@@ -36,6 +38,10 @@
   "Create a base operating system from a machine-config record.
    CONFIG should be a <machine-config> record with all required fields.
    EXTRA-SERVICES can be provided to add machine-specific services.
+   EXTRA-USER-GROUPS: supplementary groups added to the primary user's
+   base set (e.g. '(\"cgroup\" \"lp\" \"dialout\")) — machines no longer
+   shadow the record-built account just to add groups.
+   EXTRA-USER-ACCOUNTS: additional <user-account> records (multi-user hosts).
    FIREWALL-EXTRA-TCP-PORTS and FIREWALL-EXTRA-UDP-PORTS can be provided for machine-specific firewall rules.
    ENABLE-IP-FORWARDING? enables IP forwarding sysctl and container forwarding nftables rules."
   (operating-system
@@ -79,21 +85,24 @@
                    (options "mode=1777,strictatime"))  ; World-writable with sticky bit
                   %base-file-systems))
 
-   (users (cons (user-account
-                 (name (machine-config-username config))
-                 (comment "User Account")
-                 (group "users")
-                 (home-directory (string-append "/home/" (machine-config-username config)))
-                 (supplementary-groups '("wheel"  ;; sudo
-                                         "netdev" ;; network devices
-                                         "kvm"
-                                         "tty"
-                                         "input"
-                                         "realtime" ;; Enable realtime scheduling
-                                         "audio"    ;; control audio devices
-                                         "video"))) ;; control video devices
-
-                %base-user-accounts))
+   (users (append
+           (list (user-account
+                  (name (machine-config-username config))
+                  (comment "User Account")
+                  (group "users")
+                  (home-directory (string-append "/home/" (machine-config-username config)))
+                  (supplementary-groups
+                   (append '("wheel"  ;; sudo
+                             "netdev" ;; network devices
+                             "kvm"
+                             "tty"
+                             "input"
+                             "realtime" ;; Enable realtime scheduling
+                             "audio"    ;; control audio devices
+                             "video")   ;; control video devices
+                           extra-user-groups))))
+           extra-user-accounts
+           %base-user-accounts))
 
    ;; Add the 'realtime' group ('cgroup' is already in %base-groups)
    (groups (cons (user-group (system? #t) (name "realtime"))
@@ -272,6 +281,12 @@
               ;; governor, capped max perf and power EPP -- caps the frequency
               ;; that otherwise pins an aging Intel laptop (e.g. the X220) near
               ;; its thermal limit at idle.
+              ;; Intel laptops additionally get thermald (Intel-specific
+              ;; thermal management; a no-op elsewhere, so gated).
+              (if (and (eq? (machine-config-machine-type config) 'laptop)
+                       (eq? (machine-config-gpu-type config) 'intel))
+                  (list (service thermald-service-type))
+                  '())
               (if (eq? (machine-config-machine-type config) 'laptop)
                   (list (service tlp-service-type
                                  (if (eq? (machine-config-cpu-ac-profile config) 'cool)
