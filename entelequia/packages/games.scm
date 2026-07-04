@@ -27,41 +27,19 @@
   #:use-module (guix build-system cmake)
   #:use-module (guix build-system copy)
   #:use-module (guix build-system luanti)
+  ;; Only the launcher generators (plain define*) need exporting; every
+  ;; game package below is define-public.  An earlier exhaustive package
+  ;; list here had already drifted out of sync — don't reintroduce one.
   #:export (make-game-launcher
             make-game-fhs-launcher
             make-scummvm-launcher
             make-wine-game-launcher
-            make-proton-game-launcher
-            proton-ge-10-34
-            ;; GOG games
-            gog-crypt-of-the-necrodancer
-            gog-terraria
-            gog-starbound
-            gog-wizard-of-legend
-            gog-slay-the-spire
-            gog-death-road-to-canada
-            gog-torchlight-2
-            gog-duskers
-            gog-papers-please
-            gog-gobliiins
-            gog-gobliins-2
-            gog-goblins-quest-3
-            gog-they-are-billions
-            gog-9-kings
-            gog-he-is-coming
-            gog-barony
-            ;; Direct-download games
-            coq-caves-of-qud
-            coq-caves-of-qud-native
-            bay12-dwarf-fortress
-            anuken-mindustry
-            ;; Online multiplayer HoMM II
-            netheroes2))
+            make-proton-game-launcher))
 
 ;;;
 ;;; Game launcher helpers
 ;;;
-;;; Three-tier architecture for running Linux games on Guix:
+;;; Tiered architecture for running games on Guix:
 ;;;
 ;;;   Tier 1/2 — make-game-launcher
 ;;;     Embeds Guix store lib paths in LD_LIBRARY_PATH at build time.
@@ -72,6 +50,17 @@
 ;;;     Wraps the game in 'guix shell --container --emulate-fhs'.
 ;;;     Slower startup (profile built on first run, cached after) but
 ;;;     handles complex library probing and unknown runtime deps.
+;;;
+;;;   Tier 4 — make-scummvm-launcher
+;;;     Point-and-click adventures via the ScummVM engine.
+;;;
+;;;   Tier 5 — make-wine-game-launcher
+;;;     Windows games via wine-staging in an FHS container.
+;;;
+;;;   Tier 6 — make-proton-game-launcher
+;;;     Windows games needing Proton-GE (e.g. Unity titles where
+;;;     wine-staging stubs EnableMouseInPointer); see
+;;;     ~/pks/permanent/20260424T223919 for the tier rationale.
 ;;;
 
 ;;; Tier 1/2 — LD_LIBRARY_PATH wrapper
@@ -676,11 +665,6 @@ inside the container."
                         `(format port "      export ~a=~s;\\\n"
                                  ,(car pair) ,(cdr pair)))
                       extra-env)
-               ;; Disable Xalia (Proton's accessibility/SDL helper) — its
-               ;; SDL_VideoInit fails inside the Guix FHS container with
-               ;; "Video driver  not supported" and aborts the launch.
-               ;; The game itself doesn't need Xalia; it only matters for
-               ;; Steam Deck on-screen-keyboard hints.
                ;; Disable Xalia (Proton's accessibility/SDL helper) — its
                ;; SDL_VideoInit fails inside the Guix FHS container with
                ;; "Video driver  not supported" and aborts the launch.

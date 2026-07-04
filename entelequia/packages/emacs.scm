@@ -13,36 +13,6 @@
 ;; at the same version (0.2.0), so the local definition was removed.  It is
 ;; picked up via `(use-package-modules emacs-xyz ...)` in the home service.
 
-;; This is a copy of the original in
-;; https://github.com/hiecaq/guix-config?tab=readme-ov-file#evil-snipe
-(define-public emacs-evil-snipe
-  (let ((commit "c07788c35cf8cd8e652a494322fdc0643e30a89f")
-        (last-release-version "2.0.8") ;; from the el file version header
-        (revision "1")
-        (url "https://github.com/hiecaq/evil-snipe"))
-    (package
-     (name "emacs-evil-snipe")
-     (version (git-version last-release-version revision commit))
-     (source
-      (origin
-       (method git-fetch)
-       (uri (git-reference
-             (url url)
-             (commit commit)))
-       (file-name (git-file-name name version))
-       (sha256
-        (base32
-         "06zhpsmn67f2n0f2yqzcv978l10nkvdr25kkl3cwkhhj9a56x62g"))))
-     (propagated-inputs
-      (list upstream:emacs-evil))
-     (build-system emacs-build-system)
-     (home-page url)
-     (synopsis "2-char searching ala vim-sneak & vim-seek, for evil-mode")
-     (description "This library It provides 2-character motions for quickly
-(and more accurately) jumping around text, compared to evil's built-in
-f/F/t/T motions, incrementally highlighting candidate targets as you type.")
-     (license license:expat))))
-
 (define-public emacs-ob-mermaid
   (package
     (name "emacs-ob-mermaid")
@@ -66,7 +36,7 @@ dimensions :scale - Scale factor :background-color - Background color
 :mermaid-config-file - Mermaid config file :css-file - CSS file for styling
 :puppeteer-config-file - Puppeteer config file :pdf-fit - Enable PDF fit mode
 :cmdline - Additional command line arguments.")
-    (license #f)))
+    (license license:gpl3+)))
 
 (define-public emacs-persp-projectile
   (package
@@ -95,7 +65,7 @@ current in, and focus on files that only belong to current project when
 switching buffer.  To use this library, put this file in your Emacs load path,
 and call (require persp-projectile) See perspective.el on github:
 https://github.com/nex3/perspective-el.")
-    (license #f)))
+    (license license:gpl3+)))
 
 (define-public emacs-tabspaces
   (package
@@ -125,7 +95,7 @@ https://github.com/wamei/elscreen-separate-buffer-list/issues/8 -
 https://www.rousette.org.uk/archives/using-the-tab-bar-in-emacs/ -
 https://github.com/minad/consult#multiple-sources -
 https://github.com/florommel/bufferlo.")
-    (license #f)))
+    (license license:gpl3+)))
 
 (define-public emacs-copilot
   (package
@@ -146,7 +116,7 @@ https://github.com/florommel/bufferlo.")
     (home-page "https://github.com/copilot-emacs/copilot.el")
     (synopsis "An unofficial Copilot plugin")
     (description "An unofficial Copilot plugin for Emacs.")
-    (license #f)))
+    (license license:expat)))
 
 (define-public emacs-uuidgen
   ;; Runtime dependency of emacs-code-review; not yet packaged upstream in Guix.
