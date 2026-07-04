@@ -59,5 +59,5 @@
    (list librewolf-kids-home-service
          (service home-dotfiles-service-type
                   (home-dotfiles-configuration
-                   (directories '("../../../dotfiles")))))
+                   (directories '("../../../dotfiles/common")))))
    (archimedes-home-service #:learner "leandro"))))

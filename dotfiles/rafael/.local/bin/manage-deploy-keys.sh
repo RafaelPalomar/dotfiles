@@ -16,7 +16,12 @@
 
 set -euo pipefail
 
-MASTER_KEY_FP="${GPG_MASTER_KEY_FP:-6513C7248D7BECE2EC1BD34B70350DAD507FA72F}"
+MASTER_KEY_FP="${GPG_MASTER_KEY_FP:-6513C7248D7BECE2EC1BD34B70350DAD507FA72F}"  # personal — default add target
+WORK_KEY_FP="${GPG_WORK_KEY_FP:-8EADF28F4F8DC23942345E9A9440CF71CAEA2D0B}"      # work (rafpal@ous-hf.no)
+# Master keys whose [A] subkeys may serve as deploy keys.  list/pubkey/enable
+# scan all of them; cmd_add still targets MASTER_KEY_FP (override with
+# GPG_MASTER_KEY_FP=<work fp> to add a subkey on the work key instead).
+MASTER_KEYS=("$MASTER_KEY_FP" "$WORK_KEY_FP")
 GNUPGHOME="${GNUPGHOME:-$HOME/.gnupg}"
 SSHCONTROL="$HOME/.dotfiles/dotfiles/.gnupg/sshcontrol"
 DEPLOY_KEYS_DB="$HOME/.dotfiles/dotfiles/.gnupg/deploy-keys.conf"
@@ -36,7 +41,9 @@ require_master_key() {
 # Emit lines: FINGERPRINT KEYGRIP CREATED EXPIRES
 # for every [A] auth subkey on the master key.
 get_auth_subkeys() {
-    gpg --with-colons --with-keygrip --list-keys "$MASTER_KEY_FP" 2>/dev/null \
+    local _mk
+    for _mk in "${MASTER_KEYS[@]}"; do
+    gpg --with-colons --with-keygrip --list-keys "$_mk" 2>/dev/null \
     | awk -F: '
         /^(sub|ssb):/ {
             if (index($12, "a") > 0) {
@@ -50,6 +57,7 @@ get_auth_subkeys() {
             in_auth = 0
         }
     '
+    done
 }
 
 # DB helpers: KEYGRIP NAME DATE (space-separated, one per line, # for comments)

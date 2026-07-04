@@ -159,11 +159,11 @@ headings, Gentium body text, Dosis headings, and SciFly-Sans decorations.
 User Dotfiles
 -------------
 
-- ``dotfiles/.xsession`` - X11 startup (compositor, WM, notifications)
-- ``dotfiles/.config/bspwm/bspwmrc`` - Window manager config
-- ``dotfiles/.config/sxhkd/sxhkdrc`` - Keybindings (Super key shortcuts)
-- ``dotfiles/.config/kitty/kitty.conf`` - Terminal emulator
-- ``dotfiles/.local/bin/`` - User scripts (wallpaper, keyboard layout, mail/PKS helpers)
+- ``dotfiles/common/.xsession`` - X11 startup (compositor, WM, notifications)
+- ``dotfiles/common/.config/bspwm/bspwmrc`` - Window manager config
+- ``dotfiles/common/.config/sxhkd/sxhkdrc`` - Keybindings (Super key shortcuts)
+- ``dotfiles/common/.config/kitty/kitty.conf`` - Terminal emulator
+- ``dotfiles/{common,rafael}/.local/bin/`` - User scripts (wallpaper, keyboard layout, mail/PKS helpers)
 
 Performance Considerations
 ==========================

@@ -112,4 +112,5 @@
                     (string-append (getenv "HOME") "/.hermes/secrets.env"))))
          (service home-dotfiles-service-type
                   (home-dotfiles-configuration
-                   (directories '("../../../dotfiles"))))))))
+                   (directories '("../../../dotfiles/common"
+                                  "../../../dotfiles/rafael"))))))))

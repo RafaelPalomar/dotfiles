@@ -214,7 +214,7 @@ tail -f /tmp/datalocker-lock.log
 - `entelequia/system/machines/datalocker-udev-rules.scm` - Udev rule definition
 - `entelequia/home/profiles/base.scm` - Added expect
 - `entelequia/home/services/desktop.scm` - Added libnotify
-- `dotfiles/.local/bin/datalocker-unlock` - Unlock script
+- `dotfiles/rafael/.local/bin/datalocker-unlock` - Unlock script
 - `dotfiles/.local/bin/datalocker-lock` - Lock script (NEW)
 
 ## Known Limitations

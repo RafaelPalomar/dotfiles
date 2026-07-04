@@ -144,14 +144,6 @@ super + shift + n
 super + shift + i
     /home/rafael/.local/bin/org-clock-control.sh
 
-# GitHub sync (manual trigger)
-super + shift + g
-    /home/rafael/.local/bin/org-github-sync-enhanced.sh && notify-send "GitHub Sync" "Manual sync triggered" -i github
-
-# GitHub agenda view
-super + shift + h
-    emacsclient -c -e '(org-agenda nil "h")'
-
 # Move window to prev/next monitor
 super + shift + {comma,period}
     bspc node -m {prev,next} --follow

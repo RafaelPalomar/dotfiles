@@ -16,7 +16,7 @@ When you plug in your DataLocker Sentry ONE USB drive, the system will automatic
 
 ### 1. Unlock Script (`~/.local/bin/datalocker-unlock`)
 
-Location: `dotfiles/.local/bin/datalocker-unlock`
+Location: `dotfiles/rafael/.local/bin/datalocker-unlock`
 
 This bash script:
 - Waits for the UNLOCKER partition to be mounted
@@ -309,7 +309,7 @@ If you want more security:
 - `entelequia/system/machines/einstein.scm` - Added datalocker udev service
 - `entelequia/system/machines/datalocker-udev-rules.scm` - New udev rule service
 - `entelequia/home/profiles/base.scm` - Added expect package
-- `dotfiles/.local/bin/datalocker-unlock` - New unlock script
+- `dotfiles/rafael/.local/bin/datalocker-unlock` - New unlock script
 
 ## Future Enhancements
 

@@ -90,7 +90,7 @@ Dunst + Polybar (feedback)
   - `SPC o t p` - AI project plan
   - Functions: `my/org-task-to-ai-context`, `my/ai-break-down-task`, `my/ai-project-plan`
 
-### 2. `/home/rafael/.dotfiles/dotfiles/.config/sxhkd/sxhkdrc`
+### 2. `/home/rafael/.dotfiles/dotfiles/common/.config/sxhkd/sxhkdrc`
 
 **New Hotkeys** (after line 114):
 ```bash
@@ -102,7 +102,7 @@ super + shift + i         # Clock control
 super + shift + g         # GitHub sync
 ```
 
-### 3. `/home/rafael/.dotfiles/dotfiles/.config/polybar.local/config.ini`
+### 3. `/home/rafael/.dotfiles/dotfiles/common/.config/polybar.local/config.ini`
 
 **Modified**:
 - Line 44: Added `org-clock` to `modules-right`

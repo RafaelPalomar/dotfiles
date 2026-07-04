@@ -42,7 +42,7 @@ R Emacs state=tiled follow=on
 R ${TERMINAL^} state=tiled follow=on
 R firefox state=tiled follow=on
 R Neomutt state=tiled follow=on
-R Slicer follow=off
+R Slicer desktop='^9' follow=off
 R Thunar state=floating
 
 

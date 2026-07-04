@@ -43,7 +43,7 @@ Held in `~/.gnupg` on einstein/curie, unlocked at login via
 Per-deployment `[A]` auth subkeys of the master, each used as one
 machine's SSH deploy key. Managed by `keys deploy` (today:
 `manage-deploy-keys.sh`); keygrips tracked in
-`dotfiles/.gnupg/deploy-keys.conf` + `sshcontrol`. Each must be **pinned
+`dotfiles/rafael/.gnupg/deploy-keys.conf` + `sshcontrol`. Each must be **pinned
 per-host** in the SSH client config (ADR-0003) so the agent never
 exceeds `MaxAuthTries`.
 

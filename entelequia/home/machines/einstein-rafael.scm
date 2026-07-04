@@ -35,4 +35,5 @@
    (home-role-services 'work)
    (list (service home-dotfiles-service-type
                   (home-dotfiles-configuration
-                   (directories '("../../../dotfiles"))))))))
+                   (directories '("../../../dotfiles/common"
+                                  "../../../dotfiles/rafael"))))))))

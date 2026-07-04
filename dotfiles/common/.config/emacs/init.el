@@ -557,8 +557,6 @@ Deletes other windows and makes the frame floating."
            :todo "DOING")
           (:name "Waiting"
            :todo "WAITING")
-          (:name "GitHub Issues"
-           :tag "github")
           (:name "AI Tasks"
            :and (:tag "ai" :not (:todo "DONE")))
           (:name "Active Projects"
@@ -2085,7 +2083,11 @@ under point."
       (let ((target (or silo
                         (completing-read "Promote linked note to silo: "
                                          (my-pks--silo-labels) nil t))))
-        (my-pks--move-note-file file target (or kw-vocab denote-known-keywords))
+        ;; "archive" routes through the work/personal domain logic
+        ;; (drops `fleeting', confirms) rather than a bare silo move.
+        (if (string= target "archive")
+            (my-pks--archive-note-file file)
+          (my-pks--move-note-file file target (or kw-vocab denote-known-keywords)))
         ;; Drop the now-promoted item from the digest and persist the edit.
         (let ((inhibit-read-only t))
           (delete-region (line-beginning-position)
@@ -2118,41 +2120,55 @@ invoked from a daily/weekly review."
    "reference"
    '("moc" "hub" "research" "code" "learn" "ntnu" "ous")))
 
+(defun my-pks--archive-note-file (file)
+  "Archive denote note FILE to archive/{work,personal}/, preserving its ID.
+Drops the `fleeting' keyword; does NOT add an `archive' keyword (the silo
+is the marker).  Prompts for domain (defaulting from ous/ntnu keywords)
+and explicit yes-or-no confirmation.  One-way.  Returns the new path."
+  (unless (and file (denote-file-is-note-p file))
+    (user-error "Not a denote note: %s" file))
+  (let* ((kws (denote-extract-keywords-from-path file))
+         (default-domain (if (or (member "ous" kws) (member "ntnu" kws))
+                             "work" "personal"))
+         (domain (completing-read
+                  (format "Archive domain (default %s): " default-domain)
+                  '("work" "personal") nil t nil nil default-domain))
+         (archive-dir (expand-file-name (format "~/pks/archive/%s/" domain)))
+         (new-kws (remove "fleeting" kws))
+         (id (denote-retrieve-filename-identifier file))
+         (title (or (denote-retrieve-title-or-filename file 'org) ""))
+         (sig (or (denote-retrieve-filename-signature file) ""))
+         (ext (file-name-extension file t))
+         (new-path (denote-format-file-name
+                    (file-name-as-directory archive-dir)
+                    id new-kws title ext sig)))
+    (unless (yes-or-no-p
+             (format "Archive %s → archive/%s/ ? (one-way; cannot un-archive) "
+                     id domain))
+      (user-error "Aborted"))
+    (with-current-buffer (find-file-noselect file)
+      (save-buffer)
+      (denote-rename-file-and-buffer file new-path))
+    (message "Archived %s → archive/%s" id domain)
+    new-path))
+
 (defun my-denote-archive-fleeting ()
   "Archive the current fleeting note to archive/{work,personal}/ (preserves denote ID).
 Cold storage for notes worth keeping but not load-bearing — light
 meeting notes, ephemeral observations, traces that won't ripen into
-permanent claims.  Drops the `fleeting' keyword; does NOT add an
-`archive' keyword (the silo is the marker).  One-way: notes do not
-move back from archive.  Asks for explicit yes-or-no confirmation."
+permanent claims.  One-way: notes do not move back from archive.
+
+When invoked from a review digest with a [[denote:ID]] link on the
+current line, archive THAT linked note instead and drop the line from
+the digest — so archiving works from the dailies like the other promote
+commands."
   (interactive)
-  (let ((file (buffer-file-name)))
-    (unless (and file (denote-file-is-note-p file))
-      (user-error "Current buffer is not a denote note"))
-    (unless (string-prefix-p (expand-file-name "~/pks/fleeting/") file)
-      (user-error "Current note is not in fleeting/"))
-    (let* ((kws (denote-extract-keywords-from-path file))
-           (default-domain (if (or (member "ous" kws) (member "ntnu" kws))
-                               "work" "personal"))
-           (domain (completing-read
-                    (format "Archive domain (default %s): " default-domain)
-                    '("work" "personal") nil t nil nil default-domain))
-           (archive-dir (expand-file-name (format "~/pks/archive/%s/" domain)))
-           (new-kws (remove "fleeting" kws))
-           (id (denote-retrieve-filename-identifier file))
-           (title (or (denote-retrieve-title-or-filename file 'org) ""))
-           (sig (or (denote-retrieve-filename-signature file) ""))
-           (ext (file-name-extension file t))
-           (new-path (denote-format-file-name
-                      (file-name-as-directory archive-dir)
-                      id new-kws title ext sig)))
-      (unless (yes-or-no-p
-               (format "Archive %s → archive/%s/ ? (one-way; cannot un-archive) "
-                       id domain))
-        (user-error "Aborted"))
-      (save-buffer)
-      (denote-rename-file-and-buffer file new-path)
-      (message "Archived %s → archive/%s" id domain))))
+  (if (my-pks--in-review-digest-p)
+      (my-pks-promote-link-at-point "archive")
+    (let ((file (buffer-file-name)))
+      (unless (string-prefix-p (expand-file-name "~/pks/fleeting/") file)
+        (user-error "Current note is not in fleeting/"))
+      (my-pks--archive-note-file file))))
 
 (defun my-pks-move-note-to-silo ()
   "Move the current denote note to a chosen PKS silo (preserves denote ID).

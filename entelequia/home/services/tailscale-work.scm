@@ -51,7 +51,7 @@ exec \"$HOME/.guix-home/profile/bin/tailscaled\" \
     (respawn? #t)
     (auto-start? #t))))
 
-;;; The companion CLI wrapper lives in dotfiles/.local/bin/tailscale-work
+;;; The companion CLI wrapper lives in dotfiles/rafael/.local/bin/tailscale-work
 ;;; and is deployed via home-dotfiles-service-type.
 
 (define home-tailscale-work-service-type
