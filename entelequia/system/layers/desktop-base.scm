@@ -14,10 +14,13 @@
   #:use-module (gnu services ssh)
   #:use-module (gnu services security-token)
   #:use-module (gnu system accounts)
+  #:use-module (nongnu packages linux)
   #:use-module (guix gexp)
   #:export (make-desktop-base-os))
 
-(use-service-modules desktop xorg networking ssh security containers)
+(use-package-modules wm linux)
+(use-service-modules desktop xorg networking ssh security containers linux
+                     virtualization)
 
 ;;; Desktop base operating system layer
 ;;;
@@ -69,7 +72,59 @@
                      (slim-configuration
                       (auto-login? #f)
                       (default-user username)
-                      (xorg-configuration xorg))))
+                      (xorg-configuration xorg)))
+
+            ;; ── Desktop-only services moved out of the base layer ────────
+            ;; (servers used to inherit all of this: a bluetooth daemon
+            ;; with no adapter, a Wayland screen locker on an X11 fleet,
+            ;; the NTNU VPN profile, and a fleet-wide GnuTLS TLS-1.3
+            ;; disable.  See git history of layers/base.scm.)
+
+            ;; Screen locker PAM service.  NOTE: the actual locker in use
+            ;; is setuid slock (privileged program in base + xautolock in
+            ;; the home env); swaylock here predates that and is likely
+            ;; vestigial — kept for now, candidate for removal.
+            (service screen-locker-service-type
+                     (screen-locker-configuration
+                      (name "swaylock")
+                      (program (file-append swaylock "/bin/swaylock"))
+                      (using-pam? #t)
+                      (using-setuid? #f)))
+
+            ;; Bluetooth (desktops/laptops have adapters; servers don't)
+            (service bluetooth-service-type
+                     (bluetooth-configuration
+                      (auto-enable? #t)))
+
+            ;; Cellular modems + mode-switching USB WWAN devices
+            (service modem-manager-service-type)
+            (service usb-modeswitch-service-type)
+
+            ;; Battery/power reporting + CUPS polkit helper
+            (service upower-service-type)
+            (service cups-pk-helper-service-type)
+
+            ;; NTNU VPN: declarative NetworkManager profile + the GnuTLS
+            ;; version override its openconnect needs.  Desktop-only: the
+            ;; TLS-1.3 disable is a real crypto downgrade and servers have
+            ;; no business carrying it (nor the personal VPN profile).
+            gnutls-tls-config-service
+            ntnu-vpn-connection-service
+
+            ;; Virtualization (virt-manager/QEMU on workstations; servers
+            ;; run rootless podman instead)
+            (service libvirt-service-type
+                     (libvirt-configuration
+                      (unix-sock-group "libvirt")
+                      (tls-port "16555")))
+
+            ;; v4l2loopback virtual camera (OBS)
+            ;; See: https://stackoverflow.com/a/66072635
+            (service kernel-module-loader-service-type '("v4l2loopback"))
+            (simple-service 'v4l2loopback-config etc-service-type
+                            (list `("modprobe.d/v4l2loopback.conf"
+                                    ,(plain-file "v4l2loopback.conf"
+                                                 "options v4l2loopback devices=1 video_nr=2 exclusive_caps=1 card_label=\"OBS Virtual Camera\"")))))
            (if podman?
                (list (service rootless-podman-service-type
                               (rootless-podman-configuration
@@ -91,6 +146,9 @@
     ;; Inherit all base fields; override only packages and kernel-arguments.
     (operating-system
      (inherit base-os)
+
+     ;; v4l2loopback kernel module for virtual cameras (desktop-only)
+     (kernel-loadable-modules (list v4l2loopback-linux-module))
 
      ;; GPU-appropriate kernel arguments + machine extras
      (kernel-arguments (gpu-kernel-arguments gpu

@@ -54,9 +54,6 @@
    (firmware (list linux-firmware))
    (initrd microcode-initrd)
 
-   ;; Additional kernel modules
-   (kernel-loadable-modules (list v4l2loopback-linux-module))
-
    ;; Use keyboard layout from config
    (keyboard-layout (machine-config-keyboard config))
 
@@ -144,14 +141,6 @@
                              '("tty1" "tty2" "tty3")))
 
 
-               ;; Configure swaylock as a setuid program
-               (service screen-locker-service-type
-                        (screen-locker-configuration
-                         (name "swaylock")
-                         (program (file-append swaylock "/bin/swaylock"))
-                         (using-pam? #t)
-                         (using-setuid? #f)))
-
                (simple-service 'guix-moe guix-service-type
                                (guix-extension
                                 (authorized-keys
@@ -185,20 +174,11 @@
                          (vpn-plugins
                           (list network-manager-openvpn
                                 network-manager-openconnect))))
-               gnutls-tls-config-service  ;; Configure GnuTLS for NTNU VPN compatibility
-               ntnu-vpn-connection-service  ;; Declarative NetworkManager VPN profile for NTNU
                (service wpa-supplicant-service-type) ;; Needed by NetworkManager
-               (service modem-manager-service-type)  ;; For cellular modems
-               (service bluetooth-service-type
-                        (bluetooth-configuration
-                         (auto-enable? #t)))
-               (service usb-modeswitch-service-type)
 
                ;; Basic desktop system services (copied from %desktop-services)
                (service avahi-service-type)
                (service udisks-service-type)
-               (service upower-service-type)
-               (service cups-pk-helper-service-type)
                ;; Note: polkit-wheel-service is defined above (line 139)
                (service dbus-root-service-type)
                fontconfig-file-system-service ;; Manage the fontconfig cache
@@ -209,22 +189,6 @@
                          (pam-limits-entry "@realtime" 'both 'rtprio 99)
                          (pam-limits-entry "@realtime" 'both 'nice -19)
                          (pam-limits-entry "@realtime" 'both 'memlock 'unlimited)))
-
-               ;; Configure v4l2loopback module for virtual cameras
-               ;; See also: https://stackoverflow.com/a/66072635
-               ;;           https://github.com/umlaeute/v4l2loopback
-               (service kernel-module-loader-service-type '("v4l2loopback"))
-               (simple-service 'v4l2loopback-config etc-service-type
-                               (list `("modprobe.d/v4l2loopback.conf"
-                                       ,(plain-file "v4l2loopback.conf"
-                                                    "options v4l2loopback devices=1 video_nr=2 exclusive_caps=1 card_label=\"OBS Virtual Camera\""))))
-
-
-               ;; Enable virtualization
-               (service libvirt-service-type
-                        (libvirt-configuration
-                         (unix-sock-group "libvirt")
-                         (tls-port "16555")))
 
                ;; Enable hardened SSH access
                (hardened-ssh-service 2222
