@@ -5,6 +5,8 @@
   #:use-module (entelequia home services desktop-suite)
   #:use-module (entelequia home services librewolf-kids)
   #:use-module (entelequia home services archimedes)
+  #:use-module (gnu packages games)        ; fheroes2 (HoMM2 engine)
+  #:use-module (entelequia packages games) ; netheroes2 (online HoMM2 fork)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -21,7 +23,12 @@
   (append (base-home-packages)
           (python-learning-home-packages)
           (gaming-home-packages
-           #:exclude '("caves-of-qud"))))
+           #:exclude '("caves-of-qud"))
+          ;; Heroes of Might & Magic II: fheroes2 (single-player / hot-seat) +
+          ;; netheroes2 (online multiplayer, heroes2.online).  Both need the HoMM2
+          ;; assets in leandro's ~/.local/share/fheroes2 to run.
+          (list fheroes2
+                netheroes2)))
  (services
   (append
    (common-home-services #:nvidia? #t)
