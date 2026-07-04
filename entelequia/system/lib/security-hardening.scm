@@ -179,7 +179,13 @@ net.ipv4.ip_unprivileged_port_start = 53
                (enabled? #t)
                (max-retry 3)
                (find-time "10m")
-               (ban-time "2h")))))))
+               (ban-time "2h")
+               ;; Never ban the operator: loopback, LAN (deploy workstation),
+               ;; and the tailnet CGNAT range.  With LogLevel VERBOSE and
+               ;; gpg-agent offering the whole deploy keyring, a single
+               ;; guix-deploy connection can log several "Failed publickey"
+               ;; lines and self-ban mid-deploy.
+               (ignore-ip '("127.0.0.1/8" "192.168.88.0/24" "100.64.0.0/10"))))))))
 
 ;;; nftables firewall service
 ;;; Provides stateful firewall with secure defaults using nftables.
@@ -363,6 +369,16 @@ Compression no
 ClientAliveInterval 300
 ClientAliveCountMax 2
 UseDNS no
+
+# Deploy path: guix deploy holds one SSH session open while it builds the
+# whole system closure locally; guile-ssh never answers keepalive probes, so
+# the 300s*2 policy above kills the session mid-build and deploy dies at
+# send-files (\"Socket error: disconnected\").  Root logins from the LAN are
+# key-only, fail2ban'd, and firewall-scoped, so exempting them from the
+# keepalive timer is a negligible risk delta.  Match blocks scope everything
+# that follows them -- keep this at the end of the file.
+Match Address 192.168.88.0/24 User root
+    ClientAliveInterval 0
 "))))
 
 ;;; Audit logging service (auditd)
