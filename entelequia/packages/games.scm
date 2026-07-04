@@ -1957,6 +1957,14 @@ assigned slot rather than world origin.")
       #:tests? #f                       ; no tests
       #:phases
       #~(modify-phases %standard-phases
+          ;; Default the in-game server URL to our self-hosted heroes-server on
+          ;; edison (LAN), instead of the public heroes2.online.  Users can still
+          ;; override it in netheroes2's network menu.
+          (add-after 'unpack 'patch-default-server-url
+            (lambda _
+              (substitute* "src/fheroes2/game/game_network.cpp"
+                (("https://www\\.heroes2\\.online/game1")
+                 "http://192.168.88.14:3030"))))
           (add-after 'install 'rename-to-netheroes2
             (lambda _
               (let* ((bin (string-append #$output "/bin"))

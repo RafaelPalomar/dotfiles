@@ -25,6 +25,7 @@
             smartd-lovelace-service
             luanti-game-service
             starbound-game-service
+            heroes-server-game-service
             borgmatic-lovelace-service
             lovelace-data-dir-service
             searxng-settings-service
@@ -1468,6 +1469,41 @@ image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
                   (string-append "container:ts-" ts-name))
    #:extra-args extra-arguments
    #:command command))
+
+;;;
+;;; heroes-server-game-service: netheroes2 online game server (Heroes of Might &
+;;; Magic II), LAN, for rafael + kids.  Rootless podman container running under
+;;; user `rafael' (image localhost/heroes-server:0.9.6, provisioned out-of-band
+;;; into rafael's podman via `podman load' — the image isn't on any registry).
+;;;
+;;; Secrets + tunables live in /data/heroes-server/.env (provisioned out-of-band,
+;;; NOT in the repo), loaded by the app via dotenv when mounted at the container
+;;; WORKDIR.  It must contain ADMIN_PASSWORD (create/host a game), USER_PASSWORD
+;;; (join), JWT_KEY, GAME_VERSION=0.28 (netheroes2 client version), plus
+;;; GAME_PORT=8090 and API_PORT=3030.
+;;;
+;;; Ports: API on 3030 (netheroes2 hits <url>/api/...), raw game socket on 8090
+;;; (NOT 8080 — that's the ARM web UI).  netheroes2 clients point their server
+;;; URL at http://<edison-ip>:3030; the host logs in with ADMIN_PASSWORD to
+;;; upload/create the game, joiners with USER_PASSWORD.  Defined here, after
+;;; make-app-container, because Guile evaluates top-level defines in order.
+(define heroes-server-game-service
+  (list
+   (simple-service 'heroes-server-dir
+                   activation-service-type
+                   #~(begin
+                       (use-modules (guix build utils))
+                       (mkdir-p "/data/heroes-server")))
+
+   (simple-service 'heroes-server-container
+                   shepherd-root-service-type
+                   (list
+                    (make-app-container
+                     "heroes-server" "localhost/heroes-server:0.9.6"
+                     #:share-ts-netns? #f
+                     #:ports (list "0.0.0.0:3030:3030" "0.0.0.0:8090:8090")
+                     #:volumes
+                     (list "/data/heroes-server/.env:/usr/src/app/.env:ro"))))))
 
 ;;;
 ;;; ts-netns-watchdog: keep shared-netns app containers aligned with their

@@ -106,7 +106,11 @@
    ;; Starbound dedicated server (LAN, kids).  Non-hermetic: binary + assets
    ;; are provisioned under /data/starbound and the server binary patchelf'd
    ;; out-of-band — see starbound-game-service in server-services.scm.
-   starbound-game-service))
+   starbound-game-service
+   ;; netheroes2 (online HoMM2) game server — rootless podman container.
+   ;; Image loaded out-of-band into rafael's podman; secrets in
+   ;; /data/heroes-server/.env.  API :3030, game socket :8090.
+   heroes-server-game-service))
 
 ;;; Edison operating system
 
@@ -131,7 +135,9 @@
                8080   ; ARM web UI (LAN fallback)
                6600   ; MPD protocol
                8000   ; MPD HTTP stream
-               21025) ; Starbound dedicated server (LAN, kids)
+               21025  ; Starbound dedicated server (LAN, kids)
+               3030   ; heroes-server API (netheroes2)
+               8090)  ; heroes-server game socket (netheroes2; 8080 is ARM)
              ;; NOTE: NO 8065 here.  Mattermost is tailnet-only (tailscale serve
              ;; HTTPS → 127.0.0.1:8065 inside the ts-mattermost netns); the hermes
              ;; tutor/household tiers reach MM over loopback in that shared netns,
