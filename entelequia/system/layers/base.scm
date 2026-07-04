@@ -143,19 +143,6 @@
                          (using-pam? #t)
                          (using-setuid? #f)))
 
-               ;; Configure the Guix service and ensure we use Nonguix substitutes
-               ;; (simple-service 'add-nonguix-substitutes guix-service-type
-               ;;                 (guix-extension
-               ;;                  (substitute-urls
-               ;;                   (cons* "https://substitutes.nonguix.org"
-               ;;                          %default-substitute-urls))
-               ;;                  (authorized-keys
-               ;;                   (append (list (plain-file "nonguix.pub"
-               ;;                                             "(public-key (ecc (curve Ed25519) (q #C1FD53E5D4CE971933EC50C9F307AE2171A2D3B52C804642A7A35F84F3A4EA98#)))")
-               ;;                                 (plain-file "systole.pub"
-               ;;                                             "(public-key (ecc (curve Ed25519) (q #4EB06D3040B7AC87026B998030225A9E14DE383FFAD6FAAA87F0B9267321E7BC#)))"))
-               ;;                           %default-authorized-guix-keys))))
-
                (simple-service 'guix-moe guix-service-type
                                (guix-extension
                                 (authorized-keys

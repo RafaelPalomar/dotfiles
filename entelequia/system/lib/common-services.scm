@@ -5,23 +5,13 @@
   #:use-module (gnu services dbus)
   #:use-module (gnu services desktop)
   #:use-module (gnu services linux)
-  #:use-module (gnu services virtualization)
-  #:use-module (gnu services networking)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages freedesktop)
-  #:use-module (gnu packages networking)
-  #:use-module (gnu packages virtualization)
-  #:use-module (gnu packages audio)
-  #:use-module (gnu packages admin)  ; For aide
   #:use-module (gnu packages polkit)
   #:use-module (gnu packages games)  ; For steam-devices-udev-rules
   #:use-module (guix gexp)
-  #:export (aide-service
-            file-permissions-service
-            desktop-udev-rules-services
-            gamepad-udev-rules-service
+  #:export (gamepad-udev-rules-service
             bluetooth-input-config-service
-            blueman-dbus-service
             zram-service
             networkmanager-polkit-service
             gnutls-tls-config-service
@@ -30,111 +20,8 @@
 
 ;;; Common service definitions shared between desktop systems
 ;;;
-;;; This module extracts the 7+ duplicate service definitions
+;;; This module extracts the duplicate service definitions
 ;;; from einstein and curie, providing a single source of truth.
-
-;;; AIDE file integrity monitoring service
-;;; Provides file integrity monitoring with scheduled checks
-
-(define aide-config
-  (plain-file "aide.conf"
-              "# AIDE configuration for file integrity monitoring
-
-# Database paths
-database=file:/var/lib/aide/aide.db
-database_out=file:/var/lib/aide/aide.db.new
-database_new=file:/var/lib/aide/aide.db.new
-
-# Report settings
-report_url=file:/var/log/aide/aide.log
-report_url=stdout
-
-# Monitoring rules
-# p = permissions, i = inode, n = number of links, u = user, g = group
-# s = size, b = block count, m = mtime, a = atime, c = ctime
-# S = check for growing size, md5/sha256 = checksums
-
-# System binaries - monitor everything
-/bin PERMS+SHA256
-/sbin PERMS+SHA256
-/usr/bin PERMS+SHA256
-/usr/sbin PERMS+SHA256
-/gnu/store R+SHA256
-
-# System configuration
-/etc PERMS+SHA256
-!/etc/mtab
-
-# Boot files
-/boot PERMS+SHA256
-
-# Libraries
-/lib PERMS+SHA256
-/lib64 PERMS+SHA256
-
-# Exclude frequently changing directories
-!/tmp
-!/var/tmp
-!/var/cache
-!/var/log
-!/proc
-!/sys
-!/dev
-!/run
-
-# Custom rules
-PERMS = p+i+n+u+g+s+b+m+c+md5+sha256
-"))
-
-(define aide-service
-  (list
-   ;; Install AIDE configuration
-   (simple-service 'aide-config
-                   etc-service-type
-                   (list `("aide/aide.conf" ,aide-config)))
-
-   ;; AIDE shepherd service for manual checks
-   (simple-service 'aide-check
-                   shepherd-root-service-type
-                   (list
-                    (shepherd-service
-                     (documentation "AIDE file integrity check")
-                     (provision '(aide-check))
-                     (start #~(lambda ()
-                                (invoke #$(file-append aide "/bin/aide")
-                                        "--config=/etc/aide/aide.conf"
-                                        "--check")
-                                #t))
-                     (stop #~(const #f))
-                     (one-shot? #t)
-                     (auto-start? #f))))))
-
-;;; File permissions service for /home and /var/lib/aide
-
-(define file-permissions-service
-  (simple-service 'file-permissions
-                  shepherd-root-service-type
-                  (list
-                   (shepherd-service
-                    (provision '(file-permissions))
-                    (start #~(make-forkexec-constructor
-                              '("/bin/sh" "-c"
-                                "chmod 751 /home && chmod 750 /var/lib/aide")))
-                    (stop #~(make-kill-destructor))
-                    (auto-start? #t)))))
-
-;;; Udev rules for desktop devices
-;;; Note: pipewire and brightnessctl udev rules are already in base.scm
-
-(define desktop-udev-rules-services
-  (list
-   ;; Device authorization udev rules
-   (udev-rules-service 'device-authorization
-                       (udev-rule
-                        "99-device-authorize.rules"
-                        (string-append
-                         "SUBSYSTEM==\"usb\", ATTR{authorized}=\"1\"\n"))
-                       #:groups '("plugdev"))))
 
 ;;; Udev rules for game controllers (PS4, PS5, Xbox, etc.)
 
@@ -168,11 +55,6 @@ PERMS = p+i+n+u+g+s+b+m+c+md5+sha256
                       ;; Redirect /etc/bluetooth to our overlay
                       (false-if-exception (delete-file bt-link))
                       (symlink new-dir bt-link))))
-
-;;; Blueman D-Bus integration service
-
-(define blueman-dbus-service
-  (simple-service 'blueman dbus-root-service-type (list blueman)))
 
 ;;; Note: polkit-wheel-service is provided by (gnu services desktop)
 ;;; and is used directly in base.scm - no custom definition needed

@@ -158,9 +158,8 @@
     "texlive-booktabs"      ;; professional-quality tables
     "texlive-tools"         ;; tabularx and other table tools
     "texlive-float"         ;; improved float placement [H]
-    "texlive-pgfgantt"      ;; Gantt charts (pgf/tikz)
+    "texlive-pgfgantt"      ;; Gantt charts (pgf/tikz; proposals, org-babel)
     "texlive-scheme-basic"  ;; pdflatex + base LaTeX packages
-    "texlive-pgfgantt"      ;; Gantt charts (used in proposals, org-babel)
     "texlive-standalone"    ;; standalone class for org-babel latex blocks
     ;; Fonts used by nfr.cls
     "font-dosis"

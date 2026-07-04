@@ -40,10 +40,12 @@
                                              #:firewall-extra-udp-ports firewall-extra-udp-ports
                                              #:firewall-trusted-subnets firewall-trusted-subnets
                                              #:ssh-authorized-keys ssh-authorized-keys)))
-    ;; Don't use (inherit base-os) -  explicitly copy only packages field
-    ;; This avoids the double-inheritance service duplication bug
+    ;; Inherit all base fields and override only packages.  (Services are
+    ;; NOT overridden here: extra desktop services flow in through the
+    ;; #:extra-services keyword of make-base-operating-system above, which
+    ;; is what avoids the old double-inheritance service duplication.)
     (operating-system
-     (inherit base-os) ;; Get all base fields
+     (inherit base-os)
 
      ;; Override only packages, leave services unchanged
      (packages (append

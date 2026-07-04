@@ -58,7 +58,6 @@
         emacs-gptel
         emacs-guix
         emacs-helpful
-        emacs-nerd-icons
         emacs-hl-todo
         emacs-ivy
         emacs-ivy-rich
