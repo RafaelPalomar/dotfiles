@@ -645,19 +645,25 @@ TMDB_API_KEY: \"\"\n" p)))
              (gnupg-home "/var/lib/sops")
              (secrets
               (list
-               ;; Tailscale auth keys — #o444 so rootless containers can read them
+               ;; Tailscale auth keys — read by tailscaled, which runs as
+               ;; container-root (= host rafael under rootless podman), so
+               ;; owner bits suffice; no need for world-readable.
                (sops-secret (key '("tailscale" "jellyfin_authkey"))
                             (file %sops-edison)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "navidrome_authkey"))
                             (file %sops-edison)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "arm_authkey"))
                             (file %sops-edison)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "mattermost_authkey"))
                             (file %sops-edison)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                ;; MakeMKV beta/purchased license key — read at activation to
                ;; write /data/arm/.MakeMKV/settings.conf for the ARM container.
                (sops-secret (key '("makemkv" "license_key"))
@@ -677,26 +683,30 @@ TMDB_API_KEY: \"\"\n" p)))
                             (permissions #o400))
                ;; ── Mattermost (Phase 1) ─────────────────────────────────────
                ;; DB password: bind-mounted read-only into mattermost/mattermost-db
-               ;; and read by their /bin/sh start shim.  #o444 (world-readable),
-               ;; like the tailscale keys, because the container reads it as rafael.
+               ;; and read by their /bin/sh start shim as container-root
+               ;; (= host rafael) — owner bits suffice.
                (sops-secret (key '("mattermost" "db_password"))
                             (file %sops-edison)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                ;; Admin password — used once to bootstrap the first MM admin
                ;; account (mmctl / first-run); root-only, not container-mounted.
                (sops-secret (key '("mattermost" "admin_password"))
                             (file %sops-edison)
-                            ;; #o444 (rafael-readable): the provisioner runs as
-                            ;; rafael, and the MM container (--user 0 = host rafael
-                            ;; under rootless userns) reads the mounted copy.
-                            (permissions #o444))
+                            ;; The provisioner runs as rafael, and the MM
+                            ;; container (--user 0 = host rafael under rootless
+                            ;; userns) reads the mounted copy — owner bits.
+                            (user "rafael")
+                            (permissions #o400))
                ;; MM_* env-file (incl. the password-bearing DATASOURCE, built
                ;; from db_password) — the official image is distroless, so the
                ;; DSN is injected via podman --env-file, not a shell shim.
                (sops-secret (key '("mattermost" "env"))
                             (file %sops-edison)
                             (output-type "dotenv")
-                            (permissions #o444))
+                            ;; Read host-side by `podman --env-file` as rafael.
+                            (user "rafael")
+                            (permissions #o400))
                ;; ── Hermes household env-file — KEPT after the Hermes teardown ─
                ;; The colony's poppins-bridge reuses OPENROUTER_API_KEY from this
                ;; at runtime (the Hermes responders + tutor/ops/nextcloud-mcp
@@ -704,26 +714,30 @@ TMDB_API_KEY: \"\"\n" p)))
                (sops-secret (key '("hermes-household" "env"))
                             (file %sops-edison)
                             (output-type "dotenv")
-                            (permissions #o444))
+                            ;; Read host-side by `podman --env-file` as rafael.
+                            (user "rafael")
+                            (permissions #o400))
                ;; ── NextCloud MCP server credential (re-added for Poppins) ───
                ;; NEXTCLOUD_PASSWORD (mary-poppins app-pw); the nextcloud-mcp
                ;; sidecar (Poppins's MCP NextCloud hands) reads it via --env-file.
                (sops-secret (key '("nextcloud-mcp" "env"))
                             (file %sops-edison)
                             (output-type "dotenv")
-                            (permissions #o444))
+                            ;; Read host-side by `podman --env-file` as rafael.
+                            (user "rafael")
+                            (permissions #o400))
                ;; ── Mattermost family-account SEED passwords ────────────────
                ;; Read as rafael by mattermost-provision (step 5b) for `mmctl
-               ;; user create --password'.  #o444 like admin_password; seeds,
-               ;; changed by each member on first login.
+               ;; user create --password'.  Seeds, changed by each member on
+               ;; first login; rafael-owned, owner bits suffice.
                (sops-secret (key '("mattermost" "userpw_rafael"))
-                            (file %sops-edison) (permissions #o444))
+                            (file %sops-edison) (user "rafael") (permissions #o400))
                (sops-secret (key '("mattermost" "userpw_maria"))
-                            (file %sops-edison) (permissions #o444))
+                            (file %sops-edison) (user "rafael") (permissions #o400))
                (sops-secret (key '("mattermost" "userpw_leandro"))
-                            (file %sops-edison) (permissions #o444))
+                            (file %sops-edison) (user "rafael") (permissions #o400))
                (sops-secret (key '("mattermost" "userpw_adrian"))
-                            (file %sops-edison) (permissions #o444))))))))  ; close secrets/list/config/service/list
+                            (file %sops-edison) (user "rafael") (permissions #o400))))))))  ; close secrets/list/config/service/list
 
 ;;;
 ;;; OCI container helpers — reuse make-ts-sidecar / make-app-container

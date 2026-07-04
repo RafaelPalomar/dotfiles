@@ -74,27 +74,41 @@
              (gnupg-home "/var/lib/sops")
              (secrets
               (list
-               ;; PostgreSQL credentials
-               ;; #o444: world-readable so rootless Podman containers can read them.
+               ;; ── Permission model for rootless-container secrets ──────────
+               ;; All app containers run rootless under rafael.  A process
+               ;; running as CONTAINER-root has host uid 1000 (rafael), so
+               ;; `(user "rafael") #o400` is the tight scoping for every secret
+               ;; whose reader is the container entrypoint / a rafael-side
+               ;; wrapper.  Only secrets read by a NON-root in-container user
+               ;; (grafana uid 472, searxng) map to a subuid != 1000 and
+               ;; genuinely need the old world-readable #o444 — those two are
+               ;; kept #o444 below, each with a comment.  Host root bypasses
+               ;; DAC, so root-side one-shots keep access either way.
+
+               ;; PostgreSQL credentials — read by `cat` in the app containers'
+               ;; start shims, which run as container-root (= host rafael).
                (sops-secret (key '("postgresql" "freshrss_password"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("postgresql" "nextcloud_password"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("postgresql" "wallabag_password"))
                             (file %sops-lovelace)
-                            (permissions #o444))
-               ;; Tailscale auth keys (one per sidecar)
-               ;; #o444: world-readable so rootless Podman containers can read them.
-               ;; In rootless Podman host uid 1000 (rafael) runs as root inside the
-               ;; container, but host root (uid 0) is unmapped — so "other" bits apply.
+                            (user "rafael")
+                            (permissions #o400))
+               ;; Tailscale auth keys (one per sidecar) — read by tailscaled,
+               ;; which runs as container-root (= host rafael).
                (sops-secret (key '("tailscale" "freshrss_authkey"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "nextcloud_authkey"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                ;; ── NextCloud family-account SEED passwords (nextcloud-provision) ──
                ;; ACTIVATED 2026-06-02: values now present in sops/lovelace.yaml
                ;; under `nextcloud:` (userpw_*).  #o400 root-only; read once (as
@@ -109,25 +123,32 @@
                             (file %sops-lovelace) (permissions #o400))
                (sops-secret (key '("tailscale" "wallabag_authkey"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "rss_bridge_authkey"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "searxng_authkey"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "pihole_authkey"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "qbt_authkey"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "prometheus_authkey"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                (sops-secret (key '("tailscale" "grafana_authkey"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
                ;; Mullvad VPN keys — group=users so rootless containers (rafael) can read
                (sops-secret (key '("mullvad" "pihole_wg_private_key"))
                             (file %sops-lovelace)
@@ -149,20 +170,29 @@
                             (user "root")
                             (group "users")
                             (permissions #o440))
-               ;; Service credentials — #o444 for container readability
+               ;; pihole's s6 entrypoint reads WEBPASSWORD as container-root
+               ;; (= host rafael).
                (sops-secret (key '("pihole" "webpassword"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (user "rafael")
+                            (permissions #o400))
+               ;; KEEP #o444: read in-container by the searxng user (subuid,
+               ;; not host rafael) — owner/group bits cannot reach it.
                (sops-secret (key '("searxng" "secret_key"))
                             (file %sops-lovelace)
                             (permissions #o444))
+               ;; KEEP #o444: grafana-server runs as uid 472 in-container
+               ;; (subuid, not host rafael) and reads
+               ;; GF_SECURITY_ADMIN_PASSWORD__FILE itself — no root step.
                (sops-secret (key '("grafana" "admin_password"))
                             (file %sops-lovelace)
                             (permissions #o444))
-               ;; Borg backup
+               ;; Borg backup — borgmatic runs as host root (its ssh key
+               ;; below is root-only #o400 and works); root bypasses DAC,
+               ;; so root-only is sufficient for the passphrase too.
                (sops-secret (key '("borg" "passphrase"))
                             (file %sops-lovelace)
-                            (permissions #o444))
+                            (permissions #o400))
                (sops-secret (key '("borg" "ssh_private_key"))
                             (file %sops-lovelace)
                             (permissions #o400))))))))
