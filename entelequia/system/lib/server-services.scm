@@ -1507,8 +1507,11 @@ image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
                      "heroes-server" "localhost/heroes-server:0.9.6"
                      #:share-ts-netns? #f
                      #:ports (list "0.0.0.0:3030:3030" "0.0.0.0:8090:8090")
+                     ;; .env is read-WRITE: on first start the app persists
+                     ;; generated web-push VAPID keys back into it (a :ro mount
+                     ;; makes it crash with EROFS).  Existing keys are preserved.
                      #:volumes
-                     (list "/data/heroes-server/.env:/usr/src/app/.env:ro"))))))
+                     (list "/data/heroes-server/.env:/usr/src/app/.env"))))))
 
 ;;;
 ;;; ts-netns-watchdog: keep shared-netns app containers aligned with their
