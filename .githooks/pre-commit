@@ -11,7 +11,7 @@
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-KEYS="$ROOT/dotfiles/.local/bin/keys"
+KEYS="$ROOT/dotfiles/rafael/.local/bin/keys"
 RELEVANT='^(docs/source/keys-inventory\.md|dotfiles/\.gnupg/(deploy-keys\.conf|sshcontrol)|\.sops\.yaml|dotfiles/\.local/bin/keys)$'
 
 # Nothing key-related staged → nothing to check.
