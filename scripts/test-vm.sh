@@ -17,8 +17,8 @@ echo "Dotfiles directory: $DOTFILES_DIR"
 cd "$DOTFILES_DIR"
 
 # Build and launch VM
-guix time-machine -C channels.scm -- \
-  system vm "entelequia/system/vms/$CONFIG.scm" \
+guix time-machine -C channels-lock.scm -- \
+  system vm -L . "entelequia/system/vms/$CONFIG.scm" \
   --share=/tmp/.X11-unix \
   -m 4G
 

@@ -1,162 +1,106 @@
 #!/usr/bin/env bash
-# Validation script for the refactored entelequia configuration
+# Fast syntax/evaluation gate for the entelequia configuration.
+#
+# Evaluates every system machine file, every home machine file, and every VM
+# config through the pinned channels (channels-lock.scm), asserting that each
+# produces the expected record type.  This is tier 1 of the testing workflow:
+# it catches module errors, unbound variables, and record-type mistakes in
+# ~a minute, without building anything.
+#
+# Usage: ./scripts/validate-refactor.sh [--fast]
+#   --fast   skip time-machine and use the ambient guix (faster, but channel
+#            modules like sops-guix may be missing -> failures degrade to warn)
 
-set -e
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
-echo "========================================"
-echo "Entelequia Configuration Validation"
-echo "========================================"
-echo
+GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
+pass() { echo -e "${GREEN}✓${NC} $1"; }
+fail() { echo -e "${RED}✗${NC} $1"; failures=$((failures + 1)); }
+warn() { echo -e "${YELLOW}⚠${NC} $1"; }
 
-# Color codes
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+failures=0
 
-pass() {
-    echo -e "${GREEN}✓${NC} $1"
+if [[ "${1:-}" == "--fast" ]]; then
+    GUIX=(guix)
+else
+    GUIX=(guix time-machine -C channels-lock.scm --)
+fi
+
+# eval_file FILE PREDICATE LABEL
+# Loads FILE (whose trailing value must satisfy PREDICATE, e.g.
+# operating-system? / home-environment?) under -L PROJECT_ROOT.
+eval_file() {
+    local file=$1 predicate=$2 label=$3
+    local out
+    out=$("${GUIX[@]}" repl -q -L . 2>&1 <<EOF
+(use-modules (gnu) (gnu home))
+(let ((value (primitive-load "$file")))
+  (if ($predicate value)
+      (display "ENTELEQUIA-VALIDATE-OK")
+      (begin (display "ENTELEQUIA-VALIDATE-WRONG-TYPE") (exit 1))))
+EOF
+    )
+    if grep -q "ENTELEQUIA-VALIDATE-OK" <<<"$out"; then
+        pass "$label"
+    else
+        fail "$label"
+        # Show the first real error line for quick diagnosis
+        grep -m1 -E "error|Unbound|exception|WRONG-TYPE" <<<"$out" | sed 's/^/    /'
+    fi
 }
 
-fail() {
-    echo -e "${RED}✗${NC} $1"
-    return 1
-}
-
-warn() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-
-# Test 1: Module syntax checking
-echo "1. Checking Guile module syntax..."
-if guix repl -L . <<'EOF' 2>&1 | grep -q "All modules loaded"
+echo "== 1. Core library modules =============================="
+out=$("${GUIX[@]}" repl -q -L . 2>&1 <<'EOF'
 ,use (entelequia lib records)
 ,use (entelequia lib helpers)
-,use (entelequia home profiles base)
-,use (entelequia home profiles development)
-,use (entelequia home profiles email)
-,use (entelequia home services emacs)
-,use (entelequia home services desktop)
-,use (entelequia home services gpg)
-,use (entelequia home services shell)
-(display "All modules loaded successfully\n")
+,use (entelequia system lib common-packages)
+,use (entelequia system lib common-services)
+,use (entelequia system lib security-hardening)
+,use (entelequia home services desktop-suite)
+,use (entelequia home services server-suite)
+(display "ENTELEQUIA-VALIDATE-OK")
 EOF
-then
-    pass "All core modules load successfully"
-else
-    warn "Some modules have warnings (check output above)"
-fi
-echo
-
-# Test 2: System configuration evaluation
-echo "2. Testing system configurations..."
-
-for system in einstein curie; do
-    echo "   Testing $system..."
-    if guix repl -L . <<EOF 2>&1 | grep -q "operating-system"
-,use (entelequia system machines $system)
-(display (if (operating-system? ${system}-system) "operating-system" "not-found"))
-EOF
-    then
-        pass "$system system configuration evaluates correctly"
-    else
-        fail "$system system configuration has errors"
-    fi
-done
-
-# Test lovelace (server) — requires sops-guix channel in load path
-echo "   Testing lovelace (server)..."
-if guix repl -L . <<'EOF' 2>&1 | grep -q "operating-system"
-,use (entelequia system machines lovelace)
-(display (if (operating-system? lovelace-os) "operating-system" "not-found"))
-EOF
-then
-    pass "lovelace system configuration evaluates correctly"
-else
-    warn "lovelace system configuration has errors (may need sops-guix channel via guix time-machine)"
-fi
-echo
-
-# Test 3: VM configuration evaluation
-echo "3. Testing VM configurations..."
-if guix repl -L . <<'EOF' 2>&1 | grep -q "operating-system"
-,use (entelequia system vms test-desktop)
-(display (if (operating-system? test-desktop-system) "operating-system" "not-found"))
-EOF
-then
-    pass "test-desktop VM configuration evaluates correctly"
-else
-    fail "test-desktop VM configuration has errors"
-fi
-echo
-
-# Test 4: Check for common issues
-echo "4. Checking for common issues..."
-
-# Check for missing package definitions
-missing_pkgs=$(grep -r "specifications->packages" entelequia/system/lib/common-packages.scm | wc -l)
-if [ "$missing_pkgs" -eq 0 ]; then
-    warn "No package specifications found (expected at least 1)"
-else
-    pass "Found $missing_pkgs package specifications"
-fi
-
-# Check for duplicate service definitions
-duplicate_services=$(grep -r "define.*-service" entelequia/system/lib/common-services.scm | wc -l)
-if [ "$duplicate_services" -gt 0 ]; then
-    pass "Found $duplicate_services service definitions"
-else
-    warn "No service definitions found"
-fi
-echo
-
-# Test 5: File structure validation
-echo "5. Validating file structure..."
-required_files=(
-    "entelequia/lib/records.scm"
-    "entelequia/lib/helpers.scm"
-    "entelequia/system/machines/einstein.scm"
-    "entelequia/system/machines/curie.scm"
-    "entelequia/system/machines/lovelace.scm"
-    "entelequia/system/layers/base.scm"
-    "entelequia/system/layers/desktop-base.scm"
-    "entelequia/system/layers/server-base.scm"
-    "entelequia/system/lib/server-services.scm"
-    "entelequia/home/profiles/server.scm"
-    "entelequia/systems/server.scm"
-    "entelequia/deploy/lovelace.scm"
-    "sops/lovelace.yaml"
-    ".sops.yaml"
 )
+if grep -q "ENTELEQUIA-VALIDATE-OK" <<<"$out"; then
+    pass "core lib/suite modules load"
+else
+    fail "core lib/suite modules load"
+    grep -m1 -E "error|Unbound|exception" <<<"$out" | sed 's/^/    /'
+fi
+echo
 
-all_present=true
-for file in "${required_files[@]}"; do
-    if [ -f "$file" ]; then
-        pass "Found $file"
-    else
-        fail "Missing $file"
-        all_present=false
-    fi
+echo "== 2. System machine configurations ======================"
+for file in entelequia/system/machines/*.scm; do
+    # Skip non-OS helper modules living alongside machines
+    case "$(basename "$file")" in
+        datalocker-udev-rules.scm) continue ;;
+    esac
+    eval_file "$file" "operating-system?" "$(basename "$file" .scm)"
 done
 echo
 
-# Summary
-echo "========================================"
-if $all_present; then
-    echo -e "${GREEN}Validation Summary: PASSED${NC}"
-    echo "The refactored configuration appears to be structurally sound."
-    echo
-    echo "Next steps:"
-    echo "  1. Review any warnings above"
-    echo "  2. Run 'guix time-machine -C channels.scm -- system build entelequia/system/machines/einstein.scm --dry-run'"
-    echo "  3. Test in a VM before applying to real hardware"
+echo "== 3. Home machine configurations ========================"
+for file in entelequia/home/machines/*.scm; do
+    eval_file "$file" "home-environment?" "$(basename "$file" .scm)"
+done
+echo
+
+echo "== 4. VM configurations =================================="
+for file in entelequia/system/vms/*.scm; do
+    eval_file "$file" "operating-system?" "$(basename "$file" .scm)"
+done
+echo
+
+echo "=========================================================="
+if [[ $failures -eq 0 ]]; then
+    echo -e "${GREEN}Validation: PASSED${NC}"
+    echo "Next: guix time-machine -C channels-lock.scm -- system build -L . \\"
+    echo "        entelequia/system/machines/<machine>.scm --dry-run"
 else
-    echo -e "${RED}Validation Summary: FAILED${NC}"
-    echo "Please fix the errors above before proceeding."
+    echo -e "${RED}Validation: FAILED (${failures} file(s))${NC}"
     exit 1
 fi
-echo "========================================"
