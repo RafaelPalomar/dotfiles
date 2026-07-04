@@ -19,6 +19,8 @@
   #:use-module (gnu packages glib)       ; glib
   #:use-module (gnu packages pulseaudio) ; pulseaudio (libpulse-simple)
   #:use-module (gnu packages java)       ; openjdk17 for Mindustry
+  #:use-module (gnu packages gettext)    ; gettext-minimal (netheroes2)
+  #:use-module (gnu packages curl)       ; curl (netheroes2 online client)
   #:use-module (guix git-download)
   #:use-module (guix gexp)
   #:use-module (guix utils)
@@ -52,7 +54,9 @@
             coq-caves-of-qud
             coq-caves-of-qud-native
             bay12-dwarf-fortress
-            anuken-mindustry))
+            anuken-mindustry
+            ;; Online multiplayer HoMM II
+            netheroes2))
 
 ;;;
 ;;; Game launcher helpers
@@ -1920,3 +1924,59 @@ assigned slot rather than world origin.")
 \"Forbidden Island\" mod.  Uses the Mobs Redo API.")
     (license (list license:expat license:cc-by-sa4.0))
     (properties `((upstream-name . "pixelzone/forgotten_monsters")))))
+
+
+;;;
+;;; netheroes2 — online-multiplayer fork of fheroes2 (Heroes of Might & Magic II)
+;;;
+;;; The stock fheroes2 engine has only hot-seat multiplayer; this Bitbucket
+;;; fork (heroes2.online) adds network play against the public server at
+;;; https://www.heroes2.online/game1 (hard-coded in game_network.cpp, reached
+;;; via libcurl).  Same asset requirement as fheroes2: the original HoMM II
+;;; data in ~/.local/share/fheroes2.  The fork's CMake still builds a binary
+;;; named `fheroes2' and installs a fheroes2.desktop/icon, which would collide
+;;; with the fheroes2 package in a shared profile, so we rename the binary to
+;;; `netheroes2' and drop the fork's desktop entry (we ship our own).
+;;;
+(define-public netheroes2
+  (package
+    (name "netheroes2")
+    (version "0.28.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://bitbucket.org/fheroes2/netheroes2.git")
+             (commit "1f32fe89c9eadf300988500c897afbf009692e0c")))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0n9yaivhh6aq0rh2pvvyv4zgb3rnn40x5qm4gm9y3yfhhyj9bsa9"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ; no tests
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'rename-to-netheroes2
+            (lambda _
+              (let* ((bin (string-append #$output "/bin"))
+                     (f2  (string-append bin "/fheroes2")))
+                (when (file-exists? f2)
+                  (rename-file f2 (string-append bin "/netheroes2"))))
+              ;; Drop the fork's fheroes2.desktop so it can't collide with the
+              ;; fheroes2 package; the curie home profile ships its own entry.
+              (let ((apps (string-append #$output "/share/applications")))
+                (when (file-exists? apps)
+                  (for-each delete-file (find-files apps "\\.desktop$")))))))))
+    (native-inputs (list gettext-minimal))
+    (inputs
+     (list curl
+           (sdl-union (list sdl2 sdl2-mixer sdl2-net))
+           zlib))
+    (home-page "https://heroes2.online/")
+    (synopsis "Online-multiplayer fork of the fheroes2 HoMM II engine")
+    (description
+     "netheroes2 is a fork of @code{fheroes2} that adds network multiplayer via
+the public heroes2.online server.  Like fheroes2, it needs the original Heroes
+of Might and Magic II game assets in @file{~/.local/share/fheroes2}.")
+    (license license:gpl2)))

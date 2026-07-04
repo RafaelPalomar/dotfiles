@@ -11,7 +11,8 @@
   #:use-module (guix-hermes services hermes)
   #:use-module (btv tailscale)
   #:use-module (gnu packages games)       ; fheroes2 (HoMM2 engine; assets are user-supplied)
-  #:use-module (gnu packages emulators)   ; dosbox-staging (original DOS HoMM2 + IPX multiplayer)
+  #:use-module (entelequia packages games) ; netheroes2 (online HoMM2 fork)
+  #:use-module (guix gexp)                ; plain-file (netheroes2 .desktop launcher)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -37,11 +38,11 @@
           (home-role-packages 'work)
           documentation-home-packages
           (gaming-home-packages)
-          ;; Heroes of Might & Magic II (curie-only): fheroes2 is the modern
-          ;; engine (single/hot-seat); dosbox-staging runs the original GOG DOS
-          ;; game for its NetBIOS/IPX network multiplayer (fheroes2 has none).
+          ;; Heroes of Might & Magic II (curie-only): fheroes2 for single-player
+          ;; / hot-seat, netheroes2 for online multiplayer (heroes2.online).
+          ;; Both share the assets in ~/.local/share/fheroes2.
           (list fheroes2
-                dosbox-staging
+                netheroes2
                 tailscaled
                 hermes-agent)))
  (services
@@ -55,6 +56,30 @@
    ;; default-off, so ~/.mbsyncrc still comes from the blanket dotfiles/
    ;; copy until the coordinated mail cut (ADR-0005, role.scm header).
    (home-role-services 'work #:work-tailnet? #t)
+   ;; App-menu entry for netheroes2 — online multiplayer (fheroes2 fork).  We
+   ;; stripped the fork's own .desktop in the package to avoid colliding with
+   ;; fheroes2, so provide one here.  Binary is on PATH via the home profile.
+   ;; fheroes2 ships its own .desktop, so it already appears in the menu.
+   (list
+    (simple-service
+     'netheroes2-desktop-launcher
+     home-files-service-type
+     (list
+      (list ".local/share/applications/netheroes2.desktop"
+            (plain-file "netheroes2.desktop"
+             (string-append
+              "[Desktop Entry]\n"
+              "Version=1.0\n"
+              "Type=Application\n"
+              "Name=Heroes II Online (netheroes2)\n"
+              "GenericName=Turn-based strategy\n"
+              "Comment=Online multiplayer HoMM II via heroes2.online "
+              "(fheroes2 fork; uses the fheroes2 assets)\n"
+              "Exec=netheroes2\n"
+              "Icon=fheroes2\n"
+              "Terminal=false\n"
+              "Categories=Game;StrategyGame;\n"
+              "Keywords=homm;heroes;might;magic;online;multiplayer;\n"))))))
    (list
          ;; Hermes Agent gateway as a user shepherd service.  Secrets
          ;; (OPENAI_API_KEY, ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, …)
