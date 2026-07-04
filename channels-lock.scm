@@ -2,7 +2,7 @@
        (name 'guix)
        (url "https://codeberg.org/guix/guix.git")
        (branch "master")
-       (commit "ed155dc4ed5ff62a7596aef6066c994671d35923")
+       (commit "a118e78776390b1e56928927d5056cd9426d786e")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -12,7 +12,7 @@
        (name 'nonguix)
        (url "https://gitlab.com/nonguix/nonguix")
        (branch "master")
-       (commit "4ae06fb5cb75f2ca6b0f2f384f41677ae28c069a")
+       (commit "4bc86c61d5ab661614b099bfe524f7f5798988b3")
        (introduction
         (make-channel-introduction
          "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -22,7 +22,7 @@
        (name 'guix-xlibre)
        (url "https://codeberg.org/rafaelpalomar/guix-xlibre.git")
        (branch "master")
-       (commit "5a7d0123ed4f805588bbe6035800143262fbe203"))
+       (commit "703626f255669ff5266b5a50864aacfa9d16d037"))
       (channel
        (name 'tailscale)
        (url "https://codeberg.org/rafaelpalomar/guix-tailscale.git")
