@@ -1,9 +1,13 @@
 (list (channel
         (name 'guix)
-        (url "https://git.guix.gnu.org/guix.git")
+        ;; Guix moved off git.guix.gnu.org to Codeberg; the old URL no longer
+        ;; serves recent objects, so a plain `guix pull' here fails with
+        ;; "object not found" (this is what wedged adrian@hopper's guix).
+        ;; Keep in sync with channels-lock.scm's guix pin.
+        (url "https://codeberg.org/guix/guix.git")
         (branch "master")
         (commit
-          "6a483ed7c607b01003edb9cb118c9f89c9d457e9")
+          "a118e78776390b1e56928927d5056cd9426d786e")
         (introduction
           (make-channel-introduction
             "9edb3f66fd807b096b48283debdcddccfea34bad"
