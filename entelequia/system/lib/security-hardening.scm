@@ -384,42 +384,43 @@ Match Address 192.168.88.0/24 User root
 ;;; Audit logging service (auditd)
 ;;; Provides comprehensive security event logging and monitoring.
 
+;; Rules are written for Guix System reality: there is no /etc/gshadow,
+;; /etc/sudoers.d, /etc/ssh/sshd_config (sshd config lives in the store),
+;; /sbin/{ins,rm,mod}mod, or /usr/bin/sudo here.  Module loading is caught
+;; via the syscall interface instead of path watches, and sudo lives under
+;; /run/privileged/bin/.  The old unlink/rename and mount/umount syscall
+;; rules were dropped deliberately: on a Guix host (constant store GC) and
+;; a rootless-podman fleet (constant mount churn) they generate noise that
+;; buries every real event.
 (define auditd-rules
   (plain-file "audit.rules"
-              "# Audit rules for security monitoring
+              "# Audit rules for security monitoring (Guix System paths)
 
-# Remove existing rules
+# Remove existing rules; continue past per-rule errors (paths can vary
+# slightly per machine); buffer size; failure mode 1 = printk
 -D
-
-# Buffer size
+-c
 -b 8192
-
-# Failure mode: 1 = print to syslog
 -f 1
 
-# Monitor authentication events
+# Identity and privilege databases
 -w /etc/passwd -p wa -k identity
 -w /etc/group -p wa -k identity
 -w /etc/shadow -p wa -k identity
--w /etc/gshadow -p wa -k identity
 -w /etc/sudoers -p wa -k sudoers
--w /etc/sudoers.d/ -p wa -k sudoers
 
-# Monitor SSH configuration
--w /etc/ssh/sshd_config -p wa -k sshd_config
+# SSH host keys and authorized_keys.d (sshd_config itself is a
+# read-only store item; the mutable attack surface is this directory)
+-w /etc/ssh -p wa -k sshd_config
 
-# Monitor kernel modules
--w /sbin/insmod -p x -k modules
--w /sbin/rmmod -p x -k modules
--w /sbin/modprobe -p x -k modules
+# Kernel module loading (syscall interface — no /sbin on Guix)
+-a always,exit -F arch=b64 -S init_module,finit_module,delete_module -k modules
 
-# Monitor system calls
--a exit,always -F arch=b64 -S adjtimex -S settimeofday -k time_change
--a exit,always -F arch=b64 -S mount -S umount2 -k mounts
--a exit,always -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -k delete
+# Clock manipulation
+-a always,exit -F arch=b64 -S adjtimex,settimeofday -k time_change
 
-# Monitor privileged commands
--a exit,always -F path=/usr/bin/sudo -F perm=x -F auid>=1000 -F auid!=4294967295 -k privileged
+# Privileged command execution by real users
+-a always,exit -F path=/run/privileged/bin/sudo -F perm=x -F auid>=1000 -F auid!=4294967295 -k privileged
 "))
 
 (define auditd-service
@@ -442,7 +443,21 @@ Match Address 192.168.88.0/24 User root
                                      "-f")
                                #:log-file "/var/log/audit.log"))
                      (stop #~(make-kill-destructor))
-                     (respawn? #t))))))
+                     (respawn? #t))
+                    ;; auditd does NOT load rules by itself (that is
+                    ;; augenrules'/auditctl's job), so the rule file above
+                    ;; was installed but never reached the kernel.  auditctl
+                    ;; talks to the kernel directly; the auditd requirement
+                    ;; is only for ordering.  Verify with: auditctl -l
+                    (shepherd-service
+                     (documentation "Load audit rules into the kernel")
+                     (provision '(auditd-rules))
+                     (requirement '(auditd))
+                     (one-shot? #t)
+                     (start #~(lambda ()
+                                (zero? (system* #$(file-append audit "/sbin/auditctl")
+                                                "-R" "/etc/audit/audit.rules"))))
+                     (stop #~(const #f)))))))
 
 ;;; PAM hardening service
 ;;; Configure PAM for account security, process limits, and core dumps.
