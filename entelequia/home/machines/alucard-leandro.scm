@@ -7,6 +7,7 @@
   #:use-module (entelequia home services archimedes)
   #:use-module (gnu packages games)        ; fheroes2 (HoMM2 engine)
   #:use-module (entelequia packages games) ; netheroes2 (online HoMM2 fork)
+  #:use-module (guix gexp)                 ; plain-file (netheroes2 .desktop)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -33,6 +34,28 @@
   (append
    (common-home-services #:nvidia? #t)
    (desktop-home-services)
+   ;; netheroes2 app-menu entry (the package strips the fork's own .desktop to
+   ;; avoid colliding with fheroes2, which ships its own).  Same as curie.
+   (list
+    (simple-service
+     'netheroes2-desktop-launcher
+     home-files-service-type
+     (list
+      (list ".local/share/applications/netheroes2.desktop"
+            (plain-file "netheroes2.desktop"
+             (string-append
+              "[Desktop Entry]\n"
+              "Version=1.0\n"
+              "Type=Application\n"
+              "Name=Heroes II Online (netheroes2)\n"
+              "GenericName=Turn-based strategy\n"
+              "Comment=Online multiplayer HoMM II via heroes2.online "
+              "(fheroes2 fork; uses the fheroes2 assets)\n"
+              "Exec=netheroes2\n"
+              "Icon=fheroes2\n"
+              "Terminal=false\n"
+              "Categories=Game;StrategyGame;\n"
+              "Keywords=homm;heroes;might;magic;online;multiplayer;\n"))))))
    (list librewolf-kids-home-service
          (service home-dotfiles-service-type
                   (home-dotfiles-configuration
