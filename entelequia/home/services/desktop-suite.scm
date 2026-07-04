@@ -42,10 +42,15 @@
 
 ;;; Common home services (bash, env, gpg, dbus)
 
+;; Rafael-specific blocks (institutional email aliases + sops OAuth hook,
+;; Slicer profile bootstrap, claude skills + the claude binary symlink)
+;; default OFF: this function also serves the kids' homes (leandro,
+;; adrian), which must not inherit rafael's identity or an agent CLI.
+;; Rafael's machine files opt in explicitly.
 (define* (common-home-services #:key
-                               (email-aliases? #t)
-                               (slicer-aliases? #t)
-                               (claude-skills? #t)
+                               (email-aliases? #f)
+                               (slicer-aliases? #f)
+                               (claude-skills? #f)
                                (nvidia? #f))
   "Bash, environment variables, gpg-agent, dbus, gnupg perms, and (optionally)
 the rafael-specific claude-skills files / slicer-profile bash hooks /

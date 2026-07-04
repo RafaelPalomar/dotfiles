@@ -7,7 +7,13 @@
 ;;; Minimal set of packages for any home environment.
 ;;; These are the essentials needed for a functional user environment.
 
-(define* (base-home-packages #:key (gpu-type 'nvidia))
+;; gpu-type defaults to 'none: libglvnd must ONLY land on NVIDIA hosts.
+;; On Mesa hosts it takes over GLX dispatch with no libGLX_mesa vendor
+;; installed and breaks GL outright (kitty refused to start, curie
+;; 2026-05-12).  Defaulting to the safe side means a new machine file
+;; that forgets the kwarg gets working GL everywhere; NVIDIA homes opt
+;; in explicitly.
+(define* (base-home-packages #:key (gpu-type 'none))
   (append
    (map specification->package
         '(;; Shell utilities

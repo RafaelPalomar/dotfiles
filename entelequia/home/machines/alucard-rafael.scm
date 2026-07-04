@@ -18,14 +18,15 @@
 
 (home-environment
  (packages
-  (append (base-home-packages)
+  (append (base-home-packages #:gpu-type 'nvidia)
           (development-home-packages)
           (gaming-home-packages)
           email-home-packages
           documentation-home-packages))
  (services
   (append
-   (common-home-services #:nvidia? #t)
+   (common-home-services #:nvidia? #t
+                         #:email-aliases? #t #:slicer-aliases? #t #:claude-skills? #t)
    (desktop-home-services)
    (list (service home-dotfiles-service-type
                   (home-dotfiles-configuration

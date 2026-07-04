@@ -26,7 +26,7 @@
           documentation-home-packages))
  (services
   (append
-   (common-home-services)
+   (common-home-services #:email-aliases? #t #:slicer-aliases? #t #:claude-skills? #t)
    (desktop-home-services)
    (laptop-home-services)
    (list (service home-dotfiles-service-type

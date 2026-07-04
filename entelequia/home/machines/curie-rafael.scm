@@ -5,13 +5,15 @@
   #:use-module (entelequia home profiles documentation)
   #:use-module (entelequia home profiles gaming)
   #:use-module (entelequia home profiles networking)
+  #:use-module (entelequia packages games)   ; gog-barony (curie-only title)
   #:use-module (entelequia home services desktop-suite)
   #:use-module (entelequia home services chromium)
+  #:use-module (entelequia home services alpha)
+  #:use-module (entelequia home services forage)
   #:use-module (guix-hermes packages hermes)
   #:use-module (guix-hermes services hermes)
   #:use-module (btv tailscale)
   #:use-module (gnu packages games)       ; fheroes2 (HoMM2 engine; assets are user-supplied)
-  #:use-module (entelequia packages games) ; netheroes2 (online HoMM2 fork)
   #:use-module (guix gexp)                ; plain-file (netheroes2 .desktop launcher)
   #:use-module (gnu)
   #:use-module (gnu home)
@@ -38,16 +40,18 @@
           (home-role-packages 'work)
           documentation-home-packages
           (gaming-home-packages)
-          ;; Heroes of Might & Magic II (curie-only): fheroes2 for single-player
-          ;; / hot-seat, netheroes2 for online multiplayer (heroes2.online).
-          ;; Both share the assets in ~/.local/share/fheroes2.
-          (list fheroes2
-                netheroes2
+          ;; curie-only game.  Deliberately NOT in the shared
+          ;; gaming-home-packages list (which the kids' homes
+          ;; alucard-leandro / hopper-adrian also consume), so Barony
+          ;; never reaches the children's profiles.
+          (list gog-barony
+                fheroes2         ; HoMM2 single-player / hot-seat engine
+                netheroes2       ; online-multiplayer HoMM2 (heroes2.online); reuses fheroes2 assets
                 tailscaled
                 hermes-agent)))
  (services
   (append
-   (common-home-services)
+   (common-home-services #:email-aliases? #t #:slicer-aliases? #t #:claude-skills? #t)
    (desktop-home-services)
    (laptop-home-services)
    (chromium-home-services)
@@ -56,6 +60,12 @@
    ;; default-off, so ~/.mbsyncrc still comes from the blanket dotfiles/
    ;; copy until the coordinated mail cut (ADR-0005, role.scm header).
    (home-role-services 'work #:work-tailnet? #t)
+   ;; alpha — rafael's personal pi agent (pi + the `alpha' wrapper that reads
+   ;; the OpenRouter key from /run/secrets/openrouter/rafael, sops-decrypted).
+   (alpha-home-service)
+   ;; forage — the queen's forager-dispatch entrypoint (Stage 1 of the colony):
+   ;; a `forage' command that spawns a one-shot isolated forager (Haiku, no PKS).
+   (forage-home-service)
    ;; App-menu entry for netheroes2 — online multiplayer (fheroes2 fork).  We
    ;; stripped the fork's own .desktop in the package to avoid colliding with
    ;; fheroes2, so provide one here.  Binary is on PATH via the home profile.

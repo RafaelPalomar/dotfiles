@@ -21,7 +21,7 @@
 
 (home-environment
  (packages
-  (append (base-home-packages)
+  (append (base-home-packages #:gpu-type 'nvidia)
           (python-learning-home-packages)
           (gaming-home-packages
            #:exclude '("caves-of-qud"))
