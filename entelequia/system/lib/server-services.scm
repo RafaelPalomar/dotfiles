@@ -1493,7 +1493,12 @@ image ENTRYPOINT when non-#f; COMMAND overrides the image CMD."
                    activation-service-type
                    #~(begin
                        (use-modules (guix build utils))
-                       (mkdir-p "/data/heroes-server")))
+                       (mkdir-p "/data/heroes-server")
+                       ;; Owned by rafael so the rootless (rafael) container can
+                       ;; read the out-of-band .env mounted from here.
+                       (let ((pw (getpwnam "rafael")))
+                         (chown "/data/heroes-server"
+                                (passwd:uid pw) (passwd:gid pw)))))
 
    (simple-service 'heroes-server-container
                    shepherd-root-service-type
