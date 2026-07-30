@@ -14,7 +14,7 @@
 
 (define-public denotecli
   (let ((commit "d1c02d07d99e6a23ae00393e01c3b487e020527f")
-        (revision "2"))
+        (revision "3"))
     (package
       (name "denotecli")
       (version (git-version "0.8.0" revision commit))
@@ -27,8 +27,9 @@
          (file-name (git-file-name name version))
          (sha256
           (base32 "0aixcmfcqvmd6qgxx6zd7p4vpy1xb82dqq3r82b0rpxgqq9k5pgm"))
-         ;; Two local patches (kept identical in the alpha-agent vendored copy,
-         ;; alpha-agent/alpha-agent/denotecli.scm):
+         ;; Three local patches (kept identical in the alpha-agent vendored copy,
+         ;; alpha-agent/alpha-agent/denotecli.scm; the archimedes copy carries 1+3
+         ;; only — it deliberately omits the DENOTECLI_DIRS default):
          ;;  1. `denotecli create --content -' reads the body from stdin.
          ;;     Upstream 0.8.0 treats --content's value as a literal string with
          ;;     no `-' special case, which silently drops piped bodies.  Patch
@@ -36,14 +37,96 @@
          ;;  2. `--dirs' defaults to $DENOTECLI_DIRS (falling back to upstream
          ;;     ~/org when unset), so a flag-less command can target a configured
          ;;     store instead of ~/org.  Backward-compatible: env unset => ~/org.
+         ;;  3. a new `append' subcommand: locate a note by ID and append to its
+         ;;     body IN PLACE, never regenerating the filename/identifier (Denote
+         ;;     IDs are load-bearing for backlinks).  Upstream has create but no
+         ;;     append, so a rolling note (e.g. an agent's long-term memory) can
+         ;;     only be grown by hand-editing.  Shipped as a self-contained
+         ;;     append.go wired into the dispatch + usage.
          (snippet
           '(begin
              (use-modules (guix build utils))
-             ;; Add the "io" import — needed for io.ReadAll.
+             ;; Patch 3: write the self-contained append.go.  Authored in plain
+             ;; upstream style (--dirs default "~/org"); patch 2's substitution
+             ;; below rewrites that default to defaultDirs() here too.
+             (call-with-output-file "denotecli/append.go"
+               (lambda (port)
+                 (display "\
+// append.go
+package main
+
+import (
+	\"fmt\"
+	\"io\"
+	\"os\"
+	\"path/filepath\"
+	\"strings\"
+)
+
+// AppendNote appends content to the body of an existing Denote note, located by
+// ID, WITHOUT changing its filename or identifier.  Denote IDs are load-bearing
+// for backlinks and must never be regenerated, so this rewrites the same path in
+// place.  Appended text is separated from the existing body by a single blank
+// line, matching the layout CreateNote produces.
+func AppendNote(files []DenoteFile, id, content string) (string, error) {
+	for _, f := range files {
+		if f.ID == id {
+			data, err := os.ReadFile(f.Path)
+			if err != nil {
+				return \"\", fmt.Errorf(\"read %s: %w\", f.Path, err)
+			}
+			nl := \"\\n\"
+			body := strings.TrimRight(string(data), nl)
+			body += nl + nl + strings.TrimRight(content, nl) + nl
+			if err := os.WriteFile(f.Path, []byte(body), 0644); err != nil {
+				return \"\", fmt.Errorf(\"write %s: %w\", f.Path, err)
+			}
+			return f.Path, nil
+		}
+	}
+	return \"\", fmt.Errorf(\"not found: %s\", id)
+}
+
+func cmdAppend() {
+	if len(os.Args) < 3 {
+		fatal(\"usage: denotecli append <id> --content TEXT [--dirs DIR,...]\")
+	}
+	id := os.Args[2]
+	args := os.Args[3:]
+	if err := validateFlags(args, []string{\"--dirs\", \"--content\"}, nil); err != nil {
+		fatal(err.Error())
+	}
+	dirsStr := getFlag(args, \"--dirs\", \"~/org\")
+	content := getFlag(args, \"--content\", \"\")
+	if content == \"-\" {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			fatal(\"read stdin: \" + err.Error())
+		}
+		content = string(data)
+	}
+	if strings.TrimSpace(content) == \"\" {
+		fatal(\"usage: denotecli append <id> --content TEXT [--dirs DIR,...] (content was empty)\")
+	}
+	dirs := strings.Split(dirsStr, \",\")
+	files := ScanDirs(dirs)
+	path, err := AppendNote(files, id, content)
+	if err != nil {
+		fatal(err.Error())
+	}
+	df, ok := ParseFilename(filepath.Base(path))
+	if !ok {
+		fatal(\"parse appended filename: \" + path)
+	}
+	df.Path = path
+	printJSON(df)
+}
+" port)))
+             ;; Patch 1: add the "io" import — needed for io.ReadAll.
              (substitute* "denotecli/main.go"
                (("\t\"fmt\"\n")
                 "\t\"fmt\"\n\t\"io\"\n"))
-             ;; Splice stdin-read right after the --content flag is parsed.
+             ;; Patch 1: splice stdin-read right after the --content flag is parsed.
              (substitute* "denotecli/main.go"
                (("\tcontent := getFlag\\(args, \"--content\", \"\"\\)\n")
                 (string-append
@@ -55,7 +138,8 @@
                  "\t\t}\n"
                  "\t\tcontent = string(data)\n"
                  "\t}\n")))
-             ;; Inject defaultDirs() and route every --dirs default through it.
+             ;; Patch 2: inject defaultDirs() and route every --dirs default through
+             ;; it — in BOTH main.go and the new append.go.
              (substitute* "denotecli/main.go"
                (("func main\\(\\) \\{")
                 (string-append
@@ -66,9 +150,17 @@
                  "\treturn \"~/org\"\n"
                  "}\n\n"
                  "func main() {")))
-             (substitute* "denotecli/main.go"
+             (substitute* '("denotecli/main.go" "denotecli/append.go")
                (("getFlag\\(args, \"--dirs\", \"~/org\"\\)")
-                "getFlag(args, \"--dirs\", defaultDirs())"))))))
+                "getFlag(args, \"--dirs\", defaultDirs())"))
+             ;; Patch 3: dispatch + usage for `append'.  The usage clause anchors
+             ;; on the trailing "]\n" (unique to the usage() line) so it does not
+             ;; also hit the identical text in cmdCreate's double-quoted fatal().
+             (substitute* "denotecli/main.go"
+               (("\t\tcmdCreate\\(\\)")
+                "\t\tcmdCreate()\n\tcase \"append\":\n\t\tcmdAppend()")
+               (("\\[--content TEXT\\]\n")
+                "[--content TEXT]\n  denotecli append <id> --content TEXT [--dirs DIR,...]\n"))))))
       (build-system go-build-system)
       (arguments
        (list #:go go-1.25
