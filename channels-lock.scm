@@ -2,7 +2,7 @@
        (name 'guix)
        (url "https://codeberg.org/guix/guix.git")
        (branch "master")
-       (commit "a118e78776390b1e56928927d5056cd9426d786e")
+       (commit "9cd90332d8abc08719a9d6fe1d58ba8082784074")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -12,7 +12,7 @@
        (name 'nonguix)
        (url "https://gitlab.com/nonguix/nonguix")
        (branch "master")
-       (commit "4bc86c61d5ab661614b099bfe524f7f5798988b3")
+       (commit "73baab37361b3a81f326aa3fdec78840f5acc577")
        (introduction
         (make-channel-introduction
          "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -47,7 +47,7 @@
        (name 'guix-openclaw)
        (url "https://github.com/OUH-MESHLab/guix-openclaw")
        (branch "main")
-       (commit "e95a7ff0fb0516bd96a9ba7916025e242648c7f1"))
+       (commit "9cd854a1dc9dcfd6e082e61d035abde7831efa31"))
       (channel
        (name 'sops-guix)
        (url "https://github.com/fishinthecalculator/sops-guix.git")

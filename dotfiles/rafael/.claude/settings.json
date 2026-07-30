@@ -14,6 +14,7 @@
       "Bash(mail-calendar:*)",
       "Bash(pks-meeting-from-mid:*)",
       "Bash(pks-meeting-sync:*)",
+      "Bash(notebooklm source delete:*)",
       "Bash(lgogdownloader --check-login-status)",
       "Bash(lgogdownloader --list:*)",
       "Bash(lgogdownloader --download:*)",

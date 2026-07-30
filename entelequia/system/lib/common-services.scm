@@ -106,11 +106,16 @@ disabled-version = tls1.3
 ;;; that are not mode 0600.  etc-service-type produces world-readable
 ;;; entries, so we install via an activation gexp and chmod explicitly.
 ;;;
-;;; UUID is pinned so NM keyring secrets survive reconfigure.  The
-;;; connection is not autoconnect — bring it up via `ntnu-vpn-up`
-;;; (which calls `nmcli --ask con up NTNU` and prompts for the NTNU
-;;; password and the Feide OTP).  Send authority for credentials stays
-;;; on a human keystroke — no automated login.
+;;; UUID is pinned for a stable identity across reconfigures.  Bring it
+;;; up from a graphical session (nm-applet tray, or `nmcli con up NTNU`)
+;;; so NetworkManager invokes nm-openconnect-auth-dialog, whose embedded
+;;; webkit renders the Feide SAML login.  As of 2026-07 NTNU's ASA
+;;; offers embedded-webview SAML (single-sign-on-v2) ONLY — the old
+;;; `ntnu-vpn-up` / `openconnect --external-browser` path now fails with
+;;; "No SSO handler" and no longer works.  Deliberately NO authtype /
+;;; username keys: those forced a non-interactive password attempt that
+;;; blocked the SAML auth-dialog.  Auth stays on a human keystroke
+;;; (Feide 2FA) — no automated login, no stored secret.
 
 (define ntnu-vpn-connection
   (plain-file "NTNU.nmconnection"
@@ -123,14 +128,12 @@ autoconnect=false
 [vpn]
 gateway=vpn.ntnu.no
 protocol=anyconnect
-authtype=password
 enable_csd_trojan=no
 pem_passphrase_fsid=no
 service-type=org.freedesktop.NetworkManager.openconnect
 useragent=AnyConnect Linux
 authgroup=DefaultWEBVPNGroup
 reported_os=linux-64
-username=rafaelp
 
 [ipv4]
 method=auto
