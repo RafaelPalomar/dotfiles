@@ -4,6 +4,7 @@
   #:use-module (entelequia home profiles email)
   #:use-module (entelequia home profiles documentation)
   #:use-module (entelequia home services desktop-suite)
+  #:use-module (entelequia home services alpha)
   #:use-module (gnu)
   #:use-module (gnu home)
   #:use-module (gnu services)
@@ -29,6 +30,10 @@
    (common-home-services #:email-aliases? #t #:slicer-aliases? #t #:claude-skills? #t)
    (desktop-home-services)
    (laptop-home-services)
+   ;; alpha — rafael's personal pi agent (pi + the `alpha' wrapper reading the
+   ;; OpenRouter key from /run/secrets/openrouter/rafael, sops-decrypted by the
+   ;; system layer — see entelequia/system/machines/baroja.scm).
+   (alpha-home-service)
    (list (service home-dotfiles-service-type
                   (home-dotfiles-configuration
                    (directories '("../../../dotfiles/common"

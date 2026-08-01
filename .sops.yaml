@@ -65,6 +65,13 @@ creation_rules:
         61777DDACBDCE29C340DDF1582D249E14856D496,
         6513C7248D7BECE2EC1BD34B70350DAD507FA72F
 
+    # Baroja — alpha personal-agent key (generated on baroja via
+    # gpg --homedir /root/.gnupg), personal key as secondary recipient.
+    - path_regex: sops/baroja\.yaml$
+      pgp: >-
+        7BFF3457442479BAD396C122AE6968E8FC6C9607,
+        6513C7248D7BECE2EC1BD34B70350DAD507FA72F
+
     # User-scope secrets (no machine key needed — decrypted interactively
     # via the user's personal GPG key, not via a systemd-style activation).
     - path_regex: sops/rafael\.yaml$

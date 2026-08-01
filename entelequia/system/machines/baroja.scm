@@ -4,6 +4,10 @@
   #:use-module (entelequia system layers base)
   #:use-module (entelequia system layers desktop-base)
   #:use-module (entelequia system lib common-packages)
+  #:use-module (sops packages sops)
+  #:use-module (sops secrets)
+  #:use-module (sops services sops)
+  #:use-module (guix gexp)               ; local-file (sops secrets file)
   #:use-module (gnu)
   #:use-module (gnu services)
   #:export (baroja-os))
@@ -58,7 +62,26 @@
 ;;; Baroja-specific services (slim/podman/librewolf/thermald all come from
 ;;; the layers now)
 
-(define baroja-services '())
+;;; SOPS encrypted secrets file (in git, encrypted).  Decrypted at boot by the
+;;; Baroja SOPS key in /root/.gnupg (passwordless, generated on the host,
+;;; fingerprint 7BFF3457442479BAD396C122AE6968E8FC6C9607 — see .sops.yaml).
+(define %sops-baroja
+  (local-file "../../../sops/baroja.yaml"))
+
+(define baroja-services
+  (list
+   ;; sops-guix: decrypt rafael's OpenRouter key to /run/secrets/ at boot.
+   ;; openrouter/rafael -> /run/secrets/openrouter/rafael (owner rafael, 0400),
+   ;; read by the alpha launcher (rafael's home service) — same wiring as curie.
+   (service sops-secrets-service-type
+            (sops-service-configuration
+             (sops sops)
+             (gnupg-home "/root/.gnupg")
+             (secrets
+              (list (sops-secret (key '("openrouter" "rafael"))
+                                 (file %sops-baroja)
+                                 (user "rafael")
+                                 (permissions #o400))))))))
 
 (define baroja-os
   (operating-system

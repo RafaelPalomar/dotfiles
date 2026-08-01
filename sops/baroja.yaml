@@ -1,0 +1,32 @@
+openrouter:
+    rafael: ENC[AES256_GCM,data:IeixABcTIzmbryodP7I1BYS0aMnistVJDKfSLbyPFLISCZrGZquQax377W5CgqjQaToKtlqVSh9igLE5IrJ/iUZE9LCkjwX+vA==,iv:SQfsx5+GWef0dXdicxby4dhO7ZN6NunIuB1GgGHYfng=,tag:HZ/vT2sq3DgbBoJ7D8Qx1A==,type:str]
+sops:
+    lastmodified: "2026-08-01T19:04:08Z"
+    mac: ENC[AES256_GCM,data:4PFlsQA0etI0waXWBRr7EmwkRoErvCWKi9OG8oPT1ZtMnRHMjkyt8669qJxI2k7+kT2MZJhRMtdH4C/hAr0L732EmBrWJ8AdZtP8JeA+WKTXY3O+PuZueF6r/jG3pg+txjAOB9HSmMgP8j9uwox3yaEtETZ8CjghTaH7llPP7hc=,iv:zxiP6SObaoCT5r3ytjgBnyytF71mR/OSiEWJ8wWwQDA=,tag:Hh4qStl2VzH5tSdxfhFi+g==,type:str]
+    pgp:
+        - created_at: "2026-08-01T19:04:08Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4DZ1Q4DHMbjjASAQdA34KSH3RNEhd+PnK3lWhb6DpvynepybbBdfMFMKy48VQw
+            YUfk6+0dQ9wW+QTo9wkSStABxQpNVRupXwZNj2+TvYWNkxtcdcKt98WoEDRdfcEb
+            1GgBCQIQ+etqA0ADKqSdxTwz3GLHgFkY7gEeNSBu2JJaUEsYA0qG65AV5z71gGQM
+            lCJepCOSjPtqyKg6T7fpp2pox4Di4SSvgpN71ebd10hCkZYHJmaO42sCXMaebUpp
+            zwPPKb/oHmBaOQ==
+            =+vvo
+            -----END PGP MESSAGE-----
+          fp: 7BFF3457442479BAD396C122AE6968E8FC6C9607
+        - created_at: "2026-08-01T19:04:08Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D1ED2cfSs364SAQdAN0tXHfiTuT/KOINa1ECuyDTisLAVBeqxXOv2SUgxGBow
+            7/lrAKC7OSeR38F/KZIEQhnQ1/lETTRnBPk/bdgrfDyRR4LSXVok4lBpbttMdvII
+            1GgBCQIQmVU5jBqqHm5WV83+xR6ZSebcn9wpjqtoftuhTpBHaTEf56g2zNfj6y+J
+            /J5EIcspd44fHQZEIa3QnmGtku2IH/Y0dgQzBVXmEQDX/lqSLn7WqobF11bjTVis
+            PhdUoV0/8rKw+Q==
+            =4l0w
+            -----END PGP MESSAGE-----
+          fp: 6513C7248D7BECE2EC1BD34B70350DAD507FA72F
+    unencrypted_suffix: _unencrypted
+    version: 3.12.2

@@ -73,6 +73,7 @@ workstation so `sops` can encrypt to it. Recipients are declared in
 | Alucard SOPS &lt;alucard-sops@entelequia&gt; | `B607E174ADDBEA492F8D0E6162032497FA92CF96` | ed25519 + cv25519 | 2026-06-17 | 2028-06-16 | alucard:/root/.gnupg (public on curie) | (not escrowed — regenerate on host loss) | Recipient for `sops/alucard.yaml` (Archimedes tutor key, leandro) |
 | Curie SOPS &lt;curie-sops@entelequia&gt; | `F85D92CAFE560BA70C32E776D4AAAB1C40D8029D` | ed25519 + cv25519 | 2026-06-17 | never | curie:/root/.gnupg | (not escrowed — regenerate on host loss) | Recipient for `sops/curie.yaml` (alpha personal-agent key, rafael) |
 | Hopper SOPS &lt;hopper-sops@entelequia&gt; | `61777DDACBDCE29C340DDF1582D249E14856D496` | ed25519 + cv25519 | 2026-06-18 | never | hopper:/root/.gnupg (public on curie) | (not escrowed — regenerate on host loss) | Recipient for `sops/hopper.yaml` (Archimedes tutor key, adrian) |
+| Baroja SOPS &lt;baroja-sops@entelequia&gt; | `7BFF3457442479BAD396C122AE6968E8FC6C9607` | ed25519 + cv25519 | 2026-08-01 | never | baroja:/root/.gnupg (public on curie) | (not escrowed — regenerate on host loss) | Recipient for `sops/baroja.yaml` (alpha personal-agent key, rafael) |
 
 ## Adjacent (informational)
 
@@ -111,6 +112,7 @@ Append-only. One row per create / rotate / revoke, newest first.
 
 | Date | Key | Action | Reason |
 |---|---|---|---|
+| 2026-08-01 | Baroja SOPS `7BFF3457…` | created | Per-machine SOPS key for baroja (`sops/baroja.yaml`); alpha personal-agent key for rafael |
 | 2026-06-18 | Hopper SOPS `61777DDA…` | created | Per-machine SOPS key for hopper (`sops/hopper.yaml`); Archimedes tutor key for adrian |
 | 2026-05-30 | IVS operator `8EADF28F…` | uid-reconciled | Added + set primary `Rafael Palomar <rafpal@ous-hf.no>`; old `ivs-sops@palomar.no` retained as secondary. FP unchanged → SOPS unaffected (ADR-0001) |
 | 2026-05-30 | (inventory) | created | Phase 0 of the key-management consolidation: personal inventory established as source of truth (ADR-0001) |
