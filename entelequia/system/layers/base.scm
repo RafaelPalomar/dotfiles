@@ -12,12 +12,62 @@
   #:use-module (guix gexp)
   #:export (make-base-operating-system))
 
-(use-package-modules audio video nfs certs shells ssh linux bash emacs gnome
+(use-package-modules audio video nfs certs shells ssh linux bash emacs glib gnome
                      networking wm fonts libusb cups freedesktop file-systems
                      version-control package-management vim shellutils vpn suckless)
 
 (use-service-modules dns guix admin sysctl pm nix avahi dbus cups desktop linux
-                     mcron networking xorg ssh docker audio virtualization)
+                     mcron networking shepherd xorg ssh docker audio
+                     virtualization)
+
+;;; TLP suspend/resume re-apply
+;;;
+;;; The kernel resets cpufreq state across suspend (secondary CPUs are
+;;; hot-unplugged, their policies recreated with defaults), so TLP's
+;;; settings must be re-applied on resume -- otherwise every lid-close
+;;; brings turbo back and drops the governor to the kernel default
+;;; until the next boot (on the X220 that meant idling near the thermal
+;;; limit).  The tlp package ships an elogind system-sleep hook, but
+;;; elogind only scans its own store directory and
+;;; /etc/elogind/system-sleep, and /etc/elogind is a whole-directory
+;;; store symlink owned by elogind-service-type -- a nested etc entry
+;;; collides with it at build time.  So instead listen for login1's
+;;; PrepareForSleep signal on the system bus and drive
+;;; `tlp suspend'/`tlp resume' from a dedicated shepherd service.
+;;; (The pre-sleep call is advisory -- we hold no inhibitor lock -- but
+;;; the one that matters is the post-resume re-apply, which has all the
+;;; time it needs.)
+
+(define tlp-sleep-watcher
+  (computed-file
+   "tlp-sleep-watcher"
+   #~(begin
+       (call-with-output-file #$output
+         (lambda (port)
+           (display (string-append
+                     "#!" #$bash-minimal "/bin/sh\n"
+                     #$dbus "/bin/dbus-monitor --system "
+                     "\"type='signal',sender='org.freedesktop.login1',"
+                     "interface='org.freedesktop.login1.Manager',"
+                     "member='PrepareForSleep'\" | \\\n"
+                     "while IFS= read -r line; do\n"
+                     "    case \"$line\" in\n"
+                     "        *\"boolean true\"*)  " #$tlp "/bin/tlp suspend ;;\n"
+                     "        *\"boolean false\"*) " #$tlp "/bin/tlp resume  ;;\n"
+                     "    esac\n"
+                     "done\n")
+                    port)))
+       (chmod #$output #o555))))
+
+(define tlp-sleep-resync-service
+  (simple-service
+   'tlp-sleep-resync shepherd-root-service-type
+   (list (shepherd-service
+          (documentation "Re-apply TLP settings around suspend/resume.")
+          (provision '(tlp-sleep-resync))
+          (requirement '(dbus-system))
+          (start #~(make-forkexec-constructor (list #$tlp-sleep-watcher)))
+          (stop #~(make-kill-destructor))))))
 
 ;;; Parameterized base operating system
 ;;;
@@ -256,16 +306,32 @@
                                  (if (eq? (machine-config-cpu-ac-profile config) 'cool)
                                      (tlp-configuration
                                       (cpu-boost-on-ac? #f)
-                                      (cpu-scaling-governor-on-ac (list "powersave"))
+                                      ;; schedutil, not powersave: on non-HWP CPUs
+                                      ;; (e.g. Sandy Bridge) the kernel runs
+                                      ;; intel_pstate in passive mode (intel_cpufreq),
+                                      ;; where "powersave" statically pins the MINIMUM
+                                      ;; frequency (800 MHz on the X220) -- cool but
+                                      ;; unusable.  schedutil scales dynamically under
+                                      ;; the cap below; TLP translates cpu-max-perf
+                                      ;; into both max_perf_pct and scaling_max_freq,
+                                      ;; so turbo stays off either way.
+                                      (cpu-scaling-governor-on-ac (list "schedutil"))
                                       (cpu-max-perf-on-ac 60)
                                       (wifi-pwr-on-bat? #t)
-                                      (energy-perf-policy-on-ac "power")
-                                      (energy-perf-policy-on-bat "power"))
+                                      ;; cpu-energy-perf-policy-*: TLP >= 1.3 renamed
+                                      ;; ENERGY_PERF_POLICY_* (what the deprecated
+                                      ;; energy-perf-policy-* fields emit) to
+                                      ;; CPU_ENERGY_PERF_POLICY_* and ignores the old
+                                      ;; key -- EPB silently stayed at its default.
+                                      (cpu-energy-perf-policy-on-ac "power")
+                                      (cpu-energy-perf-policy-on-bat "power"))
                                      (tlp-configuration
                                       (cpu-boost-on-ac? #t)
                                       (wifi-pwr-on-bat? #t)
-                                      (energy-perf-policy-on-ac "performance")
-                                      (energy-perf-policy-on-bat "power")))))
+                                      (cpu-energy-perf-policy-on-ac "performance")
+                                      (cpu-energy-perf-policy-on-bat "power"))))
+                        ;; Re-apply TLP on resume (see tlp-sleep-watcher above).
+                        tlp-sleep-resync-service)
                   '())))
 
    ;; Allow resolution of '.local' host names with mDNS
