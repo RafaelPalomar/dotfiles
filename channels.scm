@@ -1,6 +1,7 @@
-(define-module (channels))
-
-(use-modules (guix channels))
+;; Intent file: names/URLs/branches only.  guix time-machine -C loads this in
+;; a clean user-module that pre-provides the (guix channels) bindings but has
+;; NO module forms — neither define-module nor use-modules resolve there.
+;; Keep it a bare (list (channel ...)) exactly like the generated lock.
 
 (list (channel
         (name 'guix)
@@ -47,7 +48,9 @@
       (channel
         (name 'guix-agentic)
         (url "https://github.com/OUH-MESHLab/guix-agentic")
-        (branch "main"))
+        ;; household-cooperation: coordinated feature branch (consult broker,
+        ;; web + guix-host capabilities); flip back to main when it merges.
+        (branch "household-cooperation"))
       (channel
         (name 'archimedes-agent)
         (url "https://github.com/RafaelPalomar/archimedes-agent")
@@ -55,7 +58,10 @@
       (channel
         (name 'alpha-agent)
         (url "https://github.com/RafaelPalomar/alpha-agent")
-        (branch "master"))
+        ;; household-cooperation: coordinated feature branch (poppins durable
+        ;; memory, web harness, entelequia context); flip back to master when
+        ;; it merges.
+        (branch "household-cooperation"))
       (channel
         (name 'guix-codegraph)
         (url "https://github.com/OUH-MESHLab/guix-codegraph")

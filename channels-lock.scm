@@ -61,13 +61,13 @@
       (channel
        (name 'guix-agentic)
        (url "https://github.com/OUH-MESHLab/guix-agentic")
-       (branch "main")
-       (commit "652a37fee3da03cf489efd88fcb310a79af78ccd"))
+       (branch "household-cooperation")
+       (commit "0ba4f90592d65593bc07c5345095003fbe11d154"))
       (channel
        (name 'guix-codegraph)
        (url "https://github.com/OUH-MESHLab/guix-codegraph")
        (branch "main")
-       (commit "e778c96efeecd2f60b2cce518c5a20867cd8a273"))
+       (commit "f5494b7f209ecbccfdef395393d23a4f904bd6fd"))
       (channel
        (name 'archimedes-agent)
        (url "https://github.com/RafaelPalomar/archimedes-agent")
@@ -76,5 +76,5 @@
       (channel
        (name 'alpha-agent)
        (url "https://github.com/RafaelPalomar/alpha-agent")
-       (branch "master")
-       (commit "ac7a26ee6817d15ecd7185eef8900039d550305c")))
+       (branch "household-cooperation")
+       (commit "7bad6154538215c144da15aa13da562458cc594b")))
