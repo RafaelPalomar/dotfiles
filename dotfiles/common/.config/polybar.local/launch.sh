@@ -21,6 +21,16 @@ case "$host" in
 [machine]
 name = CURIE
 net-type = wireless
+backlight-card = amdgpu_bl0
+right-modules = my-pulseaudio sep my-memory sep mynetwork sep my-backlight sep mybattery sep my-datalocker sep my-keyboard-layout sep my-powermenu mysystray
+EOF
+    ;;
+  baroja)
+    cat > "$machine_ini" <<'EOF'
+[machine]
+name = BAROJA
+net-type = wireless
+backlight-card = intel_backlight
 right-modules = my-pulseaudio sep my-memory sep mynetwork sep my-backlight sep mybattery sep my-datalocker sep my-keyboard-layout sep my-powermenu mysystray
 EOF
     ;;
