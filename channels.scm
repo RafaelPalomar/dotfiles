@@ -65,6 +65,14 @@
         ;; it merges.
         (branch "household-cooperation"))
       (channel
+        (name 'mr-banks)
+        (url "https://github.com/RafaelPalomar/mr-banks")
+        ;; Mr. Banks, the household finance agent (pure agent code — no ledger
+        ;; data, which lives in a private folder).  household-cooperation:
+        ;; coordinated feature branch alongside guix-agentic/alpha-agent; flip
+        ;; to main when it merges.
+        (branch "household-cooperation"))
+      (channel
         (name 'guix-codegraph)
         (url "https://github.com/OUH-MESHLab/guix-codegraph")
         (branch "main"))

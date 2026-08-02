@@ -32,12 +32,15 @@
 (define pi node-earendil-works-pi-coding-agent-0.78.1)
 
 (define %default-ledger-root "/var/lib/mr-banks/ledger")
+(define %default-household-file "/var/lib/mr-banks/household.md")
 
-(define (banks-wrapper anthropic-key-file ledger-root)
-  "An executable `banks' that injects ANTHROPIC_API_KEY + MR_BANKS_LEDGER and
-execs the banks launcher with its tool profile on GUIX_ENVIRONMENT (so the
-`mr-banks' CLI + the skill land on PATH inside the L1 container)."
-  (let* ((banks-agent (make-banks #:ledger-root ledger-root))
+(define (banks-wrapper anthropic-key-file ledger-root household-file)
+  "An executable `banks' that injects ANTHROPIC_API_KEY + MR_BANKS_LEDGER +
+MR_BANKS_HOUSEHOLD and execs the banks launcher with its tool profile on
+GUIX_ENVIRONMENT (so the `mr-banks' CLI + the skill land on PATH inside the L1
+container)."
+  (let* ((banks-agent (make-banks #:ledger-root ledger-root
+                                  #:household-file household-file))
          (banks-launcher (agent->package banks-agent))
          (tool-profile (profile (content (packages->manifest
                                           (agent->manifest-entries banks-agent))))))
@@ -53,6 +56,9 @@ execs the banks launcher with its tool profile on GUIX_ENVIRONMENT (so the
          ;; Absolute path to the read-only ledger root the sandbox --expose's;
          ;; mrbanks.py resolves MR_BANKS_LEDGER via os.path.abspath, so this is safe.
          (setenv "MR_BANKS_LEDGER" (string-append #$ledger-root "/main.beancount"))
+         ;; Household roster (names/ages) — private, --expose'd read-only; the
+         ;; persona reads member names from this path (never baked into the channel).
+         (setenv "MR_BANKS_HOUSEHOLD" #$household-file)
          (unless (getenv "GUIX_ENVIRONMENT")
            (setenv "GUIX_ENVIRONMENT" #$tool-profile))
          ;; The launcher symlinks skills into the config dir from this search path.
@@ -61,7 +67,7 @@ execs the banks launcher with its tool profile on GUIX_ENVIRONMENT (so the
          (apply execl #$(file-append banks-launcher "/bin/banks")
                 "banks" (cdr (command-line)))))))
 
-(define (banks-cli anthropic-key-file ledger-root)
+(define (banks-cli anthropic-key-file ledger-root household-file)
   (package
     (name "banks-cli")
     (version "0")
@@ -73,7 +79,7 @@ execs the banks launcher with its tool profile on GUIX_ENVIRONMENT (so the
            #~(begin
                (use-modules (guix build utils))
                (mkdir-p (string-append #$output "/bin"))
-               (copy-file #$(banks-wrapper anthropic-key-file ledger-root)
+               (copy-file #$(banks-wrapper anthropic-key-file ledger-root household-file)
                           (string-append #$output "/bin/banks"))
                (chmod (string-append #$output "/bin/banks") #o755))))
     (synopsis "Mr. Banks launcher wrapper (injects ANTHROPIC_API_KEY + MR_BANKS_LEDGER)")
@@ -122,6 +128,7 @@ file) and the ledger path, then execs the banks launcher.")
 (define* (banks-home-service
           #:key (anthropic-key-file "/run/secrets/anthropic/banks")
                 (ledger-root %default-ledger-root)
+                (household-file %default-household-file)
                 (mm-fragment %mm-fragment)
                 (mm-origin "https://mattermost.drake-karat.ts.net"))
   "Deploy `banks' (pi + the Mr. Banks wrapper) into the home profile, plus the
@@ -129,7 +136,7 @@ Mattermost bridge daemon that exposes him on the family finance channel."
   (list
    (simple-service 'banks
                    home-profile-service-type
-                   (list pi (banks-cli anthropic-key-file ledger-root)))
+                   (list pi (banks-cli anthropic-key-file ledger-root household-file)))
    (simple-service 'banks-bridge
                    home-shepherd-service-type
                    (banks-bridge-shepherd-service mm-fragment mm-origin))))
