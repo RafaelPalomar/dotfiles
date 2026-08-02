@@ -54,7 +54,9 @@
       (channel
         (name 'archimedes-agent)
         (url "https://github.com/RafaelPalomar/archimedes-agent")
-        (branch "main"))
+        ;; household-cooperation: coordinated feature branch; flip back to
+        ;; main when it merges.
+        (branch "household-cooperation"))
       (channel
         (name 'alpha-agent)
         (url "https://github.com/RafaelPalomar/alpha-agent")

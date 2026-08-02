@@ -71,8 +71,8 @@
       (channel
        (name 'archimedes-agent)
        (url "https://github.com/RafaelPalomar/archimedes-agent")
-       (branch "main")
-       (commit "1bf067808fe8603ca3ce33149c630822b1d16c77"))
+       (branch "household-cooperation")
+       (commit "afb4c3cb5ba4b69e79135a27e33a20c331bb80c7"))
       (channel
        (name 'alpha-agent)
        (url "https://github.com/RafaelPalomar/alpha-agent")
