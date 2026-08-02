@@ -91,7 +91,44 @@
                       "        elif os.environ.get"
                       "(\"PLAYWRIGHT_CHROMIUM_EXECUTABLE\"):\n"
                       "            launch_kwargs[\"executable_path\"] = "
-                      "os.environ[\"PLAYWRIGHT_CHROMIUM_EXECUTABLE\"]\n"))))))
+                      "os.environ[\"PLAYWRIGHT_CHROMIUM_EXECUTABLE\"]\n")))
+                  ;; The event-based `page.wait_for_url' login wait pins its
+                  ;; glob to get_base_url() (notebooklm.google.com), but after a
+                  ;; successful SSO Google lands the browser on the rebranded
+                  ;; host notebook.google.com (see the next substitution), so
+                  ;; the wait never matches and blocks until timeout, never
+                  ;; persisting storage_state.json.  NotebookLM is also a
+                  ;; streaming SPA whose document is slow to reach `load'.
+                  ;; Resolve `goto' on navigation commit and replace the wait
+                  ;; with a `url_matches_base_host(page.url)' polling loop that
+                  ;; accepts either landing host.
+                  (substitute* f
+                    (("page.goto\\(f\"\\{get_base_url\\(\\)\\}/\", timeout=30000\\)")
+                     "page.goto(f\"{get_base_url()}/\", wait_until=\"commit\", timeout=30000)")
+                    (("page.wait_for_url\\(f\"\\{get_base_url\\(\\)\\}/\\*\\*\", timeout=300_000\\)")
+                     (string-append
+                      "_login_deadline = time.time() + 300\n"
+                      "                    while not "
+                      "url_matches_base_host(page.url):\n"
+                      "                        if time.time() > "
+                      "_login_deadline:\n"
+                      "                            raise PlaywrightTimeout("
+                      "\"Login not detected within 5 minutes\")\n"
+                      "                        time.sleep(1)")))
+                  ;; Google rebranded NotebookLM's web UI to
+                  ;; `notebook.google.com' ("Gemini Notebook"): after a
+                  ;; successful SSO the browser lands there, not on
+                  ;; `notebooklm.google.com'.  url_matches_base_host gates all
+                  ;; three login checkpoints (already-logged-in, post-login
+                  ;; detection, defense-in-depth), so broaden it to accept the
+                  ;; new host -- otherwise login is never detected and
+                  ;; storage_state.json is never written.  The captured cookies
+                  ;; are .google.com, so the httpx RPC client keeps working.
+                  (substitute* f
+                    (("    return current_host == get_base_host\\(\\).lower\\(\\)")
+                     (string-append
+                      "    return current_host in "
+                      "(get_base_host().lower(), \"notebook.google.com\")"))))))
             ;; Expose the agent skill where the home `claude-skills-files'
             ;; service expects it (share/claude-skills/<name>/SKILL.md).
             (add-after 'install 'install-claude-skill
