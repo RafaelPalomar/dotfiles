@@ -701,15 +701,11 @@ TMDB_API_KEY: \"\"\n" p)))
                             (user "rafael")
                             (permissions #o400))
                ;; ── Mr. Banks (household finance agent, DIRECT) ──────────────
-               ;; OpenRouter API key (premium Claude model tier) — read by the
-               ;; `banks' wrapper (banks-home-service) as OPENROUTER_API_KEY at
-               ;; launch, then injected into the L1 sandbox.  Owner rafael (the
-               ;; home service runs as rafael), #o400.  A Banks-dedicated key
-               ;; (finance isolation), landing at /run/secrets/openrouter/banks.
-               (sops-secret (key '("openrouter" "banks"))
-                            (file %sops-edison)
-                            (user "rafael")
-                            (permissions #o400))
+               ;; OpenRouter API key (premium Claude model tier): the `banks'
+               ;; wrapper reuses the household dotenv OPENROUTER_API_KEY from
+               ;; /run/secrets/hermes-household/env (the same key Poppins reads),
+               ;; so NO Banks-dedicated sops key is declared here.  Repoint both
+               ;; to owner-specific keys in a later finance-isolation pass.
                ;; ── Mattermost (Phase 1) ─────────────────────────────────────
                ;; DB password: bind-mounted read-only into mattermost/mattermost-db
                ;; and read by their /bin/sh start shim as container-root
