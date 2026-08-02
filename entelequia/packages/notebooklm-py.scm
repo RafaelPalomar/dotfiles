@@ -100,21 +100,33 @@
                   ;; persisting storage_state.json.  NotebookLM is also a
                   ;; streaming SPA whose document is slow to reach `load'.
                   ;; Resolve `goto' on navigation commit and replace the wait
-                  ;; with a `url_matches_base_host(page.url)' polling loop that
-                  ;; accepts either landing host.
+                  ;; with a polling loop over the live URL of every open tab
+                  ;; (see the next substitution) that accepts either host.
                   (substitute* f
                     (("page.goto\\(f\"\\{get_base_url\\(\\)\\}/\", timeout=30000\\)")
                      "page.goto(f\"{get_base_url()}/\", wait_until=\"commit\", timeout=30000)")
                     (("page.wait_for_url\\(f\"\\{get_base_url\\(\\)\\}/\\*\\*\", timeout=300_000\\)")
                      (string-append
                       "_login_deadline = time.time() + 300\n"
-                      "                    while not "
-                      "url_matches_base_host(page.url):\n"
-                      "                        if time.time() > "
-                      "_login_deadline:\n"
-                      "                            raise PlaywrightTimeout("
-                      "\"Login not detected within 5 minutes\")\n"
-                      "                        time.sleep(1)")))
+                      ;; Poll the LIVE location of every open tab via
+                      ;; page.evaluate rather than the cached page.url of the
+                      ;; first tab: in the alpha L1 container the cached frame
+                      ;; URL does not reliably track cross-origin SSO
+                      ;; navigations, and Google can land the final page in a
+                      ;; different tab than context.pages[0].
+                      "                    def _logged_in():\n"
+                      "                        for _pg in context.pages:\n"
+                      "                            try:\n"
+                      "                                _u = _pg.evaluate(\"() => window.location.href\")\n"
+                      "                            except Exception:\n"
+                      "                                _u = _pg.url\n"
+                      "                            if url_matches_base_host(_u):\n"
+                      "                                return True\n"
+                      "                        return False\n"
+                      "                    while not _logged_in():\n"
+                      "                        if time.time() > _login_deadline:\n"
+                      "                            raise PlaywrightTimeout(\"Login not detected within 5 minutes\")\n"
+                      "                        page.wait_for_timeout(1000)")))
                   ;; Google rebranded NotebookLM's web UI to
                   ;; `notebook.google.com' ("Gemini Notebook"): after a
                   ;; successful SSO the browser lands there, not on
