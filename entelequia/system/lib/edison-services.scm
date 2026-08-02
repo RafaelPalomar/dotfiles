@@ -99,6 +99,25 @@
                           ;; mattermost-provision writes per-tier <tier>.token
                           ;; (0600 rafael) and <tier>.env fragments here.
                           "/var/lib/mattermost-provision"))
+                       ;; Mr. Banks private data root — the beancount ledger and
+                       ;; the household roster.  Owned by rafael (the banks home
+                       ;; service runs as rafael), mode 0700 so only rafael reads
+                       ;; it; the agent gets it READ-ONLY via the sandbox --expose.
+                       ;; We create ONLY the directory: the ledger + household.md
+                       ;; are private DATA (never in a repo) and are placed out of
+                       ;; band (manual copy now, bank-sync job later).  Until they
+                       ;; exist, `banks -p' fails at runtime (the --expose of a
+                       ;; missing path errors) — that is the intended coupling.
+                       (let* ((pw  (getpwnam "rafael"))
+                              (uid (passwd:uid pw))
+                              (gid (passwd:gid pw)))
+                         (for-each
+                          (lambda (dir)
+                            (mkdir-p dir)
+                            (chown dir uid gid)
+                            (chmod dir #o700))
+                          '("/var/lib/mr-banks"
+                            "/var/lib/mr-banks/ledger")))
                        ;; /run/user/1001: rootless Podman requires XDG_RUNTIME_DIR to exist.
                        ;; Rafael never logs in interactively, so elogind never creates it.
                        ;; We create it here so it survives service restarts.
@@ -681,6 +700,16 @@ TMDB_API_KEY: \"\"\n" p)))
                             (file %sops-edison)
                             (user "rafael")
                             (permissions #o400))
+               ;; ── Mr. Banks (household finance agent, DIRECT) ──────────────
+               ;; OpenRouter API key (premium Claude model tier) — read by the
+               ;; `banks' wrapper (banks-home-service) as OPENROUTER_API_KEY at
+               ;; launch, then injected into the L1 sandbox.  Owner rafael (the
+               ;; home service runs as rafael), #o400.  A Banks-dedicated key
+               ;; (finance isolation), landing at /run/secrets/openrouter/banks.
+               (sops-secret (key '("openrouter" "banks"))
+                            (file %sops-edison)
+                            (user "rafael")
+                            (permissions #o400))
                ;; ── Mattermost (Phase 1) ─────────────────────────────────────
                ;; DB password: bind-mounted read-only into mattermost/mattermost-db
                ;; and read by their /bin/sh start shim as container-root
@@ -1108,15 +1137,24 @@ TMDB_API_KEY: \"\"\n" p)))
                  (list
                   (list "hermes-tutor"     "learn"     "Learn"     loopback "arquimedes"   "Arquimedes")
                   (list "hermes-household" "household" "Household" loopback "ms-poppins" "Ms. Poppins")
-                  (list "hermes-ops"       "ops"       "Ops"       site-url "mr-robot"     "Mr. Robot")))
+                  (list "hermes-ops"       "ops"       "Ops"       site-url "mr-robot"     "Mr. Robot")
+                  ;; Mr. Banks — CHAT-SURFACE ONLY (no hermes container): reuses
+                  ;; the channel/bot/token/env-fragment loop below.  tier-name
+                  ;; `ms-banks' -> /var/lib/mattermost-provision/ms-banks.env, the
+                  ;; fragment the rafael-home banks-bridge reads.  #finance is
+                  ;; PRIVATE and parents-only (see family-users) — itemised money
+                  ;; is the estate's most sensitive data.
+                  (list "ms-banks"         "finance"   "Finance"   loopback "ms-banks"     "Mr. Banks")))
                 ;; Human family accounts.  rafael = system-admin; the hidden
                 ;; `admin' stays the provisioning sysadmin.  #ops = rafael ONLY.
                 ;; Seed passwords from sops (/run/secrets/mattermost/userpw_*).
                 ;; (username email system-admin? channels)
+                ;; #finance is parents-only: rafael + maria are members (and thus
+                ;; land in that fragment's MATTERMOST_ALLOWED_USERS); the boys are not.
                 (family-users
                  (list
-                  (list "rafael"  "rafael@palomar.no"  #t (list "learn" "household" "ops"))
-                  (list "maria"   "maria@palomar.no"   #f (list "learn" "household"))
+                  (list "rafael"  "rafael@palomar.no"  #t (list "learn" "household" "ops" "finance"))
+                  (list "maria"   "maria@palomar.no"   #f (list "learn" "household" "finance"))
                   (list "leandro" "leandro@palomar.no" #f (list "learn" "household"))
                   (list "adrian"  "adrian@palomar.no"  #f (list "learn" "household")))))
 

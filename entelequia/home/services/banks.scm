@@ -17,25 +17,28 @@
 
 ;;; banks — Mr. Banks, the household finance agent (PERSONAL domain, DIRECT).
 ;;;
-;;; Belongs on the family server (edison).  He is Anthropic trusted-tier and talks
-;;; to the family through his OWN `ms-banks' bot — Poppins never relays his figures
-;;; (arch-review B1).  The wrapper injects, at launch, the secrets the L1 container
-;;; scrubs:
-;;;   ANTHROPIC_API_KEY <- ANTHROPIC-KEY-FILE   (sops-decrypted, owner = running user)
-;;; and sets the non-secret MR_BANKS_LEDGER (absolute path to the read-only ledger
-;;; the sandbox --expose's).  agent.scm's sandbox preserves both.
+;;; Belongs on the family server (edison).  He runs the premium Claude model tier
+;;; (via OpenRouter, like the rest of the fleet — the trust distinction is the
+;;; MODEL, not the provider) and talks to the family through his OWN `ms-banks'
+;;; bot — Poppins never relays his figures (arch-review B1).  The wrapper injects,
+;;; at launch, the secrets the L1 container scrubs:
+;;;   OPENROUTER_API_KEY <- OPENROUTER-KEY-FILE  (sops-decrypted, owner = running user)
+;;; and sets the non-secret MR_BANKS_LEDGER + MR_BANKS_HOUSEHOLD (absolute paths to
+;;; the read-only ledger and household roster the sandbox --expose's).  agent.scm's
+;;; sandbox preserves all three.
 ;;;
-;;; Deploy prereqs (system side): sops-secret for ANTHROPIC-KEY-FILE; the beancount
-;;; ledger present at LEDGER-ROOT, owner-segregated + read-only (arch-review B5);
-;;; the `ms-banks' bot provisioned with its token/channel in MM-FRAGMENT.
+;;; Deploy prereqs (system side): sops-secret for OPENROUTER-KEY-FILE; the beancount
+;;; ledger + household.md present at LEDGER-ROOT, owner-segregated + read-only
+;;; (arch-review B5); the `ms-banks' bot provisioned with its token/channel in
+;;; MM-FRAGMENT.
 
 (define pi node-earendil-works-pi-coding-agent-0.78.1)
 
 (define %default-ledger-root "/var/lib/mr-banks/ledger")
 (define %default-household-file "/var/lib/mr-banks/household.md")
 
-(define (banks-wrapper anthropic-key-file ledger-root household-file)
-  "An executable `banks' that injects ANTHROPIC_API_KEY + MR_BANKS_LEDGER +
+(define (banks-wrapper openrouter-key-file ledger-root household-file)
+  "An executable `banks' that injects OPENROUTER_API_KEY + MR_BANKS_LEDGER +
 MR_BANKS_HOUSEHOLD and execs the banks launcher with its tool profile on
 GUIX_ENVIRONMENT (so the `mr-banks' CLI + the skill land on PATH inside the L1
 container)."
@@ -48,11 +51,11 @@ container)."
      "banks"
      #~(begin
          (use-modules (ice-9 rdelim))
-         (let ((kf #$anthropic-key-file))
+         (let ((kf #$openrouter-key-file))
            (when (file-exists? kf)
              (call-with-input-file kf
                (lambda (p) (let ((k (read-line p)))
-                             (when (string? k) (setenv "ANTHROPIC_API_KEY" k)))))))
+                             (when (string? k) (setenv "OPENROUTER_API_KEY" k)))))))
          ;; Absolute path to the read-only ledger root the sandbox --expose's;
          ;; mrbanks.py resolves MR_BANKS_LEDGER via os.path.abspath, so this is safe.
          (setenv "MR_BANKS_LEDGER" (string-append #$ledger-root "/main.beancount"))
@@ -67,7 +70,7 @@ container)."
          (apply execl #$(file-append banks-launcher "/bin/banks")
                 "banks" (cdr (command-line)))))))
 
-(define (banks-cli anthropic-key-file ledger-root household-file)
+(define (banks-cli openrouter-key-file ledger-root household-file)
   (package
     (name "banks-cli")
     (version "0")
@@ -79,12 +82,12 @@ container)."
            #~(begin
                (use-modules (guix build utils))
                (mkdir-p (string-append #$output "/bin"))
-               (copy-file #$(banks-wrapper anthropic-key-file ledger-root household-file)
+               (copy-file #$(banks-wrapper openrouter-key-file ledger-root household-file)
                           (string-append #$output "/bin/banks"))
                (chmod (string-append #$output "/bin/banks") #o755))))
-    (synopsis "Mr. Banks launcher wrapper (injects ANTHROPIC_API_KEY + MR_BANKS_LEDGER)")
-    (description "Wrapper that injects the Anthropic key (from a sops-decrypted
-file) and the ledger path, then execs the banks launcher.")
+    (synopsis "Mr. Banks launcher wrapper (injects OPENROUTER_API_KEY + MR_BANKS_LEDGER)")
+    (description "Wrapper that injects the OpenRouter key (from a sops-decrypted
+file) plus the ledger + household-roster paths, then execs the banks launcher.")
     (home-page "https://github.com/RafaelPalomar/mr-banks")
     (license license:gpl3+)))
 
@@ -126,7 +129,7 @@ file) and the ledger path, then execs the banks launcher.")
     (respawn? #t))))
 
 (define* (banks-home-service
-          #:key (anthropic-key-file "/run/secrets/anthropic/banks")
+          #:key (openrouter-key-file "/run/secrets/openrouter/banks")
                 (ledger-root %default-ledger-root)
                 (household-file %default-household-file)
                 (mm-fragment %mm-fragment)
@@ -136,7 +139,7 @@ Mattermost bridge daemon that exposes him on the family finance channel."
   (list
    (simple-service 'banks
                    home-profile-service-type
-                   (list pi (banks-cli anthropic-key-file ledger-root household-file)))
+                   (list pi (banks-cli openrouter-key-file ledger-root household-file)))
    (simple-service 'banks-bridge
                    home-shepherd-service-type
                    (banks-bridge-shepherd-service mm-fragment mm-origin))))
