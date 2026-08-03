@@ -82,4 +82,4 @@
        (name 'mr-banks)
        (url "https://github.com/RafaelPalomar/mr-banks")
        (branch "household-cooperation")
-       (commit "cfe408db4b953ae218b079b5ce7510362e3d0482")))
+       (commit "5ffcb8740eff1036d32de991f2c449a20cc77c83")))
