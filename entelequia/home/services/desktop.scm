@@ -15,7 +15,7 @@
 (use-package-modules admin bash chromium compton compression curl disk dns fonts freedesktop gimp glib gnome
                      gnome-xyz gnupg gstreamer package-management kde-frameworks librewolf
                      linux lsof music password-utils pdf pulseaudio ssh sync syncthing terminals
-                     tmux video wget wm xdisorg suckless rust-apps)
+                     tmux video wget window-management xdisorg suckless rust-apps)
 
 ;;; Desktop home service
 ;;;

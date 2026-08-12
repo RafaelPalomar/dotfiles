@@ -2,9 +2,11 @@
 
 ;; Ensure the dotfiles root is on the load path regardless of invocation CWD
 (eval-when (expand load eval)
-  (add-to-load-path
-   (canonicalize-path
-    (string-append (dirname (current-filename)) "/../.."))))
+  (let ((f (current-filename)))
+    (when (string? f)
+      (add-to-load-path
+       (canonicalize-path
+        (string-append (dirname f) "/../.."))))))
 
 (use-modules (gnu machine)
              (gnu machine ssh)

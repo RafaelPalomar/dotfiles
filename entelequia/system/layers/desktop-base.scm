@@ -18,7 +18,7 @@
   #:use-module (guix gexp)
   #:export (make-desktop-base-os))
 
-(use-package-modules wm linux)
+(use-package-modules window-management linux)
 (use-service-modules desktop xorg networking ssh security containers linux
                      virtualization)
 
