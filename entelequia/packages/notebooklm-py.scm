@@ -48,8 +48,8 @@
 (define-public notebooklm-py
   ;; main HEAD at the audited tree (pyproject version 0.7.0; latest tag is
   ;; v0.6.0 — 0.7.0 is not yet tagged upstream).
-  (let ((commit "ffc3dfb1a3ce8f060b3c2ab135586b035f224e22")
-        (revision "0"))
+  (let ((commit "f5ab3fb312f2752aa0c092004880c640e9ab6f08")
+        (revision "1"))
     (package
       (name "notebooklm-py")
       (version (git-version "0.7.0" revision commit))
@@ -61,7 +61,7 @@
                (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "1kvng1s4sgqc1wy36v88szrbppq5kl7i67dnnj2brlmk351gi5sy"))))
+          (base32 "0jz92k67qrf5zrncd6jvmq8hl2jc26py9p4kwhw9k6wc9gsyf3q1"))))
       (build-system pyproject-build-system)
       (arguments
        (list

@@ -15,14 +15,14 @@
 (define-public gh
   (package
     (name "gh")
-    (version "2.93.0")
+    (version "2.97.0")
     (source
      (origin
        (method url-fetch)
        (uri (string-append "https://github.com/cli/cli/releases/download/v"
                            version "/gh_" version "_linux_amd64.tar.gz"))
        (sha256
-        (base32 "1w3sh2swdaw5d93p1nsx8x8mmiz14bzzy29pdy4hn3hkp872kl82"))))
+        (base32 "04l104py27lfx1cy8qg4p00qh29fc9d8pdzw1nnv318zgr4vijd2"))))
     (build-system binary-build-system)
     (arguments
      '(#:install-plan '(("bin/" "/bin/")

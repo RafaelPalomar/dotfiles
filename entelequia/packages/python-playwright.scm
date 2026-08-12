@@ -49,7 +49,7 @@
 (define-public python-playwright
   (package
     (name "python-playwright")
-    (version "1.60.0")
+    (version "1.62.0")
     (source
      (origin
        (method url-fetch)
@@ -57,7 +57,7 @@
              "https://files.pythonhosted.org/packages/py3/p/playwright/"
              "playwright-" version "-py3-none-manylinux1_x86_64.whl"))
        (sha256
-        (base32 "0gn92kgvpb02yzgg3whna1754g9liymhwaakp02zpcsgi3kzlaqw"))))
+        (base32 "1lvsy6z9n1sjrsy7qxjp3pz20z9mmwcbc73m9hsrsg9vl7kblcxs"))))
     (build-system pyproject-build-system)
     (arguments
      (list

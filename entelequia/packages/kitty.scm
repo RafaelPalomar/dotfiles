@@ -41,6 +41,24 @@
      (substitute-keyword-arguments (package-arguments kitty)
        ((#:phases phases)
         #~(modify-phases #$phases
+            ;; Guix master (Aug 2026) bumped docutils to 0.22, which breaks
+            ;; sphinx-inline-tabs (`KeyError: 'backrefs'` in its visit()).
+            ;; kitty's `setup.py linux-package` runs `make docs` (sphinx),
+            ;; so the whole build fails on the docs step.  kitty SKIPS
+            ;; building docs when `docs/_build/html` already exists, then
+            ;; simply copies docs/_build/{html,man}; pre-create both so the
+            ;; sphinx path is never taken.  We don't consume kitty's bundled
+            ;; HTML docs locally.  Drop this once guix fixes the
+            ;; sphinx-inline-tabs/docutils incompatibility upstream.
+            (add-after 'unpack 'stub-kitty-docs
+              (lambda _
+                (let ((build "src/github.com/kovidgoyal/kitty/docs/_build"))
+                  (mkdir-p (string-append build "/html"))
+                  (mkdir-p (string-append build "/man"))
+                  (call-with-output-file (string-append build "/html/index.html")
+                    (lambda (port)
+                      (display "<!-- docs omitted (entelequia build) -->\n"
+                               port))))))
             (add-after 'unpack 'allow-xtest-scroll
               (lambda _
                 ;; Match only the four bare guards by anchoring on the

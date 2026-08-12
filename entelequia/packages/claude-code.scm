@@ -10,7 +10,7 @@
 (define-public claude-code
   (package
     (name "claude-code")
-    (version "2.1.177")
+    (version "2.1.228")
     (source
      (origin
        (method url-fetch)
@@ -18,7 +18,7 @@
              "https://registry.npmjs.org/@anthropic-ai/claude-code-linux-x64"
              "/-/claude-code-linux-x64-" version ".tgz"))
        (sha256
-        (base32 "0940r4yalpd5j9z79q6lv3jzd6c6m9n4hry9bx5am4ssbia1dldw"))))
+        (base32 "1n1zvsnvyrdd97cbk069cw6ic1iwl72pdnwdp3z2wgkmv7d4wc0c"))))
     (build-system binary-build-system)
     (arguments
      `(#:install-plan
