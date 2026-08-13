@@ -69,6 +69,11 @@
     ;; Game controller udev rules (PS4, PS5, Xbox, etc.)
     gamepad-udev-rules-service
 
+    ;; DDC/CI monitor control: let the `i2c' group drive /dev/i2c-* so
+    ;; ddcutil (external monitor brightness/input, e.g. the OUS EIZO on DP)
+    ;; works without sudo.  rafael is added to `i2c' via extra-user-groups.
+    i2c-ddc-udev-rules-service
+
     ;; Allow non-bonded Bluetooth HID devices (PS5 DualSense, etc.)
     bluetooth-input-config-service
 
@@ -179,7 +184,7 @@
                                   #:firewall-extra-tcp-ports '(4549 57165)
                                   #:firewall-extra-udp-ports '(4549 4171 4175 4179 57165)
                                   #:firewall-trusted-subnets '("192.168.88.0/24")
-                                  #:extra-user-groups '("cgroup" "dialout")
+                                  #:extra-user-groups '("cgroup" "dialout" "i2c")
                                   ;; Curie-specific kernel arguments
                                   ;;   net.ifnames / biosdevname — keep classic eth0/wlan0 naming
                                   ;;   acpi.ec_no_wakeup=1 — Strix/Krackan Point s2idle wake fix.

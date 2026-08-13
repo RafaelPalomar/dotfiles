@@ -11,6 +11,7 @@
   #:use-module (gnu packages games)  ; For steam-devices-udev-rules
   #:use-module (guix gexp)
   #:export (gamepad-udev-rules-service
+            i2c-ddc-udev-rules-service
             bluetooth-input-config-service
             zram-service
             networkmanager-polkit-service
@@ -28,6 +29,20 @@
 (define gamepad-udev-rules-service
   (udev-rules-service 'steam-devices steam-devices-udev-rules
                       #:groups '("input")))
+
+;;; Udev rule for DDC/CI monitor control over I2C
+;;;
+;;; ddcutil drives external monitors (brightness, input source, etc.) via
+;;; /dev/i2c-*, which default to root-only (crw------- root root).  Grant the
+;;; `i2c' group read/write so ddcutil works without sudo.  `#:groups' creates
+;;; the system `i2c' group; the primary user is added to it via
+;;; `#:extra-user-groups' in the machine config.
+(define i2c-ddc-udev-rules-service
+  (udev-rules-service 'i2c-ddc
+                      (udev-rule
+                       "90-i2c-ddc.rules"
+                       "KERNEL==\"i2c-[0-9]*\", GROUP=\"i2c\", MODE=\"0660\"\n")
+                      #:groups '("i2c")))
 
 ;;; Bluetooth input.conf — allow non-bonded HID devices (e.g. PS5 DualSense)
 ;;;
