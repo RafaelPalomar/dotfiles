@@ -58,7 +58,9 @@
 
 (define base-x11-packages
   '("autorandr"                        ; save/restore per-output display profiles
+    "maim"                             ; screenshot capture (compositor-aware)
     "setxkbmap"
+    "slop"                             ; interactive region/window selector for maim -s
     "synergy"
     "xdg-utils"
     "xdpyinfo"

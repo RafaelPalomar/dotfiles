@@ -90,9 +90,15 @@ XF86MonBrightnessDown
 super + a
 	$TERMINAL --class TermApp,TermApp --title pulsemixer -- pulsemixer
 
-# Screenshot
+# Screenshot — full screen (Print), region (super), active window (alt)
 Print
-    ~/.local/bin/screenshot.sh
+    ~/.local/bin/screenshot.sh full
+
+super + Print
+    ~/.local/bin/screenshot.sh region
+
+alt + Print
+    ~/.local/bin/screenshot.sh window
 
 # Define the available layouts
 set $layouts us es no
