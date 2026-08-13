@@ -66,11 +66,22 @@ polybar -m | while IFS= read -r line; do
   geom="${line#*:}"; geom="${geom# }"   # strip name + leading space
   res="${geom%% *}"                     # first token: WxH+X+Y
   h="${res#*x}"; h="${h%%+*}"           # vertical resolution
-  if [ "${h:-9999}" -le 800 ]; then
-    bar=mycompact; top_pad=20    # 28 + 4 − 12
-  else
-    bar=mymain;    top_pad=48    # 56 + 4 − 12
-  fi
+  # Primary monitor gets the full masthead (or the compact bar on small
+  # panels); any secondary (external) monitor gets the simplified bar —
+  # tray/backlight/battery/powermenu stay on the primary only.  `polybar -m`
+  # tags the primary line with "(primary)".
+  case "$line" in
+    *"(primary)"*)
+      if [ "${h:-9999}" -le 800 ]; then
+        bar=mycompact; top_pad=20    # 28 + 4 − 12
+      else
+        bar=mymain;    top_pad=48    # 56 + 4 − 12
+      fi
+      ;;
+    *)
+      bar=mysecondary; top_pad=48    # masthead height, reduced modules
+      ;;
+  esac
   bspc config -m "$m" top_padding "$top_pad"
   MONITOR="$m" polybar -r -c "$HOME/.config/polybar.local/config.ini" "$bar" &
 done

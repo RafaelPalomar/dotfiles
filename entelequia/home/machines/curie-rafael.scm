@@ -90,6 +90,33 @@
               "Terminal=false\n"
               "Categories=Game;StrategyGame;\n"
               "Keywords=homm;heroes;might;magic;online;multiplayer;\n"))))))
+   ;; App-menu entry for the OUS work display profile, so it can be applied
+   ;; straight from `rofi -show drun' (Super+d) by typing "ous-desktop".
+   ;; Loads the autorandr `ous-desktop-90' profile (laptop + portrait
+   ;; external); the global postswitch hook then re-splits bspwm desktops
+   ;; and respawns polybar.  The dedicated display menu on Super+shift+d
+   ;; (autorandr-menu.sh) remains the other entry point.
+   (list
+    (simple-service
+     'ous-desktop-launcher
+     home-files-service-type
+     (list
+      (list ".local/share/applications/ous-desktop.desktop"
+            (plain-file "ous-desktop.desktop"
+             (string-append
+              "[Desktop Entry]\n"
+              "Version=1.0\n"
+              "Type=Application\n"
+              "Name=OUS Desktop (screens)\n"
+              "GenericName=Display layout\n"
+              "Comment=Apply the OUS work display profile: laptop + portrait "
+              "external (autorandr ous-desktop-90)\n"
+              "Exec=autorandr --load ous-desktop-90\n"
+              "Icon=preferences-desktop-display\n"
+              "Terminal=false\n"
+              "Categories=Settings;\n"
+              "Keywords=ous;ous-desktop;display;monitor;screen;autorandr;"
+              "layout;portrait;work;\n"))))))
    (list
          ;; Hermes Agent gateway as a user shepherd service.  Secrets
          ;; (OPENAI_API_KEY, ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, …)

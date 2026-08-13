@@ -8,15 +8,37 @@
 #   1. Wallpaper — feh's root pixmap is sized to the old screen and is
 #      lost / mis-tiled when outputs change.  Re-apply the entelequia
 #      wallpaper (mirrors bspwmrc).
-#   2. Polybar — bars are spawned one-per-monitor at bspwm start and
+#   2. bspwm workspaces — a RANDR change does NOT re-split desktops across
+#      monitors; bspwm keeps its old assignment, and a hot-plugged output
+#      lands with a single unnamed default desktop.  Re-split here so the
+#      primary output keeps 1–6 and the first external always gets 7–10
+#      (reachable via Super+7…0).  With a single output, all ten live there.
+#   3. Polybar — bars are spawned one-per-monitor at bspwm start and
 #      are destroyed when their output is removed or resized; nothing
 #      respawns them.  launch.sh kills any survivors, re-enumerates
 #      monitors via `polybar -m`, and respawns the correct bar (compact
 #      vs masthead) per panel.  This is the fix for "polybar is gone
-#      after I changed the layout".
+#      after I changed the layout".  Runs AFTER the workspace split so its
+#      workspace module reflects the new per-monitor desktops.
 
 ENTELEQUIA_WP="${HOME}/Pictures/Wallpapers/entelequia-graphite.png"
 [ -f "$ENTELEQUIA_WP" ] && feh --bg-fill "$ENTELEQUIA_WP"
+
+# Re-split bspwm desktops across the (possibly changed) set of monitors.
+# Primary → 1–6, first external → 7–10; single monitor keeps all ten.
+if command -v bspc >/dev/null 2>&1; then
+    primary=$(xrandr --query 2>/dev/null | awk '/ connected primary/ {print $1; exit}')
+    [ -n "$primary" ] || primary=$(bspc query -M --names | head -n 1)
+    others=$(bspc query -M --names | grep -vx "$primary")
+    if [ -n "$others" ]; then
+        bspc monitor "$primary" -d 1 2 3 4 5 6
+        # First external gets 7–10; any further monitors keep what they have.
+        set -- $others
+        bspc monitor "$1" -d 7 8 9 10
+    else
+        bspc monitor "$primary" -d 1 2 3 4 5 6 7 8 9 10
+    fi
+fi
 
 [ -x "${HOME}/.config/polybar.local/launch.sh" ] && \
     "${HOME}/.config/polybar.local/launch.sh"
