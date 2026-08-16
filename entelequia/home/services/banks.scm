@@ -9,7 +9,7 @@
   #:use-module (mr-banks agent)                            ; make-banks(-launcher)
   #:use-module (mr-banks bridge)                           ; banks-bridge (Mattermost daemon)
   #:use-module (mr-banks ops)                              ; banks-watchdog, banks-digest
-  #:use-module (mr-banks ingest)                           ; banks-ingest, mr-banks-label
+  #:use-module (mr-banks ingest)                           ; banks-ingest, mr-banks-label, banks-file
   #:use-module (guix-agentic agents core)                  ; agent->package, agent->manifest-entries
   #:use-module (guix-openclaw packages node-openclaw-deps) ; pi
   #:use-module (gnu home services shepherd)                ; home-shepherd-service-type
@@ -48,8 +48,11 @@
 ;;; formats and merchant names, so it stays out of the public channel).  Only
 ;;; the bridge reads it — the agent never sees it.
 (define %default-ops-root "/var/lib/mr-banks/ops")
+;;; Filed papers (invoices, bills, payslips).  Written by the bridge via
+;;; banks-file; --expose'd READ-ONLY into the agent so he can read them.
+(define %default-docs-root "/var/lib/mr-banks/documents")
 
-(define (banks-wrapper openrouter-env-file ledger-root household-file)
+(define (banks-wrapper openrouter-env-file ledger-root household-file docs-root)
   "An executable `banks' that injects OPENROUTER_API_KEY + MR_BANKS_LEDGER +
 MR_BANKS_HOUSEHOLD and execs the banks launcher with its tool profile on
 GUIX_ENVIRONMENT (so the `mr-banks' CLI + the skill land on PATH inside the L1
@@ -57,7 +60,8 @@ container).  OPENROUTER_API_KEY is read from the household dotenv
 OPENROUTER-ENV-FILE — the same key Poppins reuses (/run/secrets/hermes-household/env)
 — rather than a Banks-dedicated sops key; repoint to a Banks-owned key later."
   (let* ((banks-agent (make-banks #:ledger-root ledger-root
-                                  #:household-file household-file))
+                                  #:household-file household-file
+                                  #:documents-root docs-root))
          (banks-launcher (agent->package banks-agent))
          (tool-profile (profile (content (packages->manifest
                                           (agent->manifest-entries banks-agent))))))
@@ -91,6 +95,8 @@ OPENROUTER-ENV-FILE — the same key Poppins reuses (/run/secrets/hermes-househo
          ;; Household roster (names/ages) — private, --expose'd read-only; the
          ;; persona reads member names from this path (never baked into the channel).
          (setenv "MR_BANKS_HOUSEHOLD" #$household-file)
+         ;; Where the household's filed papers live (read-only in the sandbox).
+         (setenv "MR_BANKS_DOCS" #$docs-root)
          (unless (getenv "GUIX_ENVIRONMENT")
            (setenv "GUIX_ENVIRONMENT" #$tool-profile))
          ;; The launcher symlinks skills into the config dir from this search path.
@@ -99,7 +105,7 @@ OPENROUTER-ENV-FILE — the same key Poppins reuses (/run/secrets/hermes-househo
          (apply execl #$(file-append banks-launcher "/bin/banks")
                 "banks" (cdr (command-line)))))))
 
-(define (banks-cli openrouter-env-file ledger-root household-file)
+(define (banks-cli openrouter-env-file ledger-root household-file docs-root)
   (package
     (name "banks-cli")
     (version "0")
@@ -111,7 +117,8 @@ OPENROUTER-ENV-FILE — the same key Poppins reuses (/run/secrets/hermes-househo
            #~(begin
                (use-modules (guix build utils))
                (mkdir-p (string-append #$output "/bin"))
-               (copy-file #$(banks-wrapper openrouter-env-file ledger-root household-file)
+               (copy-file #$(banks-wrapper openrouter-env-file ledger-root
+                                           household-file docs-root)
                           (string-append #$output "/bin/banks"))
                (chmod (string-append #$output "/bin/banks") #o755))))
     (synopsis "Mr. Banks launcher wrapper (injects OPENROUTER_API_KEY + MR_BANKS_LEDGER)")
@@ -130,9 +137,9 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
 ;; sandbox, which keeps the agent's own view of the ledger read-only.
 (define banks-bridge-profile
   (profile (content (packages->manifest
-                     (list banks-bridge banks-ingest mr-banks-label)))))
+                     (list banks-bridge banks-ingest mr-banks-label banks-file)))))
 
-(define (banks-bridge-start-script mm-fragment mm-origin ops-root ledger-root)
+(define (banks-bridge-start-script mm-fragment mm-origin ops-root ledger-root docs-root)
   (mixed-text-file "banks-bridge-start"
     "#!/bin/sh\nset -e\n"
     "FRAG=\"" mm-fragment "\"\n"
@@ -142,6 +149,7 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
     ;; Where the importers, rules and ledger live for the write path.
     "export MR_BANKS_OPS=\"" ops-root "\"\n"
     "export MR_BANKS_LEDGER_DIR=\"" ledger-root "\"\n"
+    "export MR_BANKS_DOCS=\"" docs-root "\"\n"
     ". " (file-append banks-bridge-profile "/etc/profile") "\n"
     ;; banks-ingest/mr-banks-label come from the profile sourced above; the
     ;; `banks' wrapper itself is in the home profile.
@@ -149,7 +157,7 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
     ":$HOME/.guix-home/profile/bin:$PATH\"\n"
     "exec " (file-append banks-bridge-profile "/bin/banks-bridge") "\n"))
 
-(define (banks-bridge-shepherd-service mm-fragment mm-origin ops-root ledger-root)
+(define (banks-bridge-shepherd-service mm-fragment mm-origin ops-root ledger-root docs-root)
   (list
    (shepherd-service
     (documentation "Mr. Banks Mattermost bridge (ms-banks bot -> banks -p)")
@@ -157,7 +165,7 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
     (start #~(make-forkexec-constructor
               (list #$(file-append bash-minimal "/bin/sh")
                     #$(banks-bridge-start-script mm-fragment mm-origin
-                                                 ops-root ledger-root))
+                                                 ops-root ledger-root docs-root))
               #:environment-variables
               (list (string-append "HOME=" (getenv "HOME"))
                     (string-append "PATH=" (getenv "HOME")
@@ -268,6 +276,7 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
                 (mm-fragment %mm-fragment)
                 (mm-origin "https://mattermost.drake-karat.ts.net")
                 (ops-root %default-ops-root)
+                (docs-root %default-docs-root)
                 (alert-username "rafael")
                 ;; 1st of the month, 09:00 — the month just ended is complete
                 ;; and the household is awake to read it.
@@ -279,11 +288,12 @@ statement job."
   (list
    (simple-service 'banks
                    home-profile-service-type
-                   (list pi (banks-cli openrouter-env-file ledger-root household-file)))
+                   (list pi (banks-cli openrouter-env-file ledger-root household-file
+                                       docs-root)))
    (simple-service 'banks-bridge
                    home-shepherd-service-type
                    (banks-bridge-shepherd-service mm-fragment mm-origin
-                                                  ops-root ledger-root))
+                                                  ops-root ledger-root docs-root))
    (simple-service 'banks-watchdog
                    home-shepherd-service-type
                    (banks-watchdog-shepherd-service mm-fragment ledger-root
