@@ -25,9 +25,9 @@
           ;; an inert `poppins' wrapper on PATH (no work data, ever).
           (poppins-home-service)
           ;; Mr. Banks — the household finance agent (DIRECT, Anthropic trusted
-          ;; tier).  Own `ms-banks' Mattermost bot; reads the beancount ledger at
+          ;; tier).  Own `mr-banks' Mattermost bot; reads the beancount ledger at
           ;; /var/lib/mr-banks/ledger READ-ONLY, never relayed through Poppins.
           ;; System prereqs (see banks.scm): sops anthropic/banks key, the ledger
-          ;; folder owner-segregated + read-only, and ms-banks provisioned with
-          ;; its token/channel in /var/lib/mattermost-provision/ms-banks.env.
+          ;; folder owner-segregated + read-only, and mr-banks provisioned with
+          ;; its token/channel in /var/lib/mattermost-provision/mr-banks.env.
           (banks-home-service))))

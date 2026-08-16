@@ -1136,11 +1136,11 @@ TMDB_API_KEY: \"\"\n" p)))
                   (list "hermes-ops"       "ops"       "Ops"       site-url "mr-robot"     "Mr. Robot")
                   ;; Mr. Banks — CHAT-SURFACE ONLY (no hermes container): reuses
                   ;; the channel/bot/token/env-fragment loop below.  tier-name
-                  ;; `ms-banks' -> /var/lib/mattermost-provision/ms-banks.env, the
+                  ;; `mr-banks' -> /var/lib/mattermost-provision/mr-banks.env, the
                   ;; fragment the rafael-home banks-bridge reads.  #finance is
                   ;; PRIVATE and parents-only (see family-users) — itemised money
                   ;; is the estate's most sensitive data.
-                  (list "ms-banks"         "finance"   "Finance"   loopback "ms-banks"     "Mr. Banks")))
+                  (list "mr-banks"         "finance"   "Finance"   loopback "mr-banks"     "Mr. Banks")))
                 ;; Human family accounts.  rafael = system-admin; the hidden
                 ;; `admin' stays the provisioning sysadmin.  #ops = rafael ONLY.
                 ;; Seed passwords from sops (/run/secrets/mattermost/userpw_*).

@@ -22,7 +22,7 @@
 ;;;
 ;;; Belongs on the family server (edison).  He runs the premium Claude model tier
 ;;; (via OpenRouter, like the rest of the fleet — the trust distinction is the
-;;; MODEL, not the provider) and talks to the family through his OWN `ms-banks'
+;;; MODEL, not the provider) and talks to the family through his OWN `mr-banks'
 ;;; bot — Poppins never relays his figures (arch-review B1).  The wrapper injects,
 ;;; at launch, the secrets the L1 container scrubs:
 ;;;   OPENROUTER_API_KEY <- OPENROUTER-ENV-FILE  (dotenv; reuses the household key
@@ -36,7 +36,7 @@
 ;;; Deploy prereqs (system side): the household dotenv sops-secret
 ;;; (hermes-household/env) already present for Poppins; the beancount ledger +
 ;;; household.md present at LEDGER-ROOT, owner-segregated + read-only
-;;; (arch-review B5); the `ms-banks' bot provisioned with its token/channel in
+;;; (arch-review B5); the `mr-banks' bot provisioned with its token/channel in
 ;;; MM-FRAGMENT.
 
 (define pi node-earendil-works-pi-coding-agent-0.78.1)
@@ -129,7 +129,7 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
 
 ;;; --- the Mattermost bridge (chat surface) ----------------------------------
 
-(define %mm-fragment "/var/lib/mattermost-provision/ms-banks.env")
+(define %mm-fragment "/var/lib/mattermost-provision/mr-banks.env")
 
 ;; The bridge profile carries the WRITE PATH too: banks-ingest (a statement
 ;; dropped in the channel) and mr-banks-label (a rule the household dictates in
@@ -150,6 +150,9 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
     "export MR_BANKS_OPS=\"" ops-root "\"\n"
     "export MR_BANKS_LEDGER_DIR=\"" ledger-root "\"\n"
     "export MR_BANKS_DOCS=\"" docs-root "\"\n"
+    ;; His face, shipped with the bridge and re-applied on every start — so a
+    ;; recreated bot (renaming one creates a new account) comes back with it.
+    "export BANKS_AVATAR=\"" (file-append banks-bridge "/share/mr-banks/avatar.png") "\"\n"
     ". " (file-append banks-bridge-profile "/etc/profile") "\n"
     ;; banks-ingest/mr-banks-label come from the profile sourced above; the
     ;; `banks' wrapper itself is in the home profile.
@@ -160,7 +163,7 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
 (define (banks-bridge-shepherd-service mm-fragment mm-origin ops-root ledger-root docs-root)
   (list
    (shepherd-service
-    (documentation "Mr. Banks Mattermost bridge (ms-banks bot -> banks -p)")
+    (documentation "Mr. Banks Mattermost bridge (mr-banks bot -> banks -p)")
     (provision '(banks-bridge))
     (start #~(make-forkexec-constructor
               (list #$(file-append bash-minimal "/bin/sh")
