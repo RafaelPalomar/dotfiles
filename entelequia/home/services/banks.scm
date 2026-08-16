@@ -8,9 +8,11 @@
   #:use-module (guix profiles)                             ; profile, packages->manifest
   #:use-module (mr-banks agent)                            ; make-banks(-launcher)
   #:use-module (mr-banks bridge)                           ; banks-bridge (Mattermost daemon)
+  #:use-module (mr-banks ops)                              ; banks-watchdog, banks-digest
   #:use-module (guix-agentic agents core)                  ; agent->package, agent->manifest-entries
   #:use-module (guix-openclaw packages node-openclaw-deps) ; pi
   #:use-module (gnu home services shepherd)                ; home-shepherd-service-type
+  #:use-module (gnu home services mcron)                   ; home-mcron-service-type
   #:use-module (gnu services shepherd)                     ; shepherd-service, forkexec
   #:use-module (gnu packages bash)                         ; bash-minimal (/bin/sh)
   #:export (banks-home-service))
@@ -147,20 +149,120 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
                               (string-append (getenv "HOME") "/.local/state"))
                           "/banks-bridge.log")))
     (stop #~(make-kill-destructor))
-    (respawn? #t))))
+    (respawn? #t)
+    ;; Survive the boot race with Mattermost.  The bridge exits non-zero while
+    ;; the MM fragment is missing or the server is not yet listening; with
+    ;; shepherd's stock limit (5 respawns in 5 s) that fast loop DISABLES the
+    ;; service, and Banks stays silently dead until a human notices (it did,
+    ;; for four days, after the 2026-08-12 reboot).  A 15 s delay stretches any
+    ;; loop far outside the window below, so the limit only ever catches a
+    ;; genuinely broken binary.
+    (respawn-delay 15)
+    (respawn-limit #~'(10 . 60)))))
+
+;;; --- liveness watch --------------------------------------------------------
+;;;
+;;; Banks answers when asked, so "dead" and "nobody asked this week" look the
+;;; same from the outside — the 2026-08-12 boot race went unnoticed for four
+;;; days on exactly that ambiguity.  The watchdog reads the bridge's heartbeat
+;;; file, restarts the service if it can, and DMs the finance owner (never
+;;; #finance: an ops alert there is noise to the rest of the household).
+
+(define banks-watchdog-profile
+  (profile (content (packages->manifest (list banks-watchdog)))))
+
+(define (banks-watchdog-start-script mm-fragment ledger-root alert-username)
+  (mixed-text-file "banks-watchdog-start"
+    "#!/bin/sh\nset -e\n"
+    "FRAG=\"" mm-fragment "\"\n"
+    "[ -f \"$FRAG\" ] || { echo 'banks-watchdog: waiting for MM fragment' >&2; sleep 10; exit 1; }\n"
+    "set -a\n. \"$FRAG\"\nset +a\n"
+    "export BANKS_LEDGER=\"" ledger-root "/main.beancount\"\n"
+    "export BANKS_ALERT_USERNAME=\"" alert-username "\"\n"
+    ". " (file-append banks-watchdog-profile "/etc/profile") "\n"
+    ;; `herd' (for self-healing) comes from the home profile, not this one.
+    "export PATH=\"$HOME/.guix-home/profile/bin:$PATH\"\n"
+    "exec " (file-append banks-watchdog-profile "/bin/banks-watchdog") "\n"))
+
+(define (banks-watchdog-shepherd-service mm-fragment ledger-root alert-username)
+  (list
+   (shepherd-service
+    (documentation "Liveness watch for banks-bridge (alerts the finance owner)")
+    (provision '(banks-watchdog))
+    (start #~(make-forkexec-constructor
+              (list #$(file-append bash-minimal "/bin/sh")
+                    #$(banks-watchdog-start-script mm-fragment ledger-root
+                                                   alert-username))
+              #:environment-variables
+              (list (string-append "HOME=" (getenv "HOME"))
+                    (string-append "PATH=" (getenv "HOME")
+                                   "/.guix-home/profile/bin:/run/current-system/profile/bin"))
+              #:log-file (string-append
+                          (or (getenv "XDG_STATE_HOME")
+                              (string-append (getenv "HOME") "/.local/state"))
+                          "/banks-watchdog.log")))
+    (stop #~(make-kill-destructor))
+    (respawn? #t)
+    (respawn-delay 15)
+    (respawn-limit #~'(10 . 60)))))
+
+;;; --- monthly statement -----------------------------------------------------
+;;;
+;;; Banks otherwise speaks only when spoken to, which makes him useful to
+;;; whoever remembers to ask.  Once a month he reports unprompted.  The agent
+;;; computes the figures with his own tools inside the sandbox; banks-digest is
+;;; scheduler + transport only.
+
+(define banks-digest-profile
+  (profile (content (packages->manifest (list banks-digest)))))
+
+(define (banks-digest-run-script mm-fragment)
+  (mixed-text-file "banks-digest-run"
+    "#!/bin/sh\nset -e\n"
+    "FRAG=\"" mm-fragment "\"\n"
+    "[ -f \"$FRAG\" ] || { echo 'banks-digest: no MM fragment; skipping' >&2; exit 0; }\n"
+    "set -a\n. \"$FRAG\"\nset +a\n"
+    ". " (file-append banks-digest-profile "/etc/profile") "\n"
+    ;; The `banks' wrapper (which injects the key + ledger paths) is in the
+    ;; home profile; the digest shells out to it.
+    "export PATH=\"$HOME/.guix-home/profile/bin:$PATH\"\n"
+    "exec " (file-append banks-digest-profile "/bin/banks-digest") " \"$@\"\n"))
+
+(define (banks-digest-mcron-job mm-fragment schedule)
+  (list
+   #~(job #$schedule
+          (lambda ()
+            (let ((log (string-append (getenv "HOME")
+                                      "/.local/state/banks-digest.log")))
+              (system (string-append #$(banks-digest-run-script mm-fragment)
+                                     " >> " log " 2>&1"))))
+          "banks-digest")))
 
 (define* (banks-home-service
           #:key (openrouter-env-file "/run/secrets/hermes-household/env")
                 (ledger-root %default-ledger-root)
                 (household-file %default-household-file)
                 (mm-fragment %mm-fragment)
-                (mm-origin "https://mattermost.drake-karat.ts.net"))
+                (mm-origin "https://mattermost.drake-karat.ts.net")
+                (alert-username "rafael")
+                ;; 1st of the month, 09:00 — the month just ended is complete
+                ;; and the household is awake to read it.
+                (digest-schedule "0 9 1 * *"))
   "Deploy `banks' (pi + the Mr. Banks wrapper) into the home profile, plus the
-Mattermost bridge daemon that exposes him on the family finance channel."
+Mattermost bridge daemon that exposes him on the family finance channel, a
+liveness watchdog that alerts ALERT-USERNAME when he goes quiet, and the monthly
+statement job."
   (list
    (simple-service 'banks
                    home-profile-service-type
                    (list pi (banks-cli openrouter-env-file ledger-root household-file)))
    (simple-service 'banks-bridge
                    home-shepherd-service-type
-                   (banks-bridge-shepherd-service mm-fragment mm-origin))))
+                   (banks-bridge-shepherd-service mm-fragment mm-origin))
+   (simple-service 'banks-watchdog
+                   home-shepherd-service-type
+                   (banks-watchdog-shepherd-service mm-fragment ledger-root
+                                                    alert-username))
+   (simple-service 'banks-digest
+                   home-mcron-service-type
+                   (banks-digest-mcron-job mm-fragment digest-schedule))))

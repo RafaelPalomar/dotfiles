@@ -52,7 +52,7 @@
        (name 'mr-banks)
        (url "https://github.com/RafaelPalomar/mr-banks")
        (branch "household-cooperation")
-       (commit "0332e454a1e7d77b5bc4954134c569df84e1f150"))
+       (commit "367c4e2d09a26d3fc45ce5ba56d0f99380d9d536"))
       (channel
        (name 'guix-codegraph)
        (url "https://github.com/OUH-MESHLab/guix-codegraph")

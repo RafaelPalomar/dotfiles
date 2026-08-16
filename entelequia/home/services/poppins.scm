@@ -179,7 +179,13 @@ then execs the poppins launcher.")
                               (string-append (getenv "HOME") "/.local/state"))
                           "/poppins-bridge.log")))
     (stop #~(make-kill-destructor))
-    (respawn? #t))))
+    (respawn? #t)
+    ;; Same boot race as banks-bridge: user shepherd starts before the
+    ;; Mattermost container listens, the bridge crash-loops, and shepherd's
+    ;; stock limit (5 respawns in 5 s) disables it for good.  Space the
+    ;; respawns out so only a truly broken bridge trips the limit.
+    (respawn-delay 15)
+    (respawn-limit #~'(10 . 60)))))
 
 (define* (poppins-home-service
           #:key (openrouter-env-file "/run/secrets/hermes-household/env")
