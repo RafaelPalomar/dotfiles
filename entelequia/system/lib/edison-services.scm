@@ -13,6 +13,8 @@
   #:use-module (gnu packages linux)
   #:use-module (gnu packages package-management)   ; the `guix' package
   #:use-module (guix-hermes packages hermes)       ; hermes-agent
+  #:use-module (mr-banks bridge)                   ; banks-bridge (ships Mr. Banks's avatar)
+  #:use-module (gnu packages curl)                 ; curl (bot avatars; mmctl cannot)
   #:use-module (entelequia system lib server-services)
   #:use-module (guix gexp)
   #:use-module (guix packages)              ; origin — pinned MM plugin tarball
@@ -1116,6 +1118,7 @@ TMDB_API_KEY: \"\"\n" p)))
          (setuid uid)
 
          (let* ((podman    #$(file-append podman "/bin/podman"))
+                (curl      #$(file-append curl "/bin/curl"))
                 (mmctl     "/mattermost/bin/mmctl")
                 (admin     #$%mattermost-admin-user)
                 (admin-pw-file "/run/secrets/mattermost/admin_password")
@@ -1363,6 +1366,85 @@ TMDB_API_KEY: \"\"\n" p)))
                               (string-append team ":" ch) uname))
                    chans)))
               family-users))
+
+           ;; ── (5c) bot avatars (idempotent; admin-authenticated) ─────────
+           ;; A bot may NOT set its own profile image — Mattermost answers 403
+           ;; `api.context.permissions.app_error', because that needs
+           ;; edit_other_users.  The bridge tried and was refused, so the upload
+           ;; belongs here instead: this is the one place that already holds the
+           ;; admin password, and putting it here keeps the face declarative.
+           ;; Set by hand in the System Console it would be invisible to the
+           ;; configuration and lost the next time a bot is recreated — which is
+           ;; exactly what renaming ms-banks to mr-banks did.
+           ;;
+           ;; mmctl has no command for this (no `user image', no `bot icon'), so
+           ;; it is a plain HTTP POST over loopback.
+           (let ((avatars (list (cons "mr-banks"
+                                      #$(file-append banks-bridge
+                                                     "/share/mr-banks/avatar.png")))))
+             ;; Read one header value out of a raw HTTP response, case-insensitively.
+             (define (header-value text key)
+               (let loop ((lines (string-split text #\newline)))
+                 (cond ((null? lines) #f)
+                       ((string-prefix? (string-append (string-downcase key) ":")
+                                        (string-downcase (string-trim-both (car lines))))
+                        (let ((l (string-trim-both (car lines))))
+                          (string-trim-both
+                           (substring l (+ 1 (string-length key))))))
+                       (else (loop (cdr lines))))))
+             ;; Log in as admin and return a session token, or #f.
+             ;; The credential goes in a 0600 file rather than on the argv:
+             ;; `curl -d {"password":...}' would put it in every ps listing on
+             ;; the box for the life of the request.
+             (define (admin-token)
+               (let* ((pwfile "/run/secrets/mattermost/admin_password")
+                      (body   (string-append provdir "/.login.json")))
+                 (and (file-exists? pwfile)
+                      (let ((pw (string-trim-both
+                                 (call-with-input-file pwfile get-string-all))))
+                        (call-with-output-file body
+                          (lambda (port)
+                            (format port "{\"login_id\":\"~a\",\"password\":\"~a\"}"
+                                    admin pw)))
+                        (chmod body #o600)
+                        (let* ((port (open-pipe* OPEN_READ curl "-s" "-D" "-"
+                                                 "-o" "/dev/null"
+                                                 "-H" "Content-Type: application/json"
+                                                 "-d" (string-append "@" body)
+                                                 (string-append loopback
+                                                                "/api/v4/users/login")))
+                               (out  (read-string port)))
+                          (close-pipe port)
+                          (delete-file body)
+                          (and (not (eof-object? out))
+                               (header-value out "token")))))))
+             (when (pair? avatars)
+               (let ((tok (admin-token)))
+                 (if (not tok)
+                     (format (current-error-port)
+                             "mattermost-provision: no admin token; leaving bot avatars alone~%")
+                     (for-each
+                      (lambda (av)
+                        (let* ((bot (car av))
+                               (img (cdr av))
+                               (uid (json-field
+                                     (mm-exec "--local" "--json" "user" "search" bot)
+                                     "id")))
+                          (if (not uid)
+                              (format (current-error-port)
+                                      "mattermost-provision: no such bot ~a; avatar skipped~%" bot)
+                              (let* ((port (open-pipe*
+                                            OPEN_READ curl "-s" "-o" "/dev/null"
+                                            "-w" "%{http_code}"
+                                            "-H" (string-append "Authorization: Bearer " tok)
+                                            "-F" (string-append "image=@" img)
+                                            (string-append loopback "/api/v4/users/"
+                                                           uid "/image")))
+                                     (code (strip-ws (read-string port))))
+                                (close-pipe port)
+                                (format #t "mattermost-provision: avatar ~a -> HTTP ~a~%"
+                                        bot code)))))
+                      avatars)))))
 
            ;; ── (6) tokens + per-tier env fragments (file-now handoff) ─────
            ;; admin user id (for MATTERMOST_ALLOWED_USERS; admin-only initially).

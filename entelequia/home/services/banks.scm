@@ -150,9 +150,6 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
     "export MR_BANKS_OPS=\"" ops-root "\"\n"
     "export MR_BANKS_LEDGER_DIR=\"" ledger-root "\"\n"
     "export MR_BANKS_DOCS=\"" docs-root "\"\n"
-    ;; His face, shipped with the bridge and re-applied on every start — so a
-    ;; recreated bot (renaming one creates a new account) comes back with it.
-    "export BANKS_AVATAR=\"" (file-append banks-bridge "/share/mr-banks/avatar.png") "\"\n"
     ". " (file-append banks-bridge-profile "/etc/profile") "\n"
     ;; banks-ingest/mr-banks-label come from the profile sourced above; the
     ;; `banks' wrapper itself is in the home profile.
