@@ -234,7 +234,12 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
           (lambda ()
             (let ((log (string-append (getenv "HOME")
                                       "/.local/state/banks-digest.log")))
-              (system (string-append #$(banks-digest-run-script mm-fragment)
+              ;; Through sh explicitly: `mixed-text-file' lands in the store
+              ;; read-only (0444), so executing the path directly is a
+              ;; Permission denied — which a monthly job would only reveal a
+              ;; month later.
+              (system (string-append #$(file-append bash-minimal "/bin/sh") " "
+                                     #$(banks-digest-run-script mm-fragment)
                                      " >> " log " 2>&1"))))
           "banks-digest")))
 
