@@ -9,6 +9,7 @@
   #:use-module (mr-banks agent)                            ; make-banks(-launcher)
   #:use-module (mr-banks bridge)                           ; banks-bridge (Mattermost daemon)
   #:use-module (mr-banks ops)                              ; banks-watchdog, banks-digest
+  #:use-module (mr-banks ingest)                           ; banks-ingest, mr-banks-label
   #:use-module (guix-agentic agents core)                  ; agent->package, agent->manifest-entries
   #:use-module (guix-openclaw packages node-openclaw-deps) ; pi
   #:use-module (gnu home services shepherd)                ; home-shepherd-service-type
@@ -42,6 +43,11 @@
 
 (define %default-ledger-root "/var/lib/mr-banks/ledger")
 (define %default-household-file "/var/lib/mr-banks/household.md")
+;;; The PRIVATE ops folder: importers, reviewed rules, and the recategorize
+;;; tool.  Placed out of band like the ledger (it encodes this household's bank
+;;; formats and merchant names, so it stays out of the public channel).  Only
+;;; the bridge reads it — the agent never sees it.
+(define %default-ops-root "/var/lib/mr-banks/ops")
 
 (define (banks-wrapper openrouter-env-file ledger-root household-file)
   "An executable `banks' that injects OPENROUTER_API_KEY + MR_BANKS_LEDGER +
@@ -118,28 +124,40 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
 
 (define %mm-fragment "/var/lib/mattermost-provision/ms-banks.env")
 
+;; The bridge profile carries the WRITE PATH too: banks-ingest (a statement
+;; dropped in the channel) and mr-banks-label (a rule the household dictates in
+;; chat).  Both run here, as the bridge's user — never inside the agent's
+;; sandbox, which keeps the agent's own view of the ledger read-only.
 (define banks-bridge-profile
-  (profile (content (packages->manifest (list banks-bridge)))))
+  (profile (content (packages->manifest
+                     (list banks-bridge banks-ingest mr-banks-label)))))
 
-(define (banks-bridge-start-script mm-fragment mm-origin)
+(define (banks-bridge-start-script mm-fragment mm-origin ops-root ledger-root)
   (mixed-text-file "banks-bridge-start"
     "#!/bin/sh\nset -e\n"
     "FRAG=\"" mm-fragment "\"\n"
     "[ -f \"$FRAG\" ] || { echo 'banks-bridge: waiting for MM fragment' >&2; sleep 10; exit 1; }\n"
     "set -a\n. \"$FRAG\"\nset +a\n"
     "export MATTERMOST_ORIGIN=\"" mm-origin "\"\n"
+    ;; Where the importers, rules and ledger live for the write path.
+    "export MR_BANKS_OPS=\"" ops-root "\"\n"
+    "export MR_BANKS_LEDGER_DIR=\"" ledger-root "\"\n"
     ". " (file-append banks-bridge-profile "/etc/profile") "\n"
-    "export PATH=\"$HOME/.guix-home/profile/bin:$PATH\"\n"
+    ;; banks-ingest/mr-banks-label come from the profile sourced above; the
+    ;; `banks' wrapper itself is in the home profile.
+    "export PATH=\"" (file-append banks-bridge-profile "/bin")
+    ":$HOME/.guix-home/profile/bin:$PATH\"\n"
     "exec " (file-append banks-bridge-profile "/bin/banks-bridge") "\n"))
 
-(define (banks-bridge-shepherd-service mm-fragment mm-origin)
+(define (banks-bridge-shepherd-service mm-fragment mm-origin ops-root ledger-root)
   (list
    (shepherd-service
     (documentation "Mr. Banks Mattermost bridge (ms-banks bot -> banks -p)")
     (provision '(banks-bridge))
     (start #~(make-forkexec-constructor
               (list #$(file-append bash-minimal "/bin/sh")
-                    #$(banks-bridge-start-script mm-fragment mm-origin))
+                    #$(banks-bridge-start-script mm-fragment mm-origin
+                                                 ops-root ledger-root))
               #:environment-variables
               (list (string-append "HOME=" (getenv "HOME"))
                     (string-append "PATH=" (getenv "HOME")
@@ -249,6 +267,7 @@ file) plus the ledger + household-roster paths, then execs the banks launcher.")
                 (household-file %default-household-file)
                 (mm-fragment %mm-fragment)
                 (mm-origin "https://mattermost.drake-karat.ts.net")
+                (ops-root %default-ops-root)
                 (alert-username "rafael")
                 ;; 1st of the month, 09:00 — the month just ended is complete
                 ;; and the household is awake to read it.
@@ -263,7 +282,8 @@ statement job."
                    (list pi (banks-cli openrouter-env-file ledger-root household-file)))
    (simple-service 'banks-bridge
                    home-shepherd-service-type
-                   (banks-bridge-shepherd-service mm-fragment mm-origin))
+                   (banks-bridge-shepherd-service mm-fragment mm-origin
+                                                  ops-root ledger-root))
    (simple-service 'banks-watchdog
                    home-shepherd-service-type
                    (banks-watchdog-shepherd-service mm-fragment ledger-root
