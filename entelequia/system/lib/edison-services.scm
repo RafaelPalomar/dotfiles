@@ -1175,7 +1175,7 @@ TMDB_API_KEY: \"\"\n" p)))
                 (shared-channels
                  (list
                   (list "family-meetings" "Family Meetings"
-                        (list "ms-poppins" "arquimedes")))))
+                        (list "ms-poppins" "arquimedes" "mr-banks")))))
 
            ;; ── small helpers ──────────────────────────────────────────────
            ;; Run podman exec mattermost mmctl ARGS...  Returns stdout (string).
@@ -1554,6 +1554,26 @@ TMDB_API_KEY: \"\"\n" p)))
                                                                  "--team" team (car sc))
                                                         "id")))
                                                 shared-channels)))
+                                 ","))
+                        ;; Every OTHER colony bot's user-id.  A bridge cannot
+                        ;; tell a peer agent from any other bot without this, and
+                        ;; the ids only exist once Mattermost has created the
+                        ;; accounts — so the provisioner is the only thing that
+                        ;; can supply them.  Empty until now, which is why the
+                        ;; `from_bot' guard was doing all the work and no agent
+                        ;; could address another at all.
+                        (format p "MATTERMOST_PEER_BOT_IDS=~a~%"
+                                (string-join
+                                 (filter (lambda (s) (and s (> (string-length s) 0)))
+                                         (map (lambda (other)
+                                                (json-field
+                                                 (mm-exec "--local" "--json"
+                                                          "user" "search"
+                                                          (list-ref other 4))
+                                                 "id"))
+                                              (filter (lambda (o)
+                                                        (not (string=? (list-ref o 4) bot)))
+                                                      tiers)))
                                  ","))
                         (format p "MATTERMOST_ALLOWED_USERS=~a~%"
                                 (string-join
