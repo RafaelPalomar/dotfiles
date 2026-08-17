@@ -47,7 +47,7 @@
        (name 'alpha-agent)
        (url "https://github.com/RafaelPalomar/alpha-agent")
        (branch "household-cooperation")
-       (commit "0bfd35a13aa25a9224afe0cca727ba4954f2e819"))
+       (commit "559e53bcb4303b74be0aff81f8616dafac7c48a3"))
       (channel
        (name 'mr-banks)
        (url "https://github.com/RafaelPalomar/mr-banks")
