@@ -1152,10 +1152,30 @@ TMDB_API_KEY: \"\"\n" p)))
                 ;; land in that fragment's MATTERMOST_ALLOWED_USERS); the boys are not.
                 (family-users
                  (list
-                  (list "rafael"  "rafael@palomar.no"  #t (list "learn" "household" "ops" "finance"))
-                  (list "maria"   "maria@palomar.no"   #f (list "learn" "household" "finance"))
+                  (list "rafael"  "rafael@palomar.no"  #t (list "learn" "household" "ops" "finance" "family-meetings"))
+                  (list "maria"   "maria@palomar.no"   #f (list "learn" "household" "finance" "family-meetings"))
                   (list "leandro" "leandro@palomar.no" #f (list "learn" "household"))
-                  (list "adrian"  "adrian@palomar.no"  #f (list "learn" "household")))))
+                  (list "adrian"  "adrian@palomar.no"  #f (list "learn" "household"))))
+                ;; Rooms that belong to no single tier — where the household and
+                ;; more than one agent are in the same conversation.  Until now
+                ;; every channel was owned by exactly one tier and every bot
+                ;; listened in exactly one channel, so an agent could not be
+                ;; called into a room another agent was already in.
+                ;;
+                ;; #family-meetings existed before this and was NOT declared
+                ;; anywhere: created by hand, membership known only to the
+                ;; server.  Bringing it in means the provisioner owns it —
+                ;; membership added here is re-applied on every run, and
+                ;; membership added in the web UI is not.
+                ;;
+                ;; PARENTS ONLY, deliberately: rafael + maria (above) and the
+                ;; bots below.  The boys are not members, which is what makes it
+                ;; safe to call an agent that talks about money into the room.
+                ;; (name display-name bots...)
+                (shared-channels
+                 (list
+                  (list "family-meetings" "Family Meetings"
+                        (list "ms-poppins" "arquimedes")))))
 
            ;; ── small helpers ──────────────────────────────────────────────
            ;; Run podman exec mattermost mmctl ARGS...  Returns stdout (string).
@@ -1278,7 +1298,17 @@ TMDB_API_KEY: \"\"\n" p)))
                     (mm-exec "--local" "channel" "create"
                              "--team" team "--name" ch
                              "--display-name" disp "--private"))))
-              tiers))
+              tiers)
+             (for-each
+              (lambda (sc)
+                (let ((ch (car sc)) (disp (cadr sc)))
+                  (unless (string-contains channels
+                                           (string-append "\"name\":\"" ch "\""))
+                    (format #t "mattermost-provision: creating private channel ~a~%" ch)
+                    (mm-exec "--local" "channel" "create"
+                             "--team" team "--name" ch
+                             "--display-name" disp "--private"))))
+              shared-channels))
 
            ;; ── (4) bots (NON-local; one authenticated login, idempotent) ──
            ;; bot create carries PreRun:disableLocalPrecheck → cannot run
@@ -1321,6 +1351,15 @@ TMDB_API_KEY: \"\"\n" p)))
                 (mm-exec "--local" "channel" "users" "add"
                          (string-append team ":" ch) bot)))
             tiers)
+           (for-each
+            (lambda (sc)
+              (for-each
+               (lambda (bot)
+                 (mm-exec "--local" "team" "users" "add" team bot)
+                 (mm-exec "--local" "channel" "users" "add"
+                          (string-append team ":" (car sc)) bot))
+               (caddr sc)))
+            shared-channels)
 
            ;; ── (5b) human family accounts (idempotent) ────────────────────
            ;; rafael = system-admin (administers from his own name); maria + the
@@ -1497,7 +1536,25 @@ TMDB_API_KEY: \"\"\n" p)))
                       (lambda (p)
                         (format p "MATTERMOST_URL=~a~%" tier-url)
                         (format p "MATTERMOST_TOKEN=~a~%" tok)
-                        (format p "MATTERMOST_ALLOWED_CHANNELS=~a~%" (or ch-id ""))
+                        ;; The tier's own channel, plus every shared room this
+                        ;; bot was listed in.  hermes treats this as a strict
+                        ;; whitelist and ignores a channel that is missing from
+                        ;; it EVEN WHEN @-mentioned there, so being a member is
+                        ;; not enough on its own — the id has to be here too.
+                        (format p "MATTERMOST_ALLOWED_CHANNELS=~a~%"
+                                (string-join
+                                 (filter (lambda (s) (and s (> (string-length s) 0)))
+                                         (cons ch-id
+                                               (filter-map
+                                                (lambda (sc)
+                                                  (and (member bot (caddr sc))
+                                                       (json-field
+                                                        (mm-exec "--local" "--json"
+                                                                 "channel" "search"
+                                                                 "--team" team (car sc))
+                                                        "id")))
+                                                shared-channels)))
+                                 ","))
                         (format p "MATTERMOST_ALLOWED_USERS=~a~%"
                                 (string-join
                                  (filter (lambda (s) (and s (> (string-length s) 0)))
