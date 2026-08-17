@@ -11,6 +11,7 @@
   #:use-module (alpha-agent poppins-bridge)                ; poppins-bridge (Mattermost daemon)
   #:use-module (guix-openclaw packages node-openclaw-deps) ; pi
   #:use-module (gnu home services shepherd)                ; home-shepherd-service-type
+  #:use-module (gnu home services)                         ; home-activation-service-type
   #:use-module (gnu services shepherd)                     ; shepherd-service, forkexec
   #:use-module (gnu packages bash)                         ; bash-minimal (/bin/sh)
   #:export (poppins-home-service))
@@ -205,4 +206,27 @@ the Mattermost bridge daemon that exposes her on the family `#household' channel
                                          nc-user nc-calendar nc-url)))
    (simple-service 'poppins-bridge
                    home-shepherd-service-type
-                   (poppins-bridge-shepherd-service mm-fragment mm-origin))))
+                   (poppins-bridge-shepherd-service mm-fragment mm-origin))
+   ;; The consult capability SHARES this directory into her sandbox, and a guix
+   ;; `--share' of a path that does not exist aborts the whole invocation:
+   ;;
+   ;;   could not mount partition '.../consult-dispatch': No such file or
+   ;;   directory  ->  poppins gave no stdout
+   ;;
+   ;; Which the bridge can only report as "Sorry — I couldn't come up with a
+   ;; reply just now".  So EVERY message she was sent failed, in a way that read
+   ;; like the model declining rather than the sandbox never starting — and the
+   ;; consolidation inside !clear failed silently the same way while still
+   ;; posting its cheerful "tucked away anything worth keeping".
+   ;;
+   ;; The broker that would otherwise create it runs beside the children's
+   ;; Archimedes, which is not deployed on this host, so nothing here made the
+   ;; directory.  Create it at activation: empty is fine, absent is fatal.
+   (simple-service 'poppins-consult-dispatch
+                   home-activation-service-type
+                   #~(begin
+                       (use-modules (guix build utils))
+                       (let ((dir (string-append (getenv "HOME")
+                                                 "/.local/share/consult-dispatch")))
+                         (mkdir-p dir)
+                         (chmod dir #o700))))))
