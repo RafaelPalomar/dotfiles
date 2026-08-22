@@ -69,6 +69,38 @@
           (start #~(make-forkexec-constructor (list #$tlp-sleep-watcher)))
           (stop #~(make-kill-destructor))))))
 
+;;; AMD adaptive backlight (ABM) off
+;;;
+;;; tlp's own defaults.conf ships AMDGPU_ABM_LEVEL_ON_BAT=1, so on any
+;;; amdgpu laptop the panel silently drops to content-adaptive dimming
+;;; the moment it leaves AC.  The backlight sysfs `brightness' still
+;;; reads max while `actual_brightness' sits ~10% lower, which is both
+;;; a visibly darker screen and a brightness indicator (polybar's
+;;; internal/backlight reads actual_brightness) that can never reach
+;;; 100%.
+;;;
+;;; Guix's `tlp-configuration' record predates TLP 1.3 and has no
+;;; AMDGPU_* field, so this cannot be expressed there.  TLP 1.9 merges
+;;; defaults.conf -> /etc/tlp.d/*.conf -> /etc/tlp.conf (see
+;;; share/tlp/tlp-readconfs), and nothing else claims /etc/tlp.d, so a
+;;; drop-in overrides the vendor default and survives every AC/battery
+;;; transition and resume -- unlike a one-shot write to sysfs, which
+;;; TLP would clobber on the next unplug.
+(define tlp-amdgpu-abm-service
+  (simple-service
+   'tlp-amdgpu-abm etc-service-type
+   (list `("tlp.d"
+           ,(file-union "tlp.d"
+                        `(("10-amdgpu-abm.conf"
+                           ,(plain-file "10-amdgpu-abm.conf"
+                                        "# Managed by entelequia (system/layers/base.scm).
+# Disable AMD Adaptive Backlight Management on both AC and battery:
+# full panel brightness, and actual_brightness tracks brightness so
+# the polybar indicator can reach 100%.
+AMDGPU_ABM_LEVEL_ON_AC=0
+AMDGPU_ABM_LEVEL_ON_BAT=0
+"))))))))
+
 ;;; Parameterized base operating system
 ;;;
 ;;; This function creates a base operating system configuration
@@ -331,7 +363,9 @@
                                       (cpu-energy-perf-policy-on-ac "performance")
                                       (cpu-energy-perf-policy-on-bat "power"))))
                         ;; Re-apply TLP on resume (see tlp-sleep-watcher above).
-                        tlp-sleep-resync-service)
+                        tlp-sleep-resync-service
+                        ;; Keep the panel at full brightness (see above).
+                        tlp-amdgpu-abm-service)
                   '())))
 
    ;; Allow resolution of '.local' host names with mDNS

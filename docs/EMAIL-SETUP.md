@@ -73,6 +73,51 @@ mu4e-get-mail-command  "guix shell -L ~/.dotfiles cyrus-sasl-xoauth2 -- mbsync -
 mu4e-get-mail-command  "mbsync -a"
 ```
 
+## Adding a Machine You Already Have Working Elsewhere
+
+**If mail already works on one of your machines, skip the whole bootstrap
+below.** The Azure app registration and the browser authorize flow only
+have to happen once per account, ever — the resulting OAuth2 *refresh
+tokens* live in `~/.password-store/email/{ntnu.no,uio.no}.gpg`, and
+copying those to the new box is enough.
+
+```bash
+# from the machine where mail already works
+./scripts/clone-mail-state.sh <target-host>            # full clone
+./scripts/clone-mail-state.sh <target-host> --dry-run  # inspect first
+```
+
+`clone-mail-state.sh` carries the four things `guix home reconfigure`
+cannot, because they are mutable state rather than declared config:
+
+| State | Why it cannot be declared |
+|---|---|
+| `~/.gnupg` secret subkeys | the key everything else is encrypted to |
+| `~/.password-store` | holds the live OAuth2 refresh tokens |
+| `~/.local/share/mail` | the maildir + mbsync sync state |
+| notmuch tags | carried by `notmuch dump`/`restore`, not by copying Xapian |
+
+Everything else — `isync`, `msmtp`, `notmuch`, `mu`, `mutt_oauth2`,
+`~/.mbsyncrc`, `~/.notmuch-config{,-agent}`, `~/.msmtprc` and the
+`sync-mail` / `notmuch-agent` / `mail-*` helpers — already ships to any
+machine tagged `home-role 'work` (see
+`entelequia/home/profiles/role.scm`). The script verifies that is in place
+before it copies anything, and finishes by running
+`mutt_oauth2.py --test` against both accounts so you know the tokens
+survived the trip.
+
+`~/.local/share/mail-agent/` is deliberately *not* copied: it is a derived
+symlink tree, rebuilt on the target by `sync-mail-agent-index` so the
+folder allowlist is re-applied there rather than inherited.
+
+The script moves a GPG secret key and live credentials, so it is a
+human-run tool — Claude Code cannot execute it (`~/.password-store` and
+`~/.local/share/mail` are on its deny-list). Run it from the source
+machine over a trusted link.
+
+Use the bootstrap below **only** for an account that has never been
+authorized on any machine.
+
 ## Bootstrap Process
 
 ### Step 1: Fix Configuration Issues

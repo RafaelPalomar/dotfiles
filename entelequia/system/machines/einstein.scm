@@ -78,10 +78,15 @@
                                   #:firewall-extra-tcp-ports '(24800)
                                   ;; Root deploy key (fleet 0xA08C8C2F) so `guix deploy'
                                   ;; can reconfigure einstein over ssh, matching
-                                  ;; edison/lovelace.  rafael's login keys are untouched.
+                                  ;; edison/lovelace.  rafael's login key (0x0C101DDF)
+                                  ;; is the interactive identity ~/.ssh/config already
+                                  ;; points IdentityFile at -- kept distinct from the
+                                  ;; deploy key so the two roles stay separable.
                                   #:ssh-authorized-keys
-                                  `(("root" ,(plain-file "einstein-deploy.pub"
-                                                         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINjd0lrTPhG75R5jWBCrtN7xX4u7D12527agB+Jolx9f openpgp:0xA08C8C2F")))))
+                                  `(("root"   ,(plain-file "einstein-deploy.pub"
+                                                           "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINjd0lrTPhG75R5jWBCrtN7xX4u7D12527agB+Jolx9f openpgp:0xA08C8C2F"))
+                                    ("rafael" ,(plain-file "einstein-rafael.pub"
+                                                           "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJWpB4jdPc/vKvC6x9Vhy3XcfWvjCRY0nzUzIpzZfA8e openpgp:0x0C101DDF")))))
 
    ;; Additional kernel modules for VMD
    (initrd-modules (append '("vmd") %base-initrd-modules))
