@@ -1052,6 +1052,19 @@ TMDB_API_KEY: \"\"\n" p)))
           ;; ── Plugins: keep the plugin system on and allow uploads so the
           ;; provisioner's `mmctl plugin add' (voice plugin, step 7) succeeds.
           ;; Closed family server, admin-only → upload surface is acceptable.
+          ;; Integrations may call LOOPBACK inside this netns.  Mattermost
+          ;; refuses reserved-range addresses by default, which is why
+          ;; /wipe-mine returned a 500 with "address forbidden ... IP 127.0.0.1
+          ;; is in a reserved range" and its handler never saw a request.
+          ;;
+          ;; This is a global allowlist, and loopback here also holds postgres
+          ;; and the UNAUTHENTICATED nextcloud-mcp on :8000 -- so it only
+          ;; widens what an integration can reach.  Checked before setting it:
+          ;; manage_slash_commands and manage_outgoing_webhooks are on NONE of
+          ;; system_user, team_user or team_admin, so creating an integration
+          ;; needs system_admin -- who can already reach everything anyway.
+          ;; If integration rights are ever granted more widely, revisit this.
+          "MM_SERVICESETTINGS_ALLOWEDUNTRUSTEDINTERNALCONNECTIONS=127.0.0.1"
           "MM_PLUGINSETTINGS_ENABLE=true"
           "MM_PLUGINSETTINGS_ENABLEUPLOADS=true"
           "TZ=Europe/Oslo")
