@@ -47,12 +47,12 @@
        (name 'alpha-agent)
        (url "https://github.com/RafaelPalomar/alpha-agent")
        (branch "household-cooperation")
-       (commit "60542111ef4513864b61e1c2519eedd642823372"))
+       (commit "27d8546f1302bcceb3950856928c9e331dc22516"))
       (channel
        (name 'mr-banks)
        (url "https://github.com/RafaelPalomar/mr-banks")
        (branch "household-cooperation")
-       (commit "0f1257069a3de395228dcd263a3e9babd18132fa"))
+       (commit "0abb03141caf1bbbf525478980e4b120f8841dc4"))
       (channel
        (name 'guix-codegraph)
        (url "https://github.com/OUH-MESHLab/guix-codegraph")

@@ -1624,6 +1624,20 @@ TMDB_API_KEY: \"\"\n" p)))
                                                         "id")))
                                                 shared-channels)))
                                  ","))
+                        ;; The room to carry a question INTO when it belongs to
+                        ;; another agent.  Ms. Poppins correctly declines money
+                        ;; questions and hands them to Mr. Banks -- but an
+                        ;; @-mention in a 1:1 DM reaches nobody, because he is
+                        ;; not a member of a conversation between two other
+                        ;; people.  This is the one room where every agent and
+                        ;; every adult is already a member, so a handoff there
+                        ;; is actually heard.
+                        (format p "MATTERMOST_HANDOFF_CHANNEL=~a~%"
+                                (or (json-field
+                                     (mm-exec "--local" "--json" "channel" "search"
+                                              "--team" team "family-meetings")
+                                     "id")
+                                    ""))
                         ;; Every OTHER colony bot's user-id.  A bridge cannot
                         ;; tell a peer agent from any other bot without this, and
                         ;; the ids only exist once Mattermost has created the
