@@ -796,6 +796,28 @@ TMDB_API_KEY: \"\"\n" p)))
   (string-append "ghcr.io/cbcoutinho/nextcloud-mcp-server@sha256:"
                  "f4e55285d36ef4357181a9232b801a72dbee38a14e939d5359119d4d90c0195b"))  ; 0.93.0 (amd64)
 
+;; /wipe-mine slash-command handler — lets a PERSON bulk-remove their own posts
+;; from one conversation.  Mattermost has no bulk delete in its UI, and each
+;; bot's `!wipe' can only remove that bot's own side; removing the family's own
+;; messages needs `delete_others_posts', which is system-admin-only and cannot
+;; be narrowed (`mmctl permissions add' is Enterprise).  So the authority sits
+;; behind a slash command a human types, never in an agent's sandbox.
+;;
+;; Runs in the ts-mattermost netns bound to LOOPBACK, which is the whole point:
+;; a service on the HOST's 127.0.0.1 is not reachable from the Mattermost
+;; container (host->container works via the published :8065; container->host
+;; loopback does not), and binding the host's tailnet address would expose an
+;; admin-capable endpoint to every device on the tailnet.  In the netns the
+;; port exists for Mattermost and for nothing else.
+;;
+;; Stock python, script mounted from the store.  Re-resolve on bump:
+;; skopeo inspect docker://docker.io/library/python:<tag>-alpine.
+(define %python-alpine-image
+  (string-append "docker.io/library/python@sha256:"
+                 "540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d"))  ; 3.13-alpine
+
+(define %mm-wipe-mine-script (local-file "mm-wipe-mine.py"))
+
 ;;;
 ;;; Jellyfin — media server with NVIDIA hardware transcoding
 ;;;
@@ -1588,6 +1610,46 @@ TMDB_API_KEY: \"\"\n" p)))
                     (chmod envfile #o600))))
               tiers))
 
+           ;; ── (6b) /wipe-mine slash command (idempotent) ─────────────────
+           ;; Registers the command and persists ITS token where the handler
+           ;; sidecar can read it.  Mattermost mints the token on create, so
+           ;; the file is generate-if-absent: re-creating the command would
+           ;; issue a new token and the handler would start refusing the old
+           ;; one.  The handler is what enforces scope -- it accepts no target
+           ;; arguments, so the command can only ever act on the caller's own
+           ;; posts in the channel they typed it in.
+           (let* ((tokfile (string-append provdir "/wipe-mine.token"))
+                  (cmds    (strip-ws (mm-exec "--local" "--json" "command" "list" team))))
+             (if (string-contains cmds "\"trigger\":\"wipe-mine\"")
+                 (format #t "mattermost-provision: /wipe-mine already registered~%")
+                 (let* ((out (mm-exec "--local" "--json" "command" "create" team
+                                      "--title" "Delete my messages here"
+                                      "--description"
+                                      "Remove your own posts from this conversation"
+                                      "--trigger-word" "wipe-mine"
+                                      "--url" "http://127.0.0.1:8099/"
+                                      "--creator" admin
+                                      "--post"
+                                      "--autocomplete"
+                                      "--autocompleteDesc"
+                                      "Remove your own posts from this conversation"))
+                        (tok (json-field out "token")))
+                   (if tok
+                       (begin
+                         (format #t "mattermost-provision: registered /wipe-mine~%")
+                         (call-with-output-file tokfile
+                           (lambda (pt) (display tok pt)))
+                         (chmod tokfile #o644))
+                       (format (current-error-port)
+                               "mattermost-provision: WARN /wipe-mine create returned no token; handler will refuse requests~%")))))
+           ;; The sidecar bind-mounts this path, and podman would silently
+           ;; create a DIRECTORY there if it were missing -- after which the
+           ;; handler could never read a token again.  Guarantee a file.
+           (let ((tokfile (string-append provdir "/wipe-mine.token")))
+             (unless (file-exists? tokfile)
+               (call-with-output-file tokfile (lambda (pt) #t))
+               (chmod tokfile #o644)))
+
            ;; ── (7) voice-message plugin (idempotent) ──────────────────────
            ;; Pinned tarball -> podman cp into the container -> mmctl add+enable.
            ;; Gives the in-box mic / `/voice'; the resulting audio attachments are
@@ -2129,7 +2191,38 @@ mattermost:
     #:extra-arguments (list "--env-file" "/run/secrets/nextcloud-mcp/env")
     #:entrypoint "/app/.venv/bin/nextcloud-mcp-server"
     #:command (list "run" "--host" "127.0.0.1" "--port" "8000"
-                    "--transport" "streamable-http"))))
+                    "--transport" "streamable-http"))
+
+   ;; ── mm-wipe-mine — the /wipe-mine slash-command handler ─────────────────
+   ;; Same netns as Mattermost, bound to loopback THERE, so the endpoint is
+   ;; reachable by the Mattermost server and by nothing else on this machine or
+   ;; the tailnet.  It holds no admin token at rest: it trades the provisioner's
+   ;; admin_password for a session token at startup, in memory.
+   ;;
+   ;; It accepts no target arguments -- user and channel both come from
+   ;; Mattermost's signed payload -- so it can only ever delete the posts of
+   ;; whoever typed the command, in the channel they typed it in.
+   (make-app-container
+    "mm-wipe-mine" %python-alpine-image
+    #:share-ts-netns? #t
+    #:ts-name "mattermost"
+    #:environment (list "MM_URL=http://127.0.0.1:8065"
+                        (string-append "MM_ADMIN_USER=" %mattermost-admin-user)
+                        "WIPE_BIND=127.0.0.1"
+                        "WIPE_PORT=8099")
+    ;; mattermost-provision writes wipe-mine.token; without the requirement
+    ;; podman would find no file at that path and helpfully create a DIRECTORY
+    ;; there, after which the handler refuses every request forever.
+    #:requirement '(mattermost-provision)
+    #:volumes
+    (list #~(string-append #$%mm-wipe-mine-script ":/app/mm-wipe-mine.py:ro")
+          ;; admin_password: traded for a session token at startup, in memory.
+          "/run/secrets/mattermost/admin_password:/run/secrets/mattermost/admin_password:ro"
+          ;; ONLY the one token file, never the provisioner directory: that
+          ;; directory also holds every bot's access token.
+          "/var/lib/mattermost-provision/wipe-mine.token:/var/lib/mattermost-provision/wipe-mine.token:ro")
+    #:entrypoint "/usr/local/bin/python3"
+    #:command (list "/app/mm-wipe-mine.py"))))
 
 ;;;
 ;;; hermes-ops — Hermes Agent gateway inside a guix container
