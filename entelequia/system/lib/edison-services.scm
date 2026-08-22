@@ -961,6 +961,10 @@ TMDB_API_KEY: \"\"\n" p)))
   ;; serve); the LAN :8065 path is removed, so there is no second URL.
   "https://mattermost.drake-karat.ts.net")
 
+;; Referenced by %mattermost-containers below (mm-wipe-mine's
+;; MM_ADMIN_USER), so it has to be defined before that list.
+(define %mattermost-admin-user  "admin")
+
 (define %mattermost-containers
   (list
    ;; Sidecar owns the shared pasta netns and terminates tailnet TLS.
@@ -1062,7 +1066,38 @@ TMDB_API_KEY: \"\"\n" p)))
                             "--user" "0")
     ;; Distroless: ENTRYPOINT=[], CMD=[/mattermost/bin/mattermost]; the bare
     ;; binary prints help, so pass the `server' subcommand explicitly.
-    #:command (list "/mattermost/bin/mattermost" "server"))))
+    #:command (list "/mattermost/bin/mattermost" "server"))
+
+   ;; ── mm-wipe-mine — the /wipe-mine slash-command handler ─────────────────
+   ;; Same netns as Mattermost, bound to loopback THERE, so the endpoint is
+   ;; reachable by the Mattermost server and by nothing else on this machine or
+   ;; the tailnet.  It holds no admin token at rest: it trades the provisioner's
+   ;; admin_password for a session token at startup, in memory.
+   ;;
+   ;; It accepts no target arguments -- user and channel both come from
+   ;; Mattermost's signed payload -- so it can only ever delete the posts of
+   ;; whoever typed the command, in the channel they typed it in.
+   (make-app-container
+    "mm-wipe-mine" %python-alpine-image
+    #:share-ts-netns? #t
+    #:ts-name "mattermost"
+    #:environment (list "MM_URL=http://127.0.0.1:8065"
+                        (string-append "MM_ADMIN_USER=" %mattermost-admin-user)
+                        "WIPE_BIND=127.0.0.1"
+                        "WIPE_PORT=8099")
+    ;; mattermost-provision writes wipe-mine.token; without the requirement
+    ;; podman would find no file at that path and helpfully create a DIRECTORY
+    ;; there, after which the handler refuses every request forever.
+    #:requirement '(mattermost-provision)
+    #:volumes
+    (list #~(string-append #$%mm-wipe-mine-script ":/app/mm-wipe-mine.py:ro")
+          ;; admin_password: traded for a session token at startup, in memory.
+          "/run/secrets/mattermost/admin_password:/run/secrets/mattermost/admin_password:ro"
+          ;; ONLY the one token file, never the provisioner directory: that
+          ;; directory also holds every bot's access token.
+          "/var/lib/mattermost-provision/wipe-mine.token:/var/lib/mattermost-provision/wipe-mine.token:ro")
+    #:entrypoint "/usr/local/bin/python3"
+    #:command (list "/app/mm-wipe-mine.py"))))
 
 ;;;
 ;;; mattermost-provision — idempotent one-shot bootstrap of the MM stack
@@ -1116,7 +1151,6 @@ TMDB_API_KEY: \"\"\n" p)))
     (sha256
      (base32 "1hm0fjz2w8i4idjgv1mx4f45pz5d3k8ch74d9ir8kn1n2k9y4ihx"))))
 
-(define %mattermost-admin-user  "admin")
 (define %mattermost-admin-email "admin@palomar.no")  ; hidden sysadmin; rafael@ freed for the human rafael user
 
 (define %mattermost-provision-script
@@ -2191,38 +2225,7 @@ mattermost:
     #:extra-arguments (list "--env-file" "/run/secrets/nextcloud-mcp/env")
     #:entrypoint "/app/.venv/bin/nextcloud-mcp-server"
     #:command (list "run" "--host" "127.0.0.1" "--port" "8000"
-                    "--transport" "streamable-http"))
-
-   ;; ── mm-wipe-mine — the /wipe-mine slash-command handler ─────────────────
-   ;; Same netns as Mattermost, bound to loopback THERE, so the endpoint is
-   ;; reachable by the Mattermost server and by nothing else on this machine or
-   ;; the tailnet.  It holds no admin token at rest: it trades the provisioner's
-   ;; admin_password for a session token at startup, in memory.
-   ;;
-   ;; It accepts no target arguments -- user and channel both come from
-   ;; Mattermost's signed payload -- so it can only ever delete the posts of
-   ;; whoever typed the command, in the channel they typed it in.
-   (make-app-container
-    "mm-wipe-mine" %python-alpine-image
-    #:share-ts-netns? #t
-    #:ts-name "mattermost"
-    #:environment (list "MM_URL=http://127.0.0.1:8065"
-                        (string-append "MM_ADMIN_USER=" %mattermost-admin-user)
-                        "WIPE_BIND=127.0.0.1"
-                        "WIPE_PORT=8099")
-    ;; mattermost-provision writes wipe-mine.token; without the requirement
-    ;; podman would find no file at that path and helpfully create a DIRECTORY
-    ;; there, after which the handler refuses every request forever.
-    #:requirement '(mattermost-provision)
-    #:volumes
-    (list #~(string-append #$%mm-wipe-mine-script ":/app/mm-wipe-mine.py:ro")
-          ;; admin_password: traded for a session token at startup, in memory.
-          "/run/secrets/mattermost/admin_password:/run/secrets/mattermost/admin_password:ro"
-          ;; ONLY the one token file, never the provisioner directory: that
-          ;; directory also holds every bot's access token.
-          "/var/lib/mattermost-provision/wipe-mine.token:/var/lib/mattermost-provision/wipe-mine.token:ro")
-    #:entrypoint "/usr/local/bin/python3"
-    #:command (list "/app/mm-wipe-mine.py"))))
+                    "--transport" "streamable-http"))))
 
 ;;;
 ;;; hermes-ops — Hermes Agent gateway inside a guix container
