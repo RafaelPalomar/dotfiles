@@ -37,7 +37,7 @@
        (name 'guix-agentic)
        (url "https://github.com/OUH-MESHLab/guix-agentic")
        (branch "household-cooperation")
-       (commit "0ba4f90592d65593bc07c5345095003fbe11d154"))
+       (commit "145a2cb777ceb5cfd854c286d8aeb4b29a9e2757"))
       (channel
        (name 'archimedes-agent)
        (url "https://github.com/RafaelPalomar/archimedes-agent")
@@ -52,7 +52,7 @@
        (name 'mr-banks)
        (url "https://github.com/RafaelPalomar/mr-banks")
        (branch "household-cooperation")
-       (commit "a0ec8abf643b68eb96fc816563ca30539bcfb2af"))
+       (commit "0ae60e50a50f19d00958ae46451f372aba313b02"))
       (channel
        (name 'guix-codegraph)
        (url "https://github.com/OUH-MESHLab/guix-codegraph")
