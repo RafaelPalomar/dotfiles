@@ -1632,6 +1632,15 @@ TMDB_API_KEY: \"\"\n" p)))
                         ;; people.  This is the one room where every agent and
                         ;; every adult is already a member, so a handoff there
                         ;; is actually heard.
+                        ;; The PUBLIC url + team name, purely so a bridge can
+                        ;; build a clickable permalink.  MATTERMOST_URL is
+                        ;; http://127.0.0.1:8065 -- correct for API calls from
+                        ;; the host, useless in a message a person is meant to
+                        ;; click.  A handoff that lands in a thread is invisible
+                        ;; from the channel, so "I asked him, here" needs a real
+                        ;; link or nobody finds the answer.
+                        (format p "MATTERMOST_SITE_URL=~a~%" site-url)
+                        (format p "MATTERMOST_TEAM=~a~%" team)
                         (format p "MATTERMOST_HANDOFF_CHANNEL=~a~%"
                                 (or (json-field
                                      (mm-exec "--local" "--json" "channel" "search"
